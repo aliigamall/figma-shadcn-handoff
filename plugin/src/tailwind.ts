@@ -41,8 +41,10 @@ function resolveColorClass(
       const v = variables[entry.id];
       const col = v && collections[v.variableCollectionId];
       if (v && col) {
+        // --primary → bg-primary, --color-red-500 → bg-color-red-500
         const cssVar = toCssVarName(col.name, v.name);
-        return `${prefix}-[var(${cssVar})]`;
+        const tokenName = cssVar.replace(/^--/, "");
+        return `${prefix}-${tokenName}`;
       }
     }
   }
@@ -61,11 +63,21 @@ function resolveColorClass(
   return null;
 }
 
-export function getTailwindClasses(
+// Maps drop shadow blur radius to Tailwind shadow scale
+function shadowFromBlur(blur: number): string {
+  if (blur <= 2) return "shadow-sm";
+  if (blur <= 6) return "shadow";
+  if (blur <= 12) return "shadow-md";
+  if (blur <= 20) return "shadow-lg";
+  if (blur <= 32) return "shadow-xl";
+  return "shadow-2xl";
+}
+
+export async function getTailwindClasses(
   node: SceneNode,
   variables: Record<string, FigmaVariable>,
   collections: Record<string, FigmaVariableCollection>
-): string {
+): Promise<string> {
   const cls: string[] = [];
 
   // ── Text node ────────────────────────────────────────────────────────────
@@ -124,11 +136,42 @@ export function getTailwindClasses(
         const v = variables[boundRadius.id];
         const col = v && collections[v.variableCollectionId];
         if (v && col) {
-          const cssVar = toCssVarName(col.name, v.name);
-          cls.push(`rounded-[var(${cssVar})]`);
+          // Use the variable name directly: "rounded-sm" → "rounded-sm", "radius" → "rounded"
+          const varName = v.name.split("/").pop()!.toLowerCase().trim();
+          cls.push(varName === "radius" ? "rounded" : varName);
         }
       } else {
         cls.push(radiusClass(radius));
+      }
+    }
+  }
+
+  // Shadows
+  if ("effects" in node) {
+    const effects = (node as any).effects as Effect[];
+    const dropShadows = effects.filter(
+      (e) => e.type === "DROP_SHADOW" && e.visible !== false
+    ) as DropShadowEffect[];
+    const innerShadows = effects.filter(
+      (e) => e.type === "INNER_SHADOW" && e.visible !== false
+    );
+
+    if (innerShadows.length > 0) {
+      cls.push("shadow-inner");
+    } else if (dropShadows.length > 0) {
+      // Try to resolve from effect style name first
+      const effectStyleId = (node as any).effectStyleId as string | undefined;
+      if (effectStyleId) {
+        const style = await figma.getStyleByIdAsync(effectStyleId);
+        if (style) {
+          // "shadows/md" → "md", "Drop shadow" → "shadow"
+          const name = style.name.split("/").pop()!.toLowerCase().trim().replace(/\s+/g, "-");
+          cls.push(name === "drop-shadow" || name === "default" ? "shadow" : `shadow-${name}`);
+        } else {
+          cls.push(shadowFromBlur(dropShadows[0].radius));
+        }
+      } else {
+        cls.push(shadowFromBlur(dropShadows[0].radius));
       }
     }
   }

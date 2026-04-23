@@ -107,7 +107,7 @@ figma.ui.onmessage = async (msg: { type: string }) => {
     }
     try {
       const { collections, variables } = await collectVariables();
-      const classes = getTailwindClasses(node, variables, collections);
+      const classes = await getTailwindClasses(node, variables, collections);
       figma.ui.postMessage({
         type: "TAILWIND_RESULT",
         classes,

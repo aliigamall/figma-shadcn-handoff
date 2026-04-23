@@ -160,6 +160,17 @@
 <script>"use strict";
 (() => {
   // src/ui.ts
+  function copyToClipboard(text, btn) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = "Copy", 1500);
+  }
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
       const target = tab.dataset.tab;
@@ -187,10 +198,7 @@
     parent.postMessage({ pluginMessage: { type: "EXPORT_TOKENS" } }, "*");
   });
   btnCopyTokens.addEventListener("click", () => {
-    navigator.clipboard.writeText(outputTokens.value).then(() => {
-      btnCopyTokens.textContent = "Copied!";
-      setTimeout(() => btnCopyTokens.textContent = "Copy", 1500);
-    });
+    copyToClipboard(outputTokens.value, btnCopyTokens);
   });
   btnGetTailwind.addEventListener("click", () => {
     btnGetTailwind.disabled = true;
@@ -200,10 +208,7 @@
     parent.postMessage({ pluginMessage: { type: "GET_TAILWIND" } }, "*");
   });
   btnCopyTailwind.addEventListener("click", () => {
-    navigator.clipboard.writeText(outputTailwind.value).then(() => {
-      btnCopyTailwind.textContent = "Copied!";
-      setTimeout(() => btnCopyTailwind.textContent = "Copy", 1500);
-    });
+    copyToClipboard(outputTailwind.value, btnCopyTailwind);
   });
   window.onmessage = (event) => {
     const msg = event.data.pluginMessage;

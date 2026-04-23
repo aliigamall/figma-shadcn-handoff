@@ -1,5 +1,19 @@
 // Plugin UI — runs in the iframe (DOM access, no figma.* API)
 
+// navigator.clipboard is unavailable in Figma plugin iframes (no secure context).
+// Use the execCommand fallback instead.
+function copyToClipboard(text: string, btn: HTMLButtonElement): void {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
+  btn.textContent = "Copied!";
+  setTimeout(() => (btn.textContent = "Copy"), 1500);
+}
+
 // ── Tab switching ──────────────────────────────────────────────────────────
 
 document.querySelectorAll<HTMLButtonElement>(".tab").forEach((tab) => {
@@ -39,10 +53,7 @@ btnExport.addEventListener("click", () => {
 });
 
 btnCopyTokens.addEventListener("click", () => {
-  navigator.clipboard.writeText(outputTokens.value).then(() => {
-    btnCopyTokens.textContent = "Copied!";
-    setTimeout(() => (btnCopyTokens.textContent = "Copy"), 1500);
-  });
+  copyToClipboard(outputTokens.value, btnCopyTokens);
 });
 
 // ── Tailwind tab ───────────────────────────────────────────────────────────
@@ -56,10 +67,7 @@ btnGetTailwind.addEventListener("click", () => {
 });
 
 btnCopyTailwind.addEventListener("click", () => {
-  navigator.clipboard.writeText(outputTailwind.value).then(() => {
-    btnCopyTailwind.textContent = "Copied!";
-    setTimeout(() => (btnCopyTailwind.textContent = "Copy"), 1500);
-  });
+  copyToClipboard(outputTailwind.value, btnCopyTailwind);
 });
 
 // ── Messages from plugin backend ───────────────────────────────────────────

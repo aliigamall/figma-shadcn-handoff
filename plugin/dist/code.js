@@ -142,7 +142,8 @@ ${darkLines}
         const col = v && collections[v.variableCollectionId];
         if (v && col) {
           const cssVar = toCssVarName(col.name, v.name);
-          return `${prefix}-[var(${cssVar})]`;
+          const tokenName = cssVar.replace(/^--/, "");
+          return `${prefix}-${tokenName}`;
         }
       }
     }
@@ -157,148 +158,188 @@ ${darkLines}
     }
     return null;
   }
+  function shadowFromBlur(blur) {
+    if (blur <= 2)
+      return "shadow-sm";
+    if (blur <= 6)
+      return "shadow";
+    if (blur <= 12)
+      return "shadow-md";
+    if (blur <= 20)
+      return "shadow-lg";
+    if (blur <= 32)
+      return "shadow-xl";
+    return "shadow-2xl";
+  }
   function getTailwindClasses(node, variables, collections) {
-    var _a, _b;
-    const cls = [];
-    if (node.type === "TEXT") {
-      const color = resolveColorClass(node, "fills", "text", variables, collections);
-      if (color)
-        cls.push(color);
-      if (typeof node.fontSize === "number") {
-        const SIZE = {
-          12: "text-xs",
-          14: "text-sm",
-          16: "text-base",
-          18: "text-lg",
-          20: "text-xl",
-          24: "text-2xl",
-          30: "text-3xl",
-          36: "text-4xl",
-          48: "text-5xl",
-          60: "text-6xl",
-          72: "text-7xl"
-        };
-        cls.push((_a = SIZE[Math.round(node.fontSize)]) != null ? _a : `text-[${Math.round(node.fontSize)}px]`);
-      }
-      if (typeof node.fontWeight === "number") {
-        const WEIGHT = {
-          100: "font-thin",
-          200: "font-extralight",
-          300: "font-light",
-          400: "font-normal",
-          500: "font-medium",
-          600: "font-semibold",
-          700: "font-bold",
-          800: "font-extrabold",
-          900: "font-black"
-        };
-        const w = WEIGHT[node.fontWeight];
-        if (w && w !== "font-normal")
-          cls.push(w);
-      }
-      const ALIGN = {
-        LEFT: "",
-        CENTER: "text-center",
-        RIGHT: "text-right",
-        JUSTIFIED: "text-justify"
-      };
-      const align = ALIGN[node.textAlignHorizontal];
-      if (align)
-        cls.push(align);
-      return cls.join(" ");
-    }
-    const bg = resolveColorClass(node, "fills", "bg", variables, collections);
-    if (bg)
-      cls.push(bg);
-    const strokes = node.strokes;
-    if (Array.isArray(strokes) && strokes.length > 0) {
-      cls.push("border");
-      const borderColor = resolveColorClass(node, "strokes", "border", variables, collections);
-      if (borderColor)
-        cls.push(borderColor);
-      const sw = node.strokeWeight;
-      if (typeof sw === "number" && sw !== 1)
-        cls.push(`border-[${sw}px]`);
-    }
-    if ("cornerRadius" in node) {
-      const radius = node.cornerRadius;
-      if (typeof radius === "number" && radius > 0) {
-        const boundRadius = (_b = node.boundVariables) == null ? void 0 : _b.cornerRadius;
-        if ((boundRadius == null ? void 0 : boundRadius.type) === "VARIABLE_ALIAS") {
-          const v = variables[boundRadius.id];
-          const col = v && collections[v.variableCollectionId];
-          if (v && col) {
-            const cssVar = toCssVarName(col.name, v.name);
-            cls.push(`rounded-[var(${cssVar})]`);
-          }
-        } else {
-          cls.push(radiusClass(radius));
+    return __async(this, null, function* () {
+      var _a, _b;
+      const cls = [];
+      if (node.type === "TEXT") {
+        const color = resolveColorClass(node, "fills", "text", variables, collections);
+        if (color)
+          cls.push(color);
+        if (typeof node.fontSize === "number") {
+          const SIZE = {
+            12: "text-xs",
+            14: "text-sm",
+            16: "text-base",
+            18: "text-lg",
+            20: "text-xl",
+            24: "text-2xl",
+            30: "text-3xl",
+            36: "text-4xl",
+            48: "text-5xl",
+            60: "text-6xl",
+            72: "text-7xl"
+          };
+          cls.push((_a = SIZE[Math.round(node.fontSize)]) != null ? _a : `text-[${Math.round(node.fontSize)}px]`);
         }
-      }
-    }
-    if ("layoutMode" in node) {
-      const frame = node;
-      if (frame.layoutMode !== "NONE") {
-        cls.push("flex");
-        if (frame.layoutMode === "VERTICAL")
-          cls.push("flex-col");
-        const JUSTIFY = {
-          MIN: "",
-          CENTER: "justify-center",
-          MAX: "justify-end",
-          SPACE_BETWEEN: "justify-between"
-        };
-        const justify = JUSTIFY[frame.primaryAxisAlignItems];
-        if (justify)
-          cls.push(justify);
+        if (typeof node.fontWeight === "number") {
+          const WEIGHT = {
+            100: "font-thin",
+            200: "font-extralight",
+            300: "font-light",
+            400: "font-normal",
+            500: "font-medium",
+            600: "font-semibold",
+            700: "font-bold",
+            800: "font-extrabold",
+            900: "font-black"
+          };
+          const w = WEIGHT[node.fontWeight];
+          if (w && w !== "font-normal")
+            cls.push(w);
+        }
         const ALIGN = {
-          MIN: "",
-          CENTER: "items-center",
-          MAX: "items-end",
-          BASELINE: "items-baseline"
+          LEFT: "",
+          CENTER: "text-center",
+          RIGHT: "text-right",
+          JUSTIFIED: "text-justify"
         };
-        const align = ALIGN[frame.counterAxisAlignItems];
+        const align = ALIGN[node.textAlignHorizontal];
         if (align)
           cls.push(align);
-        if (frame.itemSpacing > 0)
-          cls.push(`gap-${spacingToken(frame.itemSpacing)}`);
-        const { paddingTop: pt, paddingRight: pr, paddingBottom: pb, paddingLeft: pl } = frame;
-        if (pt === pb && pl === pr && pt === pl) {
-          if (pt > 0)
-            cls.push(`p-${spacingToken(pt)}`);
-        } else {
-          if (pt === pb && pt > 0)
-            cls.push(`py-${spacingToken(pt)}`);
-          else {
-            if (pt > 0)
-              cls.push(`pt-${spacingToken(pt)}`);
-            if (pb > 0)
-              cls.push(`pb-${spacingToken(pb)}`);
-          }
-          if (pl === pr && pl > 0)
-            cls.push(`px-${spacingToken(pl)}`);
-          else {
-            if (pl > 0)
-              cls.push(`pl-${spacingToken(pl)}`);
-            if (pr > 0)
-              cls.push(`pr-${spacingToken(pr)}`);
+        return cls.join(" ");
+      }
+      const bg = resolveColorClass(node, "fills", "bg", variables, collections);
+      if (bg)
+        cls.push(bg);
+      const strokes = node.strokes;
+      if (Array.isArray(strokes) && strokes.length > 0) {
+        cls.push("border");
+        const borderColor = resolveColorClass(node, "strokes", "border", variables, collections);
+        if (borderColor)
+          cls.push(borderColor);
+        const sw = node.strokeWeight;
+        if (typeof sw === "number" && sw !== 1)
+          cls.push(`border-[${sw}px]`);
+      }
+      if ("cornerRadius" in node) {
+        const radius = node.cornerRadius;
+        if (typeof radius === "number" && radius > 0) {
+          const boundRadius = (_b = node.boundVariables) == null ? void 0 : _b.cornerRadius;
+          if ((boundRadius == null ? void 0 : boundRadius.type) === "VARIABLE_ALIAS") {
+            const v = variables[boundRadius.id];
+            const col = v && collections[v.variableCollectionId];
+            if (v && col) {
+              const varName = v.name.split("/").pop().toLowerCase().trim();
+              cls.push(varName === "radius" ? "rounded" : varName);
+            }
+          } else {
+            cls.push(radiusClass(radius));
           }
         }
       }
-      if (frame.layoutSizingHorizontal === "FILL")
-        cls.push("w-full");
-      else if (frame.layoutSizingHorizontal === "HUG")
-        cls.push("w-fit");
-      else if (frame.layoutMode === "NONE" && frame.width > 0)
-        cls.push(`w-[${Math.round(frame.width)}px]`);
-      if (frame.layoutSizingVertical === "FILL")
-        cls.push("h-full");
-      else if (frame.layoutSizingVertical === "HUG")
-        cls.push("h-fit");
-      else if (frame.layoutMode === "NONE" && frame.height > 0)
-        cls.push(`h-[${Math.round(frame.height)}px]`);
-    }
-    return cls.join(" ");
+      if ("effects" in node) {
+        const effects = node.effects;
+        const dropShadows = effects.filter(
+          (e) => e.type === "DROP_SHADOW" && e.visible !== false
+        );
+        const innerShadows = effects.filter(
+          (e) => e.type === "INNER_SHADOW" && e.visible !== false
+        );
+        if (innerShadows.length > 0) {
+          cls.push("shadow-inner");
+        } else if (dropShadows.length > 0) {
+          const effectStyleId = node.effectStyleId;
+          if (effectStyleId) {
+            const style = yield figma.getStyleByIdAsync(effectStyleId);
+            if (style) {
+              const name = style.name.split("/").pop().toLowerCase().trim().replace(/\s+/g, "-");
+              cls.push(name === "drop-shadow" || name === "default" ? "shadow" : `shadow-${name}`);
+            } else {
+              cls.push(shadowFromBlur(dropShadows[0].radius));
+            }
+          } else {
+            cls.push(shadowFromBlur(dropShadows[0].radius));
+          }
+        }
+      }
+      if ("layoutMode" in node) {
+        const frame = node;
+        if (frame.layoutMode !== "NONE") {
+          cls.push("flex");
+          if (frame.layoutMode === "VERTICAL")
+            cls.push("flex-col");
+          const JUSTIFY = {
+            MIN: "",
+            CENTER: "justify-center",
+            MAX: "justify-end",
+            SPACE_BETWEEN: "justify-between"
+          };
+          const justify = JUSTIFY[frame.primaryAxisAlignItems];
+          if (justify)
+            cls.push(justify);
+          const ALIGN = {
+            MIN: "",
+            CENTER: "items-center",
+            MAX: "items-end",
+            BASELINE: "items-baseline"
+          };
+          const align = ALIGN[frame.counterAxisAlignItems];
+          if (align)
+            cls.push(align);
+          if (frame.itemSpacing > 0)
+            cls.push(`gap-${spacingToken(frame.itemSpacing)}`);
+          const { paddingTop: pt, paddingRight: pr, paddingBottom: pb, paddingLeft: pl } = frame;
+          if (pt === pb && pl === pr && pt === pl) {
+            if (pt > 0)
+              cls.push(`p-${spacingToken(pt)}`);
+          } else {
+            if (pt === pb && pt > 0)
+              cls.push(`py-${spacingToken(pt)}`);
+            else {
+              if (pt > 0)
+                cls.push(`pt-${spacingToken(pt)}`);
+              if (pb > 0)
+                cls.push(`pb-${spacingToken(pb)}`);
+            }
+            if (pl === pr && pl > 0)
+              cls.push(`px-${spacingToken(pl)}`);
+            else {
+              if (pl > 0)
+                cls.push(`pl-${spacingToken(pl)}`);
+              if (pr > 0)
+                cls.push(`pr-${spacingToken(pr)}`);
+            }
+          }
+        }
+        if (frame.layoutSizingHorizontal === "FILL")
+          cls.push("w-full");
+        else if (frame.layoutSizingHorizontal === "HUG")
+          cls.push("w-fit");
+        else if (frame.layoutMode === "NONE" && frame.width > 0)
+          cls.push(`w-[${Math.round(frame.width)}px]`);
+        if (frame.layoutSizingVertical === "FILL")
+          cls.push("h-full");
+        else if (frame.layoutSizingVertical === "HUG")
+          cls.push("h-fit");
+        else if (frame.layoutMode === "NONE" && frame.height > 0)
+          cls.push(`h-[${Math.round(frame.height)}px]`);
+      }
+      return cls.join(" ");
+    });
   }
   var SPACING, RADIUS;
   var init_tailwind = __esm({
@@ -432,7 +473,7 @@ ${darkLines}
           }
           try {
             const { collections, variables } = yield collectVariables();
-            const classes = getTailwindClasses(node, variables, collections);
+            const classes = yield getTailwindClasses(node, variables, collections);
             figma.ui.postMessage({
               type: "TAILWIND_RESULT",
               classes,
