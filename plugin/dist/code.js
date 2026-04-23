@@ -532,7 +532,16 @@ ${darkLines}
         Badge: {
           import: "@/components/ui/badge",
           props: {
-            Variant: "variant"
+            Variant: {
+              prop: "variant",
+              values: {
+                Primary: "default",
+                Default: "default",
+                Secondary: "secondary",
+                Destructive: "destructive",
+                Outline: "outline"
+              }
+            }
           },
           defaults: {
             variant: "default"
@@ -541,12 +550,6 @@ ${darkLines}
         },
         Input: {
           import: "@/components/ui/input",
-          props: {
-            Type: "type"
-          },
-          defaults: {
-            type: "text"
-          },
           booleans: {
             State: {
               Disabled: "disabled"
@@ -564,11 +567,11 @@ ${darkLines}
         Checkbox: {
           import: "@/components/ui/checkbox",
           booleans: {
+            "Checked?": {
+              True: "defaultChecked"
+            },
             State: {
               Disabled: "disabled"
-            },
-            Checked: {
-              True: "defaultChecked"
             }
           }
         },
@@ -583,23 +586,17 @@ ${darkLines}
             }
           }
         },
-        Select: {
+        "Select & Combobox": {
+          component: "Select",
           import: "@/components/ui/select",
           booleans: {
             State: {
               Disabled: "disabled"
             }
-          },
-          children: "Placeholder"
+          }
         },
         Avatar: {
-          import: "@/components/ui/avatar",
-          props: {
-            Size: "size"
-          },
-          defaults: {
-            size: "default"
-          }
+          import: "@/components/ui/avatar"
         },
         Alert: {
           import: "@/components/ui/alert",
@@ -622,6 +619,15 @@ ${darkLines}
           },
           children: "Line 1"
         },
+        "Input OTP": {
+          component: "InputOTP",
+          import: "@/components/ui/input-otp",
+          booleans: {
+            State: {
+              Disabled: "disabled"
+            }
+          }
+        },
         Separator: {
           import: "@/components/ui/separator",
           props: {
@@ -631,11 +637,54 @@ ${darkLines}
             orientation: "horizontal"
           }
         },
+        Label: {
+          import: "@/components/ui/label"
+        },
         Skeleton: {
           import: "@/components/ui/skeleton"
         },
+        Sonner: {
+          import: "@/components/ui/sonner"
+        },
         Tabs: {
           import: "@/components/ui/tabs"
+        },
+        Breadcrumb: {
+          import: "@/components/ui/breadcrumb"
+        },
+        "Button Group": {
+          component: "ButtonGroup",
+          import: "@/components/ui/button-group",
+          props: {
+            Skin: {
+              prop: "variant",
+              values: {
+                Outlined: "outline",
+                Default: "default",
+                Ghost: "ghost",
+                Destructive: "destructive"
+              }
+            },
+            Size: {
+              prop: "size",
+              values: {
+                Default: "default",
+                Small: "sm",
+                Mini: "sm",
+                Large: "lg"
+              }
+            }
+          },
+          defaults: {
+            variant: "outline",
+            size: "default"
+          },
+          booleans: {
+            State: {
+              Disabled: "disabled"
+            }
+          },
+          children: "Label"
         },
         Card: {
           import: "@/components/ui/card"
@@ -647,15 +696,124 @@ ${darkLines}
         Dialog: {
           import: "@/components/ui/dialog"
         },
+        Drawer: {
+          import: "@/components/ui/drawer"
+        },
         Sheet: {
           import: "@/components/ui/sheet"
         },
+        "Toggle Button": {
+          component: "Toggle",
+          import: "@/components/ui/toggle",
+          props: {
+            Skin: {
+              prop: "variant",
+              values: {
+                Ghost: "default",
+                Outlined: "outline",
+                Default: "default"
+              }
+            },
+            Size: {
+              prop: "size",
+              values: {
+                Default: "default",
+                Small: "sm",
+                Mini: "sm",
+                Large: "lg"
+              }
+            }
+          },
+          defaults: {
+            variant: "default",
+            size: "default"
+          },
+          booleans: {
+            "Active?": {
+              Yes: "defaultPressed"
+            },
+            State: {
+              Disabled: "disabled"
+            }
+          },
+          children: "Label"
+        },
+        "Toggle Icon Button": {
+          component: "Toggle",
+          import: "@/components/ui/toggle",
+          props: {
+            Skin: {
+              prop: "variant",
+              values: {
+                Ghost: "default",
+                Outlined: "outline",
+                Default: "default"
+              }
+            },
+            Size: {
+              prop: "size",
+              values: {
+                Default: "default",
+                Small: "sm",
+                Mini: "sm",
+                Large: "lg"
+              }
+            }
+          },
+          defaults: {
+            variant: "default",
+            size: "default"
+          },
+          booleans: {
+            "Active?": {
+              Yes: "defaultPressed"
+            },
+            State: {
+              Disabled: "disabled"
+            }
+          }
+        },
         Tooltip: {
+          component: "TooltipContent",
           import: "@/components/ui/tooltip",
-          children: "Content"
+          props: {
+            Side: {
+              prop: "side",
+              values: {
+                Top: "top",
+                Right: "right",
+                Bottom: "bottom",
+                Left: "left"
+              }
+            }
+          },
+          defaults: {
+            side: "top"
+          },
+          children: "Tooltip text"
+        },
+        "Navigation Menu": {
+          component: "NavigationMenu",
+          import: "@/components/ui/navigation-menu"
+        },
+        Pagination: {
+          import: "@/components/ui/pagination"
         },
         Popover: {
           import: "@/components/ui/popover"
+        },
+        "Popover Content": {
+          component: "PopoverContent",
+          import: "@/components/ui/popover"
+        },
+        Progress: {
+          import: "@/components/ui/progress",
+          props: {
+            Progress: "value"
+          },
+          defaults: {
+            value: "0"
+          }
         },
         DropdownMenu: {
           import: "@/components/ui/dropdown-menu"
