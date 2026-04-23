@@ -604,12 +604,23 @@ ${darkLines}
         Alert: {
           import: "@/components/ui/alert",
           props: {
-            Variant: "variant"
+            Type: {
+              prop: "variant",
+              values: {
+                Neutral: "default",
+                Default: "default",
+                Error: "destructive",
+                Destructive: "destructive",
+                Warning: "default",
+                Success: "default",
+                Info: "default"
+              }
+            }
           },
           defaults: {
             variant: "default"
           },
-          children: "Description"
+          children: "Line 1"
         },
         Separator: {
           import: "@/components/ui/separator",
