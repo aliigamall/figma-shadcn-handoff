@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13px;
+      color: #1a1a1a;
+      background: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #e5e5e5;
+      flex-shrink: 0;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 0;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 13px;
+      color: #666;
+      font-family: inherit;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s;
+    }
+    .tab.active {
+      color: #000;
+      border-bottom-color: #000;
+      font-weight: 500;
+    }
+
+    /* Panels */
+    .panel {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+    .panel.hidden { display: none; }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #000; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #222; }
+    .btn-secondary { background: #f0f0f0; color: #000; }
+    .btn-secondary:hover:not(:disabled) { background: #e5e5e5; }
+
+    .row { display: flex; gap: 8px; }
+    .row .btn { flex: 1; }
+
+    /* Output area */
+    textarea {
+      flex: 1;
+      width: 100%;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      padding: 10px;
+      border: 1px solid #e5e5e5;
+      border-radius: 6px;
+      resize: none;
+      color: #1a1a1a;
+      background: #fafafa;
+      outline: none;
+      min-height: 0;
+    }
+    textarea:focus { border-color: #999; background: #fff; }
+
+    /* Status / info */
+    .status {
+      font-size: 11px;
+      color: #888;
+      min-height: 16px;
+    }
+    .status.error { color: #d00; }
+    .status.success { color: #080; }
+
+    /* Selection indicator (Tailwind tab) */
+    .selection-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #555;
+      background: #f5f5f5;
+      border-radius: 6px;
+      padding: 7px 10px;
+    }
+    .selection-badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #ccc;
+      flex-shrink: 0;
+    }
+    .selection-badge.has-selection .dot { background: #22c55e; }
+    .selection-badge .name {
+      font-weight: 500;
+      color: #111;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="tokens">Export Tokens</button>
+    <button class="tab" data-tab="tailwind">Copy Tailwind</button>
+  </div>
+
+  <!-- Tokens panel -->
+  <div id="panel-tokens" class="panel">
+    <button id="btn-export" class="btn btn-primary">Export globals.css</button>
+    <textarea id="output-tokens" placeholder="Click Export to generate CSS…" readonly></textarea>
+    <div class="row">
+      <span id="status-tokens" class="status"></span>
+      <button id="btn-copy-tokens" class="btn btn-secondary" disabled>Copy</button>
+    </div>
+  </div>
+
+  <!-- Tailwind panel -->
+  <div id="panel-tailwind" class="panel hidden">
+    <div id="selection-badge" class="selection-badge">
+      <span class="dot"></span>
+      <span id="selection-label">No frame selected</span>
+    </div>
+    <button id="btn-get-tailwind" class="btn btn-primary">Get Tailwind Classes</button>
+    <textarea id="output-tailwind" placeholder="Select a frame then click Get Tailwind Classes…" readonly></textarea>
+    <div class="row">
+      <span id="status-tailwind" class="status"></span>
+      <button id="btn-copy-tailwind" class="btn btn-secondary" disabled>Copy</button>
+    </div>
+  </div>
+
+<script>"use strict";
+(() => {
+  // src/ui.ts
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.tab;
+      document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach((p) => p.classList.add("hidden"));
+      tab.classList.add("active");
+      document.getElementById(`panel-${target}`).classList.remove("hidden");
+    });
+  });
+  var btnExport = document.getElementById("btn-export");
+  var outputTokens = document.getElementById("output-tokens");
+  var statusTokens = document.getElementById("status-tokens");
+  var btnCopyTokens = document.getElementById("btn-copy-tokens");
+  var selectionBadge = document.getElementById("selection-badge");
+  var selectionLabel = document.getElementById("selection-label");
+  var btnGetTailwind = document.getElementById("btn-get-tailwind");
+  var outputTailwind = document.getElementById("output-tailwind");
+  var statusTailwind = document.getElementById("status-tailwind");
+  var btnCopyTailwind = document.getElementById("btn-copy-tailwind");
+  btnExport.addEventListener("click", () => {
+    btnExport.disabled = true;
+    btnExport.textContent = "Exporting\u2026";
+    statusTokens.textContent = "";
+    statusTokens.className = "status";
+    parent.postMessage({ pluginMessage: { type: "EXPORT_TOKENS" } }, "*");
+  });
+  btnCopyTokens.addEventListener("click", () => {
+    navigator.clipboard.writeText(outputTokens.value).then(() => {
+      btnCopyTokens.textContent = "Copied!";
+      setTimeout(() => btnCopyTokens.textContent = "Copy", 1500);
+    });
+  });
+  btnGetTailwind.addEventListener("click", () => {
+    btnGetTailwind.disabled = true;
+    btnGetTailwind.textContent = "Generating\u2026";
+    statusTailwind.textContent = "";
+    statusTailwind.className = "status";
+    parent.postMessage({ pluginMessage: { type: "GET_TAILWIND" } }, "*");
+  });
+  btnCopyTailwind.addEventListener("click", () => {
+    navigator.clipboard.writeText(outputTailwind.value).then(() => {
+      btnCopyTailwind.textContent = "Copied!";
+      setTimeout(() => btnCopyTailwind.textContent = "Copy", 1500);
+    });
+  });
+  window.onmessage = (event) => {
+    const msg = event.data.pluginMessage;
+    if (!msg)
+      return;
+    if (msg.type === "TOKENS_CSS") {
+      outputTokens.value = msg.css;
+      btnCopyTokens.disabled = false;
+      btnExport.disabled = false;
+      btnExport.textContent = "Export globals.css";
+      statusTokens.textContent = `${msg.count} tokens exported`;
+      statusTokens.className = "status success";
+    }
+    if (msg.type === "TAILWIND_RESULT") {
+      btnGetTailwind.disabled = false;
+      btnGetTailwind.textContent = "Get Tailwind Classes";
+      if (msg.error) {
+        statusTailwind.textContent = msg.error;
+        statusTailwind.className = "status error";
+        return;
+      }
+      outputTailwind.value = msg.classes || "(no classes generated)";
+      btnCopyTailwind.disabled = !msg.classes;
+      statusTailwind.textContent = msg.nodeName ? `From: ${msg.nodeName}` : "";
+      statusTailwind.className = "status";
+    }
+    if (msg.type === "SELECTION_CHANGE") {
+      if (msg.hasSelection) {
+        selectionBadge.classList.add("has-selection");
+        selectionLabel.textContent = msg.nodeName || "1 node selected";
+      } else {
+        selectionBadge.classList.remove("has-selection");
+        selectionLabel.textContent = "No frame selected";
+      }
+    }
+    if (msg.type === "ERROR") {
+      btnExport.disabled = false;
+      btnExport.textContent = "Export globals.css";
+      btnGetTailwind.disabled = false;
+      btnGetTailwind.textContent = "Get Tailwind Classes";
+      statusTokens.textContent = msg.message;
+      statusTokens.className = "status error";
+      statusTailwind.textContent = msg.message;
+      statusTailwind.className = "status error";
+    }
+  };
+})();
+</script></body>
+</html>
