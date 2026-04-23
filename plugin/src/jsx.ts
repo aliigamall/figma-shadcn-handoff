@@ -1,4 +1,4 @@
-import type { ComponentMap } from "./lib/types";
+import type { ComponentMap, PropMapping } from "./lib/types";
 
 export interface JsxResult {
   componentName: string;
@@ -34,16 +34,28 @@ export async function generateJsx(
   const props: string[] = [];
 
   // ── Variant / string props ────────────────────────────────────────────
-  for (const [figmaProp, reactProp] of Object.entries(mapping.props ?? {})) {
+  for (const [figmaProp, propDef] of Object.entries(mapping.props ?? {})) {
     const cprop = findProp(node, figmaProp);
     if (!cprop || cprop.type === "BOOLEAN" || cprop.type === "INSTANCE_SWAP") continue;
 
-    const value = String(cprop.value).toLowerCase().trim();
-    const defaultVal = mapping.defaults?.[reactProp]?.toLowerCase();
+    const figmaValue = String(cprop.value).trim();
 
-    if (defaultVal && value === defaultVal) continue; // omit default values
+    // Resolve prop name and value — support both string shorthand and full PropMapping
+    let reactProp: string;
+    let reactValue: string;
+    if (typeof propDef === "string") {
+      reactProp = propDef;
+      reactValue = figmaValue.toLowerCase();
+    } else {
+      const pm = propDef as PropMapping;
+      reactProp = pm.prop;
+      reactValue = pm.values?.[figmaValue] ?? figmaValue.toLowerCase();
+    }
 
-    props.push(`${reactProp}="${value}"`);
+    const defaultVal = mapping.defaults?.[reactProp];
+    if (defaultVal && reactValue === defaultVal) continue; // omit default values
+
+    props.push(`${reactProp}="${reactValue}"`);
   }
 
   // ── Boolean props (e.g. State=Disabled → disabled) ───────────────────
@@ -64,14 +76,15 @@ export async function generateJsx(
   }
 
   // ── Assemble JSX ─────────────────────────────────────────────────────
+  const tag = mapping.component ?? mapKey;
   const propsStr = props.length > 0 ? " " + props.join(" ") : "";
   const jsx = children !== null
-    ? `<${mapKey}${propsStr}>\n  ${children}\n</${mapKey}>`
-    : `<${mapKey}${propsStr} />`;
+    ? `<${tag}${propsStr}>\n  ${children}\n</${tag}>`
+    : `<${tag}${propsStr} />`;
 
-  const importLine = `import { ${mapKey} } from "${mapping.import}"`;
+  const importLine = `import { ${tag} } from "${mapping.import}"`;
 
-  return { componentName: mapKey, importLine, jsx };
+  return { componentName: tag, importLine, jsx };
 }
 
 /** Case-insensitive lookup for a component property by Figma prop name. */
@@ -81,7 +94,7 @@ function findProp(
 ): ComponentProperty | undefined {
   const key = Object.keys(node.componentProperties).find(
     // Figma appends "#NNN" to prop keys in some cases — strip it for matching
-    (k) => k.replace(/#\d+$/, "").toLowerCase() === figmaPropName.toLowerCase()
+    (k) => k.replace(/#[\d:]+$/, "").toLowerCase() === figmaPropName.toLowerCase()
   );
   return key ? node.componentProperties[key] : undefined;
 }

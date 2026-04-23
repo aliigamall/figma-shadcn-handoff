@@ -37,11 +37,20 @@ export interface ResolvedToken {
 
 // ── Component map (components.json) ──────────────────────────────────────
 
+export interface PropMapping {
+  /** React prop name */
+  prop: string;
+  /** Figma value → React value (e.g. "Primary" → "default") */
+  values?: Record<string, string>;
+}
+
 export interface ComponentMapping {
   /** Import path, e.g. "@/components/ui/button" */
   import: string;
-  /** Figma property name → React prop name */
-  props?: Record<string, string>;
+  /** Override the JSX tag name when the Figma name differs (e.g. "Accordion Trigger" → "AccordionTrigger") */
+  component?: string;
+  /** Figma property name → React prop name (or full PropMapping for value remapping) */
+  props?: Record<string, string | PropMapping>;
   /** Props whose value matches this default are omitted from the JSX */
   defaults?: Record<string, string>;
   /** Figma property name → { FigmaValue: "booleanPropName" } */

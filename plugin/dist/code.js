@@ -1,6 +1,22 @@
 "use strict";
 (() => {
+  var __defProp = Object.defineProperty;
   var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __propIsEnum = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    if (__getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(b)) {
+        if (__propIsEnum.call(b, prop))
+          __defNormalProp(a, prop, b[prop]);
+      }
+    return a;
+  };
   var __esm = (fn, res) => function __init() {
     return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
   };
@@ -401,7 +417,7 @@ ${darkLines}
   }
   function generateJsx(node, componentMap) {
     return __async(this, null, function* () {
-      var _a, _b, _c, _d;
+      var _a, _b, _c, _d, _e, _f;
       const componentName = yield resolveComponentName(node);
       const mapKey = Object.keys(componentMap).find(
         (k) => k.toLowerCase() === componentName.toLowerCase()
@@ -410,17 +426,27 @@ ${darkLines}
         return null;
       const mapping = componentMap[mapKey];
       const props = [];
-      for (const [figmaProp, reactProp] of Object.entries((_a = mapping.props) != null ? _a : {})) {
+      for (const [figmaProp, propDef] of Object.entries((_a = mapping.props) != null ? _a : {})) {
         const cprop = findProp(node, figmaProp);
         if (!cprop || cprop.type === "BOOLEAN" || cprop.type === "INSTANCE_SWAP")
           continue;
-        const value = String(cprop.value).toLowerCase().trim();
-        const defaultVal = (_c = (_b = mapping.defaults) == null ? void 0 : _b[reactProp]) == null ? void 0 : _c.toLowerCase();
-        if (defaultVal && value === defaultVal)
+        const figmaValue = String(cprop.value).trim();
+        let reactProp;
+        let reactValue;
+        if (typeof propDef === "string") {
+          reactProp = propDef;
+          reactValue = figmaValue.toLowerCase();
+        } else {
+          const pm = propDef;
+          reactProp = pm.prop;
+          reactValue = (_c = (_b = pm.values) == null ? void 0 : _b[figmaValue]) != null ? _c : figmaValue.toLowerCase();
+        }
+        const defaultVal = (_d = mapping.defaults) == null ? void 0 : _d[reactProp];
+        if (defaultVal && reactValue === defaultVal)
           continue;
-        props.push(`${reactProp}="${value}"`);
+        props.push(`${reactProp}="${reactValue}"`);
       }
-      for (const [figmaProp, valueMap] of Object.entries((_d = mapping.booleans) != null ? _d : {})) {
+      for (const [figmaProp, valueMap] of Object.entries((_e = mapping.booleans) != null ? _e : {})) {
         const cprop = findProp(node, figmaProp);
         if (!cprop)
           continue;
@@ -435,18 +461,19 @@ ${darkLines}
         if ((cprop == null ? void 0 : cprop.type) === "TEXT")
           children = String(cprop.value);
       }
+      const tag = (_f = mapping.component) != null ? _f : mapKey;
       const propsStr = props.length > 0 ? " " + props.join(" ") : "";
-      const jsx = children !== null ? `<${mapKey}${propsStr}>
+      const jsx = children !== null ? `<${tag}${propsStr}>
   ${children}
-</${mapKey}>` : `<${mapKey}${propsStr} />`;
-      const importLine = `import { ${mapKey} } from "${mapping.import}"`;
-      return { componentName: mapKey, importLine, jsx };
+</${tag}>` : `<${tag}${propsStr} />`;
+      const importLine = `import { ${tag} } from "${mapping.import}"`;
+      return { componentName: tag, importLine, jsx };
     });
   }
   function findProp(node, figmaPropName) {
     const key = Object.keys(node.componentProperties).find(
       // Figma appends "#NNN" to prop keys in some cases — strip it for matching
-      (k) => k.replace(/#\d+$/, "").toLowerCase() === figmaPropName.toLowerCase()
+      (k) => k.replace(/#[\d:]+$/, "").toLowerCase() === figmaPropName.toLowerCase()
     );
     return key ? node.componentProperties[key] : void 0;
   }
@@ -464,8 +491,27 @@ ${darkLines}
         Button: {
           import: "@/components/ui/button",
           props: {
-            Variant: "variant",
-            Size: "size"
+            Variant: {
+              prop: "variant",
+              values: {
+                Primary: "default",
+                Secondary: "secondary",
+                Outline: "outline",
+                Ghost: "ghost",
+                Destructive: "destructive",
+                "Ghost Inactive": "ghost"
+              }
+            },
+            Size: {
+              prop: "size",
+              values: {
+                Default: "default",
+                Small: "sm",
+                Mini: "sm",
+                Large: "lg",
+                "Extra Small": "sm"
+              }
+            }
           },
           defaults: {
             variant: "default",
@@ -473,11 +519,15 @@ ${darkLines}
           },
           booleans: {
             State: {
-              Disabled: "disabled",
-              Loading: "loading"
+              Disabled: "disabled"
             }
           },
           children: "Label"
+        },
+        "Accordion Trigger": {
+          component: "AccordionTrigger",
+          import: "@/components/ui/accordion",
+          children: "Accordion label"
         },
         Badge: {
           import: "@/components/ui/badge",
@@ -667,6 +717,94 @@ ${darkLines}
         }
         return tokens;
       }
+      function buildDraftEntry(componentName, defs) {
+        var _a, _b;
+        const props = {};
+        const defaults = {};
+        const booleans = {};
+        let children;
+        for (const [rawKey, def] of Object.entries(defs)) {
+          const key = rawKey.replace(/#[\d:]+$/, "");
+          if (def.type === "VARIANT") {
+            const opts = (_a = def.variantOptions) != null ? _a : [];
+            if (key.toLowerCase() === "state") {
+              const stateMap = {};
+              for (const opt of opts) {
+                const lo = opt.toLowerCase();
+                if (lo !== "default" && lo !== "normal" && lo !== "rest") {
+                  stateMap[opt] = lo;
+                }
+              }
+              if (Object.keys(stateMap).length > 0)
+                booleans[key] = stateMap;
+            } else {
+              const propName = key.toLowerCase();
+              props[key] = propName;
+              const defaultOpt = (_b = opts.find((v) => v.toLowerCase() === "default")) != null ? _b : opts[0];
+              if (defaultOpt)
+                defaults[propName] = defaultOpt.toLowerCase();
+            }
+          } else if (def.type === "TEXT" && !children) {
+            children = key;
+          }
+        }
+        return __spreadValues(__spreadValues(__spreadValues(__spreadValues({
+          import: `@/components/ui/${componentName.toLowerCase().replace(/\s+/g, "-")}`
+        }, Object.keys(props).length > 0 && { props }), Object.keys(defaults).length > 0 && { defaults }), Object.keys(booleans).length > 0 && { booleans }), children && { children });
+      }
+      function buildPropertyList(defs, currentValues) {
+        return Object.entries(defs).map(([rawKey, def]) => {
+          var _a;
+          const key = rawKey.replace(/#[\d:]+$/, "");
+          const instanceKey = Object.keys(currentValues).find(
+            (k) => k.replace(/#[\d:]+$/, "") === key
+          );
+          const current = instanceKey ? currentValues[instanceKey] : null;
+          return {
+            name: key,
+            type: def.type,
+            options: (_a = def.variantOptions) != null ? _a : [],
+            currentValue: current ? current.value : ""
+          };
+        });
+      }
+      function getComponentInfo(node) {
+        return __async(this, null, function* () {
+          var _a, _b, _c, _d;
+          let componentName;
+          let defs;
+          let currentValues = {};
+          if (node.type === "INSTANCE") {
+            const main = yield node.getMainComponentAsync();
+            if (!main)
+              return null;
+            const parent = main.parent;
+            const isSet = (parent == null ? void 0 : parent.type) === "COMPONENT_SET";
+            componentName = isSet ? parent.name : main.name;
+            const source = isSet ? parent : main;
+            defs = (_a = source.componentPropertyDefinitions) != null ? _a : {};
+            currentValues = node.componentProperties;
+          } else if (node.type === "COMPONENT_SET") {
+            componentName = node.name;
+            defs = (_b = node.componentPropertyDefinitions) != null ? _b : {};
+          } else if (node.type === "COMPONENT") {
+            const parent = node.parent;
+            if ((parent == null ? void 0 : parent.type) === "COMPONENT_SET") {
+              componentName = parent.name;
+              defs = (_c = parent.componentPropertyDefinitions) != null ? _c : {};
+            } else {
+              componentName = node.name;
+              defs = (_d = node.componentPropertyDefinitions) != null ? _d : {};
+            }
+          } else {
+            return null;
+          }
+          const properties = buildPropertyList(defs, currentValues);
+          const draftEntry = buildDraftEntry(componentName, defs);
+          const draft = JSON.stringify({ [componentName]: draftEntry }, null, 2);
+          return { componentName, figmaNodeName: node.name, properties, draft };
+        });
+      }
       figma.ui.onmessage = (msg) => __async(exports, null, function* () {
         var _a, _b;
         if (msg.type === "EXPORT_TOKENS") {
@@ -709,15 +847,22 @@ ${darkLines}
           }
         }
       });
-      figma.on("selectionchange", () => {
-        var _a;
+      figma.on("selectionchange", () => __async(exports, null, function* () {
+        var _a, _b;
         const node = figma.currentPage.selection[0];
+        let componentInfo = null;
+        const devTypes = ["INSTANCE", "COMPONENT", "COMPONENT_SET"];
+        if (node && devTypes.includes(node.type)) {
+          componentInfo = yield getComponentInfo(node).catch(() => null);
+        }
         figma.ui.postMessage({
           type: "SELECTION_CHANGE",
           hasSelection: !!node,
-          nodeName: (_a = node == null ? void 0 : node.name) != null ? _a : ""
+          nodeName: (_a = node == null ? void 0 : node.name) != null ? _a : "",
+          nodeType: (_b = node == null ? void 0 : node.type) != null ? _b : "",
+          componentInfo
         });
-      });
+      }));
     }
   });
   require_code();

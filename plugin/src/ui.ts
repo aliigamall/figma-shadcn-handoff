@@ -48,6 +48,15 @@ const outputJsx = document.getElementById("output-jsx") as HTMLTextAreaElement;
 const btnCopyJsx = document.getElementById("btn-copy-jsx") as HTMLButtonElement;
 const unmappedHint = document.getElementById("unmapped-hint") as HTMLDivElement;
 
+const devEmpty = document.getElementById("dev-empty") as HTMLDivElement;
+const devNodeType = document.getElementById("dev-node-type") as HTMLDivElement;
+const devContent = document.getElementById("dev-content") as HTMLDivElement;
+const devComponentName = document.getElementById("dev-component-name") as HTMLSpanElement;
+const devFigmaName = document.getElementById("dev-figma-name") as HTMLSpanElement;
+const devProps = document.getElementById("dev-props") as HTMLDivElement;
+const devDraft = document.getElementById("dev-draft") as HTMLTextAreaElement;
+const btnCopyDraft = document.getElementById("btn-copy-draft") as HTMLButtonElement;
+
 // ── Tokens tab ─────────────────────────────────────────────────────────────
 
 btnExport.addEventListener("click", () => {
@@ -82,6 +91,83 @@ btnCopyJsx.addEventListener("click", () => {
   const full = `${jsxImport.textContent}\n\n${outputJsx.value}`;
   copyToClipboard(full, btnCopyJsx);
 });
+
+btnCopyDraft.addEventListener("click", () => {
+  copyToClipboard(devDraft.value, btnCopyDraft);
+});
+
+// ── Dev tab renderer ───────────────────────────────────────────────────────
+
+function renderDevTab(info: any, nodeType?: string): void {
+  if (!info) {
+    devEmpty.classList.remove("hidden");
+    devContent.classList.add("hidden");
+    const validTypes = ["INSTANCE", "COMPONENT", "COMPONENT_SET"];
+    if (nodeType && !validTypes.includes(nodeType)) {
+      devNodeType.classList.remove("hidden");
+      devNodeType.textContent = `Selected: ${nodeType} — select a component, component set, or instance`;
+    } else {
+      devNodeType.classList.add("hidden");
+    }
+    return;
+  }
+
+  devEmpty.classList.add("hidden");
+  devContent.classList.remove("hidden");
+
+  devComponentName.textContent = info.componentName;
+  devFigmaName.textContent = `Figma: "${info.figmaNodeName}"`;
+
+  // Build properties list
+  devProps.innerHTML = "";
+  for (const prop of info.properties as any[]) {
+    const el = document.createElement("div");
+    el.className = "dev-prop";
+
+    const header = document.createElement("div");
+    header.className = "dev-prop-header";
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "dev-prop-name";
+    nameEl.textContent = prop.name;
+
+    const badge = document.createElement("span");
+    badge.className = `dev-type-badge ${prop.type.toLowerCase()}`;
+    badge.textContent = prop.type;
+
+    header.appendChild(nameEl);
+    header.appendChild(badge);
+    el.appendChild(header);
+
+    if (prop.type === "VARIANT" && prop.options.length > 0) {
+      const opts = document.createElement("div");
+      opts.className = "dev-options";
+      for (const opt of prop.options as string[]) {
+        const chip = document.createElement("span");
+        chip.className = "dev-option" + (
+          String(prop.currentValue).toLowerCase() === opt.toLowerCase() ? " current" : ""
+        );
+        chip.textContent = opt;
+        opts.appendChild(chip);
+      }
+      el.appendChild(opts);
+    } else if (prop.type === "TEXT") {
+      const val = document.createElement("div");
+      val.className = "dev-text-value";
+      val.textContent = `"${prop.currentValue}"`;
+      el.appendChild(val);
+    } else if (prop.type === "BOOLEAN") {
+      const val = document.createElement("div");
+      val.className = "dev-text-value";
+      val.textContent = String(prop.currentValue);
+      el.appendChild(val);
+    }
+
+    devProps.appendChild(el);
+  }
+
+  devDraft.value = info.draft;
+}
 
 // ── Messages from plugin backend ───────────────────────────────────────────
 
@@ -136,8 +222,9 @@ window.onmessage = (event: MessageEvent) => {
       selectionLabel.textContent = msg.nodeName || "1 node selected";
     } else {
       selectionBadge.classList.remove("has-selection");
-      selectionLabel.textContent = "No frame selected";
+      selectionLabel.textContent = "No node selected";
     }
+    renderDevTab(msg.componentInfo ?? null, msg.nodeType);
   }
 
   if (msg.type === "ERROR") {

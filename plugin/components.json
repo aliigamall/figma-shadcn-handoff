@@ -2,8 +2,27 @@
   "Button": {
     "import": "@/components/ui/button",
     "props": {
-      "Variant": "variant",
-      "Size": "size"
+      "Variant": {
+        "prop": "variant",
+        "values": {
+          "Primary": "default",
+          "Secondary": "secondary",
+          "Outline": "outline",
+          "Ghost": "ghost",
+          "Destructive": "destructive",
+          "Ghost Inactive": "ghost"
+        }
+      },
+      "Size": {
+        "prop": "size",
+        "values": {
+          "Default": "default",
+          "Small": "sm",
+          "Mini": "sm",
+          "Large": "lg",
+          "Extra Small": "sm"
+        }
+      }
     },
     "defaults": {
       "variant": "default",
@@ -11,11 +30,15 @@
     },
     "booleans": {
       "State": {
-        "Disabled": "disabled",
-        "Loading": "loading"
+        "Disabled": "disabled"
       }
     },
     "children": "Label"
+  },
+  "Accordion Trigger": {
+    "component": "AccordionTrigger",
+    "import": "@/components/ui/accordion",
+    "children": "Accordion label"
   },
   "Badge": {
     "import": "@/components/ui/badge",

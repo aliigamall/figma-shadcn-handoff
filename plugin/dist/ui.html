@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .hidden { display: none !important; }
 
     body {
       font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -129,6 +130,34 @@
     }
     .hint.hidden { display: none; }
 
+    /* Dev tab */
+    .dev-empty { color: #999; font-size: 12px; text-align: center; margin-top: 32px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    .dev-node-type { font-size: 11px; background: #fff3cd; color: #856404; border-radius: 5px; padding: 5px 10px; }
+    .dev-tip { font-size: 10px; color: #bbb; max-width: 240px; line-height: 1.5; }
+    .dev-header { margin-bottom: 10px; }
+    .dev-name { font-size: 14px; font-weight: 600; display: block; }
+    .dev-figma-name { font-size: 11px; color: #888; }
+    .dev-props { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+    .dev-prop { background: #f7f7f7; border-radius: 5px; padding: 6px 8px; }
+    .dev-prop-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .dev-prop-name { font-size: 12px; font-weight: 500; }
+    .dev-type-badge {
+      font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 1px 5px; border-radius: 3px; background: #e5e5e5; color: #555;
+    }
+    .dev-type-badge.variant { background: #dbeafe; color: #1d4ed8; }
+    .dev-type-badge.text    { background: #dcfce7; color: #15803d; }
+    .dev-type-badge.boolean { background: #fef9c3; color: #a16207; }
+    .dev-type-badge.instance_swap { background: #fce7f3; color: #be185d; }
+    .dev-options { display: flex; flex-wrap: wrap; gap: 3px; }
+    .dev-option {
+      font-size: 10px; padding: 1px 6px; border-radius: 10px;
+      background: #e5e5e5; color: #444;
+    }
+    .dev-option.current { background: #000; color: #fff; }
+    .dev-text-value { font-size: 11px; color: #555; font-style: italic; }
+    .dev-note { font-size: 10px; color: #aaa; margin-top: 4px; }
+
     /* Selection indicator (Tailwind tab) */
     .selection-badge {
       display: flex;
@@ -161,7 +190,8 @@
 
   <div class="tabs">
     <button class="tab active" data-tab="tokens">Export Tokens</button>
-    <button class="tab" data-tab="tailwind">Copy Tailwind</button>
+    <button class="tab" data-tab="tailwind">Inspect</button>
+    <button class="tab" data-tab="dev">Dev</button>
   </div>
 
   <!-- Tokens panel -->
@@ -207,6 +237,32 @@
     <span id="status-tailwind" class="status"></span>
   </div>
 
+  <!-- Dev tab -->
+  <div id="panel-dev" class="panel hidden" style="overflow-y:auto">
+    <div id="dev-empty" class="dev-empty">
+      <div id="dev-empty-msg">Select a component instance to inspect</div>
+      <div id="dev-node-type" class="dev-node-type hidden"></div>
+      <div class="dev-tip">Click any component, component set, or instance — frames and groups won't work</div>
+    </div>
+
+    <div id="dev-content" class="hidden">
+      <div class="dev-header">
+        <span id="dev-component-name" class="dev-name"></span>
+        <span id="dev-figma-name" class="dev-figma-name"></span>
+      </div>
+
+      <div class="section-label" style="margin-bottom:4px">Properties</div>
+      <div id="dev-props" class="dev-props"></div>
+
+      <div class="section-header" style="margin-top:8px">
+        <span class="section-label">Draft JSON</span>
+        <button id="btn-copy-draft" class="btn btn-secondary btn-sm">Copy</button>
+      </div>
+      <textarea id="dev-draft" readonly style="min-height:200px;flex:1"></textarea>
+      <p class="dev-note">Copy → paste to Claude → say which shadcn component this is</p>
+    </div>
+  </div>
+
 <script>"use strict";
 (() => {
   // src/ui.ts
@@ -245,6 +301,14 @@
   var outputJsx = document.getElementById("output-jsx");
   var btnCopyJsx = document.getElementById("btn-copy-jsx");
   var unmappedHint = document.getElementById("unmapped-hint");
+  var devEmpty = document.getElementById("dev-empty");
+  var devNodeType = document.getElementById("dev-node-type");
+  var devContent = document.getElementById("dev-content");
+  var devComponentName = document.getElementById("dev-component-name");
+  var devFigmaName = document.getElementById("dev-figma-name");
+  var devProps = document.getElementById("dev-props");
+  var devDraft = document.getElementById("dev-draft");
+  var btnCopyDraft = document.getElementById("btn-copy-draft");
   btnExport.addEventListener("click", () => {
     btnExport.disabled = true;
     btnExport.textContent = "Exporting\u2026";
@@ -273,7 +337,68 @@
 ${outputJsx.value}`;
     copyToClipboard(full, btnCopyJsx);
   });
+  btnCopyDraft.addEventListener("click", () => {
+    copyToClipboard(devDraft.value, btnCopyDraft);
+  });
+  function renderDevTab(info, nodeType) {
+    if (!info) {
+      devEmpty.classList.remove("hidden");
+      devContent.classList.add("hidden");
+      const validTypes = ["INSTANCE", "COMPONENT", "COMPONENT_SET"];
+      if (nodeType && !validTypes.includes(nodeType)) {
+        devNodeType.classList.remove("hidden");
+        devNodeType.textContent = `Selected: ${nodeType} \u2014 select a component, component set, or instance`;
+      } else {
+        devNodeType.classList.add("hidden");
+      }
+      return;
+    }
+    devEmpty.classList.add("hidden");
+    devContent.classList.remove("hidden");
+    devComponentName.textContent = info.componentName;
+    devFigmaName.textContent = `Figma: "${info.figmaNodeName}"`;
+    devProps.innerHTML = "";
+    for (const prop of info.properties) {
+      const el = document.createElement("div");
+      el.className = "dev-prop";
+      const header = document.createElement("div");
+      header.className = "dev-prop-header";
+      const nameEl = document.createElement("span");
+      nameEl.className = "dev-prop-name";
+      nameEl.textContent = prop.name;
+      const badge = document.createElement("span");
+      badge.className = `dev-type-badge ${prop.type.toLowerCase()}`;
+      badge.textContent = prop.type;
+      header.appendChild(nameEl);
+      header.appendChild(badge);
+      el.appendChild(header);
+      if (prop.type === "VARIANT" && prop.options.length > 0) {
+        const opts = document.createElement("div");
+        opts.className = "dev-options";
+        for (const opt of prop.options) {
+          const chip = document.createElement("span");
+          chip.className = "dev-option" + (String(prop.currentValue).toLowerCase() === opt.toLowerCase() ? " current" : "");
+          chip.textContent = opt;
+          opts.appendChild(chip);
+        }
+        el.appendChild(opts);
+      } else if (prop.type === "TEXT") {
+        const val = document.createElement("div");
+        val.className = "dev-text-value";
+        val.textContent = `"${prop.currentValue}"`;
+        el.appendChild(val);
+      } else if (prop.type === "BOOLEAN") {
+        const val = document.createElement("div");
+        val.className = "dev-text-value";
+        val.textContent = String(prop.currentValue);
+        el.appendChild(val);
+      }
+      devProps.appendChild(el);
+    }
+    devDraft.value = info.draft;
+  }
   window.onmessage = (event) => {
+    var _a;
     const msg = event.data.pluginMessage;
     if (!msg)
       return;
@@ -317,8 +442,9 @@ ${outputJsx.value}`;
         selectionLabel.textContent = msg.nodeName || "1 node selected";
       } else {
         selectionBadge.classList.remove("has-selection");
-        selectionLabel.textContent = "No frame selected";
+        selectionLabel.textContent = "No node selected";
       }
+      renderDevTab((_a = msg.componentInfo) != null ? _a : null, msg.nodeType);
     }
     if (msg.type === "ERROR") {
       btnExport.disabled = false;
