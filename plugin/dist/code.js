@@ -388,6 +388,217 @@ ${darkLines}
     }
   });
 
+  // src/jsx.ts
+  function resolveComponentName(node) {
+    return __async(this, null, function* () {
+      var _a;
+      const main = yield node.getMainComponentAsync();
+      const parent = main == null ? void 0 : main.parent;
+      if ((parent == null ? void 0 : parent.type) === "COMPONENT_SET")
+        return parent.name;
+      return (_a = main == null ? void 0 : main.name) != null ? _a : node.name;
+    });
+  }
+  function generateJsx(node, componentMap) {
+    return __async(this, null, function* () {
+      var _a, _b, _c, _d;
+      const componentName = yield resolveComponentName(node);
+      const mapKey = Object.keys(componentMap).find(
+        (k) => k.toLowerCase() === componentName.toLowerCase()
+      );
+      if (!mapKey)
+        return null;
+      const mapping = componentMap[mapKey];
+      const props = [];
+      for (const [figmaProp, reactProp] of Object.entries((_a = mapping.props) != null ? _a : {})) {
+        const cprop = findProp(node, figmaProp);
+        if (!cprop || cprop.type === "BOOLEAN" || cprop.type === "INSTANCE_SWAP")
+          continue;
+        const value = String(cprop.value).toLowerCase().trim();
+        const defaultVal = (_c = (_b = mapping.defaults) == null ? void 0 : _b[reactProp]) == null ? void 0 : _c.toLowerCase();
+        if (defaultVal && value === defaultVal)
+          continue;
+        props.push(`${reactProp}="${value}"`);
+      }
+      for (const [figmaProp, valueMap] of Object.entries((_d = mapping.booleans) != null ? _d : {})) {
+        const cprop = findProp(node, figmaProp);
+        if (!cprop)
+          continue;
+        const figmaValue = String(cprop.value);
+        const boolProp = valueMap[figmaValue];
+        if (boolProp)
+          props.push(boolProp);
+      }
+      let children = null;
+      if (mapping.children) {
+        const cprop = findProp(node, mapping.children);
+        if ((cprop == null ? void 0 : cprop.type) === "TEXT")
+          children = String(cprop.value);
+      }
+      const propsStr = props.length > 0 ? " " + props.join(" ") : "";
+      const jsx = children !== null ? `<${mapKey}${propsStr}>
+  ${children}
+</${mapKey}>` : `<${mapKey}${propsStr} />`;
+      const importLine = `import { ${mapKey} } from "${mapping.import}"`;
+      return { componentName: mapKey, importLine, jsx };
+    });
+  }
+  function findProp(node, figmaPropName) {
+    const key = Object.keys(node.componentProperties).find(
+      // Figma appends "#NNN" to prop keys in some cases — strip it for matching
+      (k) => k.replace(/#\d+$/, "").toLowerCase() === figmaPropName.toLowerCase()
+    );
+    return key ? node.componentProperties[key] : void 0;
+  }
+  var init_jsx = __esm({
+    "src/jsx.ts"() {
+      "use strict";
+    }
+  });
+
+  // components.json
+  var components_default;
+  var init_components = __esm({
+    "components.json"() {
+      components_default = {
+        Button: {
+          import: "@/components/ui/button",
+          props: {
+            Variant: "variant",
+            Size: "size"
+          },
+          defaults: {
+            variant: "default",
+            size: "default"
+          },
+          booleans: {
+            State: {
+              Disabled: "disabled",
+              Loading: "loading"
+            }
+          },
+          children: "Label"
+        },
+        Badge: {
+          import: "@/components/ui/badge",
+          props: {
+            Variant: "variant"
+          },
+          defaults: {
+            variant: "default"
+          },
+          children: "Label"
+        },
+        Input: {
+          import: "@/components/ui/input",
+          props: {
+            Type: "type"
+          },
+          defaults: {
+            type: "text"
+          },
+          booleans: {
+            State: {
+              Disabled: "disabled"
+            }
+          }
+        },
+        Textarea: {
+          import: "@/components/ui/textarea",
+          booleans: {
+            State: {
+              Disabled: "disabled"
+            }
+          }
+        },
+        Checkbox: {
+          import: "@/components/ui/checkbox",
+          booleans: {
+            State: {
+              Disabled: "disabled"
+            },
+            Checked: {
+              True: "defaultChecked"
+            }
+          }
+        },
+        Switch: {
+          import: "@/components/ui/switch",
+          booleans: {
+            State: {
+              Disabled: "disabled"
+            },
+            Checked: {
+              True: "defaultChecked"
+            }
+          }
+        },
+        Select: {
+          import: "@/components/ui/select",
+          booleans: {
+            State: {
+              Disabled: "disabled"
+            }
+          },
+          children: "Placeholder"
+        },
+        Avatar: {
+          import: "@/components/ui/avatar",
+          props: {
+            Size: "size"
+          },
+          defaults: {
+            size: "default"
+          }
+        },
+        Alert: {
+          import: "@/components/ui/alert",
+          props: {
+            Variant: "variant"
+          },
+          defaults: {
+            variant: "default"
+          },
+          children: "Description"
+        },
+        Separator: {
+          import: "@/components/ui/separator",
+          props: {
+            Orientation: "orientation"
+          },
+          defaults: {
+            orientation: "horizontal"
+          }
+        },
+        Skeleton: {
+          import: "@/components/ui/skeleton"
+        },
+        Tabs: {
+          import: "@/components/ui/tabs"
+        },
+        Card: {
+          import: "@/components/ui/card"
+        },
+        Dialog: {
+          import: "@/components/ui/dialog"
+        },
+        Sheet: {
+          import: "@/components/ui/sheet"
+        },
+        Tooltip: {
+          import: "@/components/ui/tooltip",
+          children: "Content"
+        },
+        Popover: {
+          import: "@/components/ui/popover"
+        },
+        DropdownMenu: {
+          import: "@/components/ui/dropdown-menu"
+        }
+      };
+    }
+  });
+
   // src/code.ts
   var require_code = __commonJS({
     "src/code.ts"(exports) {
@@ -395,6 +606,8 @@ ${darkLines}
       init_transform();
       init_generate();
       init_tailwind();
+      init_jsx();
+      init_components();
       figma.showUI(__html__, { width: 360, height: 500, title: "Figma Handoff" });
       function collectVariables() {
         return __async(this, null, function* () {
@@ -455,6 +668,7 @@ ${darkLines}
         return tokens;
       }
       figma.ui.onmessage = (msg) => __async(exports, null, function* () {
+        var _a, _b;
         if (msg.type === "EXPORT_TOKENS") {
           try {
             const { collections, variables } = yield collectVariables();
@@ -468,16 +682,27 @@ ${darkLines}
         if (msg.type === "GET_TAILWIND") {
           const node = figma.currentPage.selection[0];
           if (!node) {
-            figma.ui.postMessage({ type: "TAILWIND_RESULT", classes: "", error: "Select a frame first" });
+            figma.ui.postMessage({ type: "TAILWIND_RESULT", classes: "", error: "Select a node first" });
             return;
           }
           try {
             const { collections, variables } = yield collectVariables();
             const classes = yield getTailwindClasses(node, variables, collections);
+            let jsxResult = null;
+            let unmappedComponent = null;
+            if (node.type === "INSTANCE") {
+              jsxResult = yield generateJsx(node, components_default);
+              if (!jsxResult) {
+                const main = yield node.getMainComponentAsync();
+                unmappedComponent = ((_a = main == null ? void 0 : main.parent) == null ? void 0 : _a.type) === "COMPONENT_SET" ? main.parent.name : (_b = main == null ? void 0 : main.name) != null ? _b : node.name;
+              }
+            }
             figma.ui.postMessage({
               type: "TAILWIND_RESULT",
               classes,
-              nodeName: node.name
+              nodeName: node.name,
+              jsxResult,
+              unmappedComponent
             });
           } catch (err) {
             figma.ui.postMessage({ type: "ERROR", message: String(err) });

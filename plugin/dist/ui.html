@@ -98,6 +98,37 @@
     .status.error { color: #d00; }
     .status.success { color: #080; }
 
+    /* Sections */
+    .section { display: flex; flex-direction: column; gap: 6px; }
+    .section.hidden { display: none; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; }
+    .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+    /* Import line */
+    .import-line {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 10px;
+      color: #888;
+      background: #f5f5f5;
+      border-radius: 4px;
+      padding: 5px 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Hint for unmapped components */
+    .hint {
+      font-size: 11px;
+      color: #f59e0b;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 7px 10px;
+    }
+    .hint.hidden { display: none; }
+
     /* Selection indicator (Tailwind tab) */
     .selection-badge {
       display: flex;
@@ -143,18 +174,37 @@
     </div>
   </div>
 
-  <!-- Tailwind panel -->
+  <!-- Tailwind / JSX panel -->
   <div id="panel-tailwind" class="panel hidden">
     <div id="selection-badge" class="selection-badge">
       <span class="dot"></span>
-      <span id="selection-label">No frame selected</span>
+      <span id="selection-label">No node selected</span>
     </div>
-    <button id="btn-get-tailwind" class="btn btn-primary">Get Tailwind Classes</button>
-    <textarea id="output-tailwind" placeholder="Select a frame then click Get Tailwind Classes…" readonly></textarea>
-    <div class="row">
-      <span id="status-tailwind" class="status"></span>
-      <button id="btn-copy-tailwind" class="btn btn-secondary" disabled>Copy</button>
+    <button id="btn-get-tailwind" class="btn btn-primary">Inspect</button>
+
+    <!-- JSX section (shown only for mapped component instances) -->
+    <div id="jsx-section" class="section hidden">
+      <div class="section-header">
+        <span class="section-label">JSX</span>
+        <button id="btn-copy-jsx" class="btn btn-secondary btn-sm">Copy</button>
+      </div>
+      <div id="jsx-import" class="import-line"></div>
+      <textarea id="output-jsx" readonly></textarea>
     </div>
+
+    <!-- Unmapped component hint -->
+    <div id="unmapped-hint" class="hint hidden"></div>
+
+    <!-- Tailwind section -->
+    <div id="tailwind-section" class="section">
+      <div class="section-header">
+        <span class="section-label">Tailwind</span>
+        <button id="btn-copy-tailwind" class="btn btn-secondary btn-sm" disabled>Copy</button>
+      </div>
+      <textarea id="output-tailwind" placeholder="Select a node then click Inspect…" readonly></textarea>
+    </div>
+
+    <span id="status-tailwind" class="status"></span>
   </div>
 
 <script>"use strict";
@@ -190,6 +240,11 @@
   var outputTailwind = document.getElementById("output-tailwind");
   var statusTailwind = document.getElementById("status-tailwind");
   var btnCopyTailwind = document.getElementById("btn-copy-tailwind");
+  var jsxSection = document.getElementById("jsx-section");
+  var jsxImport = document.getElementById("jsx-import");
+  var outputJsx = document.getElementById("output-jsx");
+  var btnCopyJsx = document.getElementById("btn-copy-jsx");
+  var unmappedHint = document.getElementById("unmapped-hint");
   btnExport.addEventListener("click", () => {
     btnExport.disabled = true;
     btnExport.textContent = "Exporting\u2026";
@@ -202,13 +257,21 @@
   });
   btnGetTailwind.addEventListener("click", () => {
     btnGetTailwind.disabled = true;
-    btnGetTailwind.textContent = "Generating\u2026";
+    btnGetTailwind.textContent = "Inspecting\u2026";
     statusTailwind.textContent = "";
     statusTailwind.className = "status";
+    jsxSection.classList.add("hidden");
+    unmappedHint.classList.add("hidden");
     parent.postMessage({ pluginMessage: { type: "GET_TAILWIND" } }, "*");
   });
   btnCopyTailwind.addEventListener("click", () => {
     copyToClipboard(outputTailwind.value, btnCopyTailwind);
+  });
+  btnCopyJsx.addEventListener("click", () => {
+    const full = `${jsxImport.textContent}
+
+${outputJsx.value}`;
+    copyToClipboard(full, btnCopyJsx);
   });
   window.onmessage = (event) => {
     const msg = event.data.pluginMessage;
@@ -224,11 +287,24 @@
     }
     if (msg.type === "TAILWIND_RESULT") {
       btnGetTailwind.disabled = false;
-      btnGetTailwind.textContent = "Get Tailwind Classes";
+      btnGetTailwind.textContent = "Inspect";
       if (msg.error) {
         statusTailwind.textContent = msg.error;
         statusTailwind.className = "status error";
         return;
+      }
+      if (msg.jsxResult) {
+        jsxSection.classList.remove("hidden");
+        unmappedHint.classList.add("hidden");
+        jsxImport.textContent = msg.jsxResult.importLine;
+        outputJsx.value = msg.jsxResult.jsx;
+      } else if (msg.unmappedComponent) {
+        jsxSection.classList.add("hidden");
+        unmappedHint.classList.remove("hidden");
+        unmappedHint.textContent = `"${msg.unmappedComponent}" is not in components.json yet`;
+      } else {
+        jsxSection.classList.add("hidden");
+        unmappedHint.classList.add("hidden");
       }
       outputTailwind.value = msg.classes || "(no classes generated)";
       btnCopyTailwind.disabled = !msg.classes;

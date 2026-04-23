@@ -34,3 +34,20 @@ export interface ResolvedToken {
   dark?: string;
   collection: string;
 }
+
+// ── Component map (components.json) ──────────────────────────────────────
+
+export interface ComponentMapping {
+  /** Import path, e.g. "@/components/ui/button" */
+  import: string;
+  /** Figma property name → React prop name */
+  props?: Record<string, string>;
+  /** Props whose value matches this default are omitted from the JSX */
+  defaults?: Record<string, string>;
+  /** Figma property name → { FigmaValue: "booleanPropName" } */
+  booleans?: Record<string, Record<string, string>>;
+  /** Figma TEXT property whose value becomes children */
+  children?: string;
+}
+
+export type ComponentMap = Record<string, ComponentMapping>;

@@ -42,6 +42,12 @@ const outputTailwind = document.getElementById("output-tailwind") as HTMLTextAre
 const statusTailwind = document.getElementById("status-tailwind") as HTMLSpanElement;
 const btnCopyTailwind = document.getElementById("btn-copy-tailwind") as HTMLButtonElement;
 
+const jsxSection = document.getElementById("jsx-section") as HTMLDivElement;
+const jsxImport = document.getElementById("jsx-import") as HTMLDivElement;
+const outputJsx = document.getElementById("output-jsx") as HTMLTextAreaElement;
+const btnCopyJsx = document.getElementById("btn-copy-jsx") as HTMLButtonElement;
+const unmappedHint = document.getElementById("unmapped-hint") as HTMLDivElement;
+
 // ── Tokens tab ─────────────────────────────────────────────────────────────
 
 btnExport.addEventListener("click", () => {
@@ -60,14 +66,21 @@ btnCopyTokens.addEventListener("click", () => {
 
 btnGetTailwind.addEventListener("click", () => {
   btnGetTailwind.disabled = true;
-  btnGetTailwind.textContent = "Generating…";
+  btnGetTailwind.textContent = "Inspecting…";
   statusTailwind.textContent = "";
   statusTailwind.className = "status";
+  jsxSection.classList.add("hidden");
+  unmappedHint.classList.add("hidden");
   parent.postMessage({ pluginMessage: { type: "GET_TAILWIND" } }, "*");
 });
 
 btnCopyTailwind.addEventListener("click", () => {
   copyToClipboard(outputTailwind.value, btnCopyTailwind);
+});
+
+btnCopyJsx.addEventListener("click", () => {
+  const full = `${jsxImport.textContent}\n\n${outputJsx.value}`;
+  copyToClipboard(full, btnCopyJsx);
 });
 
 // ── Messages from plugin backend ───────────────────────────────────────────
@@ -87,7 +100,7 @@ window.onmessage = (event: MessageEvent) => {
 
   if (msg.type === "TAILWIND_RESULT") {
     btnGetTailwind.disabled = false;
-    btnGetTailwind.textContent = "Get Tailwind Classes";
+    btnGetTailwind.textContent = "Inspect";
 
     if (msg.error) {
       statusTailwind.textContent = msg.error;
@@ -95,6 +108,22 @@ window.onmessage = (event: MessageEvent) => {
       return;
     }
 
+    // JSX section
+    if (msg.jsxResult) {
+      jsxSection.classList.remove("hidden");
+      unmappedHint.classList.add("hidden");
+      jsxImport.textContent = msg.jsxResult.importLine;
+      outputJsx.value = msg.jsxResult.jsx;
+    } else if (msg.unmappedComponent) {
+      jsxSection.classList.add("hidden");
+      unmappedHint.classList.remove("hidden");
+      unmappedHint.textContent = `"${msg.unmappedComponent}" is not in components.json yet`;
+    } else {
+      jsxSection.classList.add("hidden");
+      unmappedHint.classList.add("hidden");
+    }
+
+    // Tailwind section
     outputTailwind.value = msg.classes || "(no classes generated)";
     btnCopyTailwind.disabled = !msg.classes;
     statusTailwind.textContent = msg.nodeName ? `From: ${msg.nodeName}` : "";

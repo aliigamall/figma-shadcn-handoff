@@ -1,8 +1,10 @@
 import { resolveValue } from "./lib/resolve";
 import { toCssVarName, toCssValue } from "./lib/transform";
 import { generateCss } from "./lib/generate";
-import type { FigmaVariable, FigmaVariableCollection, ResolvedToken } from "./lib/types";
+import type { FigmaVariable, FigmaVariableCollection, ResolvedToken, ComponentMap } from "./lib/types";
 import { getTailwindClasses } from "./tailwind";
+import { generateJsx } from "./jsx";
+import componentMap from "../components.json";
 
 figma.showUI(__html__, { width: 360, height: 500, title: "Figma Handoff" });
 
@@ -102,16 +104,32 @@ figma.ui.onmessage = async (msg: { type: string }) => {
   if (msg.type === "GET_TAILWIND") {
     const node = figma.currentPage.selection[0];
     if (!node) {
-      figma.ui.postMessage({ type: "TAILWIND_RESULT", classes: "", error: "Select a frame first" });
+      figma.ui.postMessage({ type: "TAILWIND_RESULT", classes: "", error: "Select a node first" });
       return;
     }
     try {
       const { collections, variables } = await collectVariables();
       const classes = await getTailwindClasses(node, variables, collections);
+
+      // Attempt JSX generation if the node is a component instance
+      let jsxResult = null;
+      let unmappedComponent = null;
+      if (node.type === "INSTANCE") {
+        jsxResult = await generateJsx(node, componentMap as ComponentMap);
+        if (!jsxResult) {
+          const main = await node.getMainComponentAsync();
+          unmappedComponent = main?.parent?.type === "COMPONENT_SET"
+            ? main.parent.name
+            : main?.name ?? node.name;
+        }
+      }
+
       figma.ui.postMessage({
         type: "TAILWIND_RESULT",
         classes,
         nodeName: node.name,
+        jsxResult,
+        unmappedComponent,
       });
     } catch (err) {
       figma.ui.postMessage({ type: "ERROR", message: String(err) });
