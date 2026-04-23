@@ -640,6 +640,10 @@ ${darkLines}
         Card: {
           import: "@/components/ui/card"
         },
+        "Alert Dialog": {
+          component: "AlertDialog",
+          import: "@/components/ui/alert-dialog"
+        },
         Dialog: {
           import: "@/components/ui/dialog"
         },
