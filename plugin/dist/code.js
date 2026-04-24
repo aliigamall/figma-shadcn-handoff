@@ -483,6 +483,570 @@ ${darkLines}
     }
   });
 
+  // src/lib/component-map.ts
+  function lookupComponent(figmaName) {
+    var _a;
+    if (COMPONENT_MAP[figmaName])
+      return COMPONENT_MAP[figmaName];
+    const base = figmaName.split(/[/,]/)[0].trim();
+    return (_a = COMPONENT_MAP[base]) != null ? _a : null;
+  }
+  var VARIANT_MAP, SIZE_MAP, CHECKED_MAP, COMPONENT_MAP;
+  var init_component_map = __esm({
+    "src/lib/component-map.ts"() {
+      "use strict";
+      VARIANT_MAP = {
+        Primary: "default",
+        Secondary: "secondary",
+        Outline: "outline",
+        Ghost: "ghost",
+        Destructive: "destructive"
+      };
+      SIZE_MAP = {
+        Default: "default",
+        Regular: "default",
+        Large: "lg",
+        Small: "sm",
+        Mini: "xs",
+        "Extra Large": "2xl"
+      };
+      CHECKED_MAP = {
+        True: "true",
+        False: "false",
+        Indeterminate: "indeterminate"
+      };
+      COMPONENT_MAP = {
+        // ── Button ────────────────────────────────────────────────────────────────
+        "Button": {
+          component: "Button",
+          importPath: "@/components/ui/button",
+          props: {
+            "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
+            "Size": { shadcnProp: "size", values: SIZE_MAP }
+          },
+          ignore: ["State", "Roundness", "Show right icon", "Show left icon", "\u2B91 Right icon", "\u2B91 Left icon"]
+        },
+        // ── Icon Button ───────────────────────────────────────────────────────────
+        "Icon Button": {
+          component: "Button",
+          importPath: "@/components/ui/button",
+          props: {
+            "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
+            "Size": { shadcnProp: "size", values: SIZE_MAP }
+          },
+          ignore: ["State", "Roundness", "Icon"]
+        },
+        // ── Link Button ───────────────────────────────────────────────────────────
+        "Link Button": {
+          component: "Button",
+          importPath: "@/components/ui/button",
+          props: {
+            "Size": { shadcnProp: "size", values: SIZE_MAP }
+          },
+          children: "Label",
+          ignore: ["State", "Roundness", "Show icon left", "Show icon right", "\u2B91 Icon left", "\u2B91 Icon right"]
+        },
+        // ── Loading Button ────────────────────────────────────────────────────────
+        "Loading Button": {
+          component: "Button",
+          importPath: "@/components/ui/button",
+          props: {
+            "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
+            "Size": { shadcnProp: "size", values: SIZE_MAP }
+          },
+          ignore: ["State", "Roundness"]
+        },
+        // ── Badge ─────────────────────────────────────────────────────────────────
+        "Badge": {
+          component: "Badge",
+          importPath: "@/components/ui/badge",
+          props: {
+            "Variant": { shadcnProp: "variant", values: VARIANT_MAP }
+          },
+          children: "Label",
+          ignore: ["State", "Roundness", "Show left icon", "Show right icon", "\u2B91 Icon left", "\u2B91 Icon right"]
+        },
+        // ── Alert ─────────────────────────────────────────────────────────────────
+        "Alert": {
+          component: "Alert",
+          importPath: "@/components/ui/alert",
+          props: {
+            "Type": {
+              shadcnProp: "variant",
+              values: { Neutral: "default", Error: "destructive" }
+            }
+          },
+          children: "Line 1",
+          ignore: ["Show Line 2", "Show Icon", "Show Button", "Flip Icon", "\u2B91 Icon", "\u2B91  Line 2"]
+        },
+        // ── Alert Dialog ──────────────────────────────────────────────────────────
+        "Alert Dialog": {
+          component: "AlertDialog",
+          importPath: "@/components/ui/alert-dialog",
+          ignore: ["Type"]
+        },
+        // ── Avatar ────────────────────────────────────────────────────────────────
+        "Avatar": {
+          component: "Avatar",
+          importPath: "@/components/ui/avatar",
+          ignore: ["Picture", "Size", "Roundness Type"]
+        },
+        // ── Input ─────────────────────────────────────────────────────────────────
+        "Input": {
+          component: "Input",
+          importPath: "@/components/ui/input",
+          props: {
+            "State": {
+              shadcnProp: "disabled",
+              values: { Disabled: "true", Empty: null, Placeholder: null, Value: null, Focus: null, Error: null, "Error Focus": null }
+            }
+          },
+          children: "Value",
+          ignore: ["Size", "Roundness", "Show decoration left", "Show decoration right", "Show cursor", "Show prepend text", "Show append text"]
+        },
+        // ── Textarea ──────────────────────────────────────────────────────────────
+        "Textarea": {
+          component: "Textarea",
+          importPath: "@/components/ui/textarea",
+          props: {
+            "State": {
+              shadcnProp: "disabled",
+              values: { Disabled: "true", Empty: null, Placeholder: null, Value: null, Focus: null, Error: null, "Error Focus": null }
+            }
+          },
+          ignore: ["Show resizable", "Roundness"]
+        },
+        // ── Select ────────────────────────────────────────────────────────────────
+        "Select & Combobox": {
+          component: "Select",
+          importPath: "@/components/ui/select",
+          ignore: ["Size", "State", "Lines", "Show Decoration", "Show Prepend"]
+        },
+        // ── Checkbox ──────────────────────────────────────────────────────────────
+        "Checkbox": {
+          component: "Checkbox",
+          importPath: "@/components/ui/checkbox",
+          props: {
+            "Checked?": { shadcnProp: "checked", values: CHECKED_MAP }
+          },
+          ignore: ["State"]
+        },
+        // ── Switch ────────────────────────────────────────────────────────────────
+        "Switch": {
+          component: "Switch",
+          importPath: "@/components/ui/switch",
+          props: {
+            "Checked?": { shadcnProp: "checked", values: { True: "true", False: "false" } }
+          },
+          ignore: ["State"]
+        },
+        // ── Radio ─────────────────────────────────────────────────────────────────
+        "Radio": {
+          component: "RadioGroupItem",
+          importPath: "@/components/ui/radio-group",
+          props: {
+            "Checked?": { shadcnProp: "checked", values: { True: "true", False: "false" } }
+          },
+          ignore: ["State"]
+        },
+        // ── Slider ────────────────────────────────────────────────────────────────
+        "Slider Horizontal": {
+          component: "Slider",
+          importPath: "@/components/ui/slider",
+          ignore: ["Type"]
+        },
+        "Slider Vertical": {
+          component: "Slider",
+          importPath: "@/components/ui/slider",
+          props: {
+            "Type": { shadcnProp: "orientation", values: { Default: "vertical", "Range narrow": "vertical", "Range wide": "vertical" } }
+          }
+        },
+        // ── Progress ──────────────────────────────────────────────────────────────
+        "Progress": {
+          component: "Progress",
+          importPath: "@/components/ui/progress",
+          props: {
+            "Progress": { shadcnProp: "value" }
+          }
+        },
+        // ── Tabs ──────────────────────────────────────────────────────────────────
+        "Tabs": {
+          component: "Tabs",
+          importPath: "@/components/ui/tabs",
+          ignore: ["Size", "Content", "Parts"]
+        },
+        // ── Tooltip ───────────────────────────────────────────────────────────────
+        "Tooltip": {
+          component: "Tooltip",
+          importPath: "@/components/ui/tooltip",
+          props: {
+            "Side": {
+              shadcnProp: "side",
+              values: { Top: "top", Bottom: "bottom", Left: "left", Right: "right" }
+            }
+          },
+          children: "Tooltip text"
+        },
+        // ── Separator ─────────────────────────────────────────────────────────────
+        "Separator": {
+          component: "Separator",
+          importPath: "@/components/ui/separator",
+          props: {
+            "Direction": {
+              shadcnProp: "orientation",
+              values: { Default: "horizontal", Vertical: "vertical" }
+            }
+          },
+          ignore: ["Spacing"]
+        },
+        // ── Label ─────────────────────────────────────────────────────────────────
+        "Label": {
+          component: "Label",
+          importPath: "@/components/ui/label",
+          ignore: ["Layout"]
+        },
+        // ── Skeleton ──────────────────────────────────────────────────────────────
+        "Skeleton": {
+          component: "Skeleton",
+          importPath: "@/components/ui/skeleton"
+        },
+        // ── Spinner ───────────────────────────────────────────────────────────────
+        "Spinner": {
+          component: "Loader2",
+          importPath: "lucide-react",
+          ignore: ["Type"]
+        },
+        // ── Card ──────────────────────────────────────────────────────────────────
+        "Card": {
+          component: "Card",
+          importPath: "@/components/ui/card",
+          ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No."]
+        },
+        // ── Accordion ─────────────────────────────────────────────────────────────
+        "Accordion Trigger": {
+          component: "Accordion",
+          importPath: "@/components/ui/accordion",
+          children: "Accordion label",
+          ignore: ["State", "Show border", "Position"]
+        },
+        // ── Breadcrumb ────────────────────────────────────────────────────────────
+        "Breadcrumb": {
+          component: "Breadcrumb",
+          importPath: "@/components/ui/breadcrumb",
+          ignore: ["Items"]
+        },
+        // ── Pagination ────────────────────────────────────────────────────────────
+        "Pagination": {
+          component: "Pagination",
+          importPath: "@/components/ui/pagination",
+          ignore: ["Type", "State"]
+        },
+        // ── Dialog ────────────────────────────────────────────────────────────────
+        "Dialog": {
+          component: "Dialog",
+          importPath: "@/components/ui/dialog",
+          ignore: ["Type"]
+        },
+        // ── Toggle Button ─────────────────────────────────────────────────────────
+        "Toggle Button": {
+          component: "Toggle",
+          importPath: "@/components/ui/toggle",
+          props: {
+            "Skin": {
+              shadcnProp: "variant",
+              values: { Outlined: "outline", Ghost: "ghost" }
+            },
+            "Size": { shadcnProp: "size", values: SIZE_MAP },
+            "Active?": {
+              shadcnProp: "pressed",
+              values: { Yes: "true", No: "false" }
+            }
+          },
+          children: "Label",
+          ignore: ["State", "Roundness", "Position", "Show left icon", "Show right icon", "\u2B91 Left icon", "\u2B91 Right icon"]
+        },
+        // ── Toggle Icon Button ────────────────────────────────────────────────────
+        "Toggle Icon Button": {
+          component: "Toggle",
+          importPath: "@/components/ui/toggle",
+          props: {
+            "Skin": {
+              shadcnProp: "variant",
+              values: { Outlined: "outline", Ghost: "ghost" }
+            },
+            "Size": { shadcnProp: "size", values: SIZE_MAP },
+            "Active?": {
+              shadcnProp: "pressed",
+              values: { Yes: "true", No: "false" }
+            }
+          },
+          ignore: ["State", "Roundness", "Position", "Icon"]
+        }
+      };
+    }
+  });
+
+  // src/lib/frame-scanner.ts
+  function extractLayout(node) {
+    var _a, _b, _c, _d, _e;
+    const isAuto = node.layoutMode !== "NONE";
+    return {
+      direction: node.layoutMode === "HORIZONTAL" ? "horizontal" : node.layoutMode === "VERTICAL" ? "vertical" : "none",
+      gap: isAuto ? (_a = node.itemSpacing) != null ? _a : 0 : 0,
+      paddingTop: isAuto ? (_b = node.paddingTop) != null ? _b : 0 : 0,
+      paddingRight: isAuto ? (_c = node.paddingRight) != null ? _c : 0 : 0,
+      paddingBottom: isAuto ? (_d = node.paddingBottom) != null ? _d : 0 : 0,
+      paddingLeft: isAuto ? (_e = node.paddingLeft) != null ? _e : 0 : 0,
+      wrap: isAuto ? node.layoutWrap === "WRAP" : false
+    };
+  }
+  function resolveProps(instance, def) {
+    var _a, _b;
+    if (!def || !def.props)
+      return [];
+    const result = [];
+    const rawProps = (_a = instance.componentProperties) != null ? _a : {};
+    for (const [obraKey, propDef] of Object.entries(def.props)) {
+      const figmaKey = Object.keys(rawProps).find((k) => k.split("#")[0] === obraKey);
+      if (!figmaKey)
+        continue;
+      const rawValue = String(rawProps[figmaKey].value);
+      if (propDef.values && propDef.values[rawValue] === null)
+        continue;
+      const mappedValue = propDef.values ? (_b = propDef.values[rawValue]) != null ? _b : rawValue.toLowerCase() : rawValue.toLowerCase();
+      result.push({ shadcnProp: propDef.shadcnProp, value: mappedValue });
+    }
+    return result;
+  }
+  function resolveChildren(instance, childrenKey) {
+    var _a;
+    if (!childrenKey)
+      return null;
+    const rawProps = (_a = instance.componentProperties) != null ? _a : {};
+    const figmaKey = Object.keys(rawProps).find((k) => k.split("#")[0] === childrenKey);
+    if (!figmaKey)
+      return null;
+    const val = rawProps[figmaKey].value;
+    return typeof val === "string" ? val : null;
+  }
+  function scanNode(node) {
+    return __async(this, null, function* () {
+      var _a;
+      if (!node.visible)
+        return null;
+      if (node.type === "INSTANCE") {
+        const mainComp = yield node.getMainComponentAsync();
+        if (!mainComp)
+          return scanFrameNode(node);
+        const compName = ((_a = mainComp.parent) == null ? void 0 : _a.type) === "COMPONENT_SET" ? mainComp.parent.name : mainComp.name;
+        const def = lookupComponent(compName);
+        if (def) {
+          const textChildren = resolveChildren(node, def.children);
+          const childNodes = textChildren === null ? yield scanChildren(node) : [];
+          return {
+            id: node.id,
+            figmaName: compName,
+            component: def.component,
+            importPath: def.importPath,
+            props: resolveProps(node, def),
+            children: textChildren != null ? textChildren : childNodes,
+            layout: extractLayout(node)
+          };
+        }
+        return scanFrameNode(node);
+      }
+      if (node.type === "FRAME" || node.type === "GROUP" || node.type === "COMPONENT") {
+        return scanFrameNode(node);
+      }
+      return null;
+    });
+  }
+  function scanFrameNode(node) {
+    return __async(this, null, function* () {
+      const children = yield scanChildren(node);
+      if (children.length === 0)
+        return null;
+      const layout = node.type !== "GROUP" ? extractLayout(node) : { direction: "none", gap: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+      return {
+        isLayout: true,
+        id: node.id,
+        name: node.name,
+        layout,
+        children
+      };
+    });
+  }
+  function scanChildren(node) {
+    return __async(this, null, function* () {
+      const results = [];
+      for (const child of node.children) {
+        const scanned = yield scanNode(child);
+        if (scanned)
+          results.push(scanned);
+      }
+      return results;
+    });
+  }
+  function scanFrame(frame) {
+    return __async(this, null, function* () {
+      const children = yield scanChildren(frame);
+      return {
+        isLayout: true,
+        id: frame.id,
+        name: frame.name,
+        layout: extractLayout(frame),
+        children
+      };
+    });
+  }
+  var init_frame_scanner = __esm({
+    "src/lib/frame-scanner.ts"() {
+      "use strict";
+      init_component_map();
+    }
+  });
+
+  // src/lib/jsx-generator.ts
+  function gapClass(gap) {
+    var _a;
+    const map = {
+      0: "",
+      2: "gap-0.5",
+      4: "gap-1",
+      6: "gap-1.5",
+      8: "gap-2",
+      10: "gap-2.5",
+      12: "gap-3",
+      16: "gap-4",
+      20: "gap-5",
+      24: "gap-6",
+      32: "gap-8",
+      40: "gap-10",
+      48: "gap-12",
+      64: "gap-16"
+    };
+    return (_a = map[gap]) != null ? _a : `gap-[${gap}px]`;
+  }
+  function paddingClasses(layout) {
+    const { paddingTop: t, paddingRight: r, paddingBottom: b, paddingLeft: l } = layout;
+    if (t === 0 && r === 0 && b === 0 && l === 0)
+      return "";
+    if (t === b && l === r && t === l)
+      return paddingClass("p", t);
+    const parts = [];
+    if (t === b && t > 0)
+      parts.push(paddingClass("py", t));
+    else {
+      if (t > 0)
+        parts.push(paddingClass("pt", t));
+      if (b > 0)
+        parts.push(paddingClass("pb", b));
+    }
+    if (l === r && l > 0)
+      parts.push(paddingClass("px", l));
+    else {
+      if (l > 0)
+        parts.push(paddingClass("pl", l));
+      if (r > 0)
+        parts.push(paddingClass("pr", r));
+    }
+    return parts.join(" ");
+  }
+  function paddingClass(prefix, value) {
+    const map = {
+      2: "0.5",
+      4: "1",
+      6: "1.5",
+      8: "2",
+      10: "2.5",
+      12: "3",
+      16: "4",
+      20: "5",
+      24: "6",
+      32: "8",
+      40: "10",
+      48: "12",
+      64: "16"
+    };
+    return map[value] ? `${prefix}-${map[value]}` : `${prefix}-[${value}px]`;
+  }
+  function layoutClasses(layout) {
+    if (layout.direction === "none")
+      return "";
+    const dir = layout.direction === "horizontal" ? "flex-row" : "flex-col";
+    const wrap = layout.wrap ? "flex-wrap" : "";
+    const gap = gapClass(layout.gap);
+    const pad = paddingClasses(layout);
+    return ["flex", dir, wrap, gap, pad].filter(Boolean).join(" ");
+  }
+  function addImport(imports, path, name) {
+    if (!imports.has(path))
+      imports.set(path, /* @__PURE__ */ new Set());
+    imports.get(path).add(name);
+  }
+  function renderImports(imports) {
+    return Array.from(imports.entries()).map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`).join("\n");
+  }
+  function renderProps(props) {
+    if (props.length === 0)
+      return "";
+    return " " + props.map(({ shadcnProp, value }) => {
+      if (value === "true")
+        return shadcnProp;
+      if (value === "false")
+        return ``;
+      if (value === "default")
+        return "";
+      return `${shadcnProp}="${value}"`;
+    }).filter(Boolean).join(" ");
+  }
+  function renderNode(node, imports, indent) {
+    const pad = "  ".repeat(indent);
+    if ("isLayout" in node) {
+      const cls2 = layoutClasses(node.layout);
+      const clsAttr2 = cls2 ? ` className="${cls2}"` : "";
+      const childrenStr = node.children.map((c) => renderNode(c, imports, indent + 1)).join("\n");
+      if (!childrenStr)
+        return "";
+      return node.children.length === 0 ? `${pad}<div${clsAttr2} />` : `${pad}<div${clsAttr2}>
+${childrenStr}
+${pad}</div>`;
+    }
+    const { component, importPath, props, children } = node;
+    addImport(imports, importPath, component);
+    const propsStr = renderProps(props);
+    const cls = layoutClasses(node.layout);
+    const clsAttr = cls ? ` className="${cls}"` : "";
+    if (typeof children === "string" && children) {
+      return `${pad}<${component}${propsStr}${clsAttr}>${children}</${component}>`;
+    }
+    if (Array.isArray(children) && children.length > 0) {
+      const childrenStr = children.map((c) => renderNode(c, imports, indent + 1)).join("\n");
+      return `${pad}<${component}${propsStr}${clsAttr}>
+${childrenStr}
+${pad}</${component}>`;
+    }
+    return `${pad}<${component}${propsStr}${clsAttr} />`;
+  }
+  function generateJSX(tree) {
+    const imports = /* @__PURE__ */ new Map();
+    const jsx = renderNode(tree, imports, 0);
+    const components = Array.from(
+      new Set(Array.from(imports.values()).flatMap((s) => Array.from(s)))
+    );
+    return {
+      imports: renderImports(imports),
+      jsx,
+      components
+    };
+  }
+  var init_jsx_generator = __esm({
+    "src/lib/jsx-generator.ts"() {
+      "use strict";
+    }
+  });
+
   // components.json
   var components_default;
   var init_components = __esm({
@@ -830,6 +1394,8 @@ ${darkLines}
       init_generate();
       init_tailwind();
       init_jsx();
+      init_frame_scanner();
+      init_jsx_generator();
       init_components();
       figma.showUI(__html__, { width: 360, height: 500, title: "Figma Handoff" });
       function collectVariables() {
@@ -1001,11 +1567,25 @@ ${darkLines}
             const classes = yield getTailwindClasses(node, variables, collections);
             let jsxResult = null;
             let unmappedComponent = null;
-            if (node.type === "INSTANCE") {
-              jsxResult = yield generateJsx(node, components_default);
-              if (!jsxResult) {
-                const main = yield node.getMainComponentAsync();
-                unmappedComponent = ((_a = main == null ? void 0 : main.parent) == null ? void 0 : _a.type) === "COMPONENT_SET" ? main.parent.name : (_b = main == null ? void 0 : main.name) != null ? _b : node.name;
+            if (node.type === "FRAME" || node.type === "GROUP") {
+              const tree = yield scanFrame(node);
+              jsxResult = generateJSX(tree);
+            } else if (node.type === "INSTANCE") {
+              const scanned = yield scanNode(node);
+              if (scanned) {
+                jsxResult = generateJSX(scanned);
+              } else {
+                const legacyResult = yield generateJsx(node, components_default);
+                if (legacyResult) {
+                  jsxResult = {
+                    imports: legacyResult.importLine,
+                    jsx: legacyResult.jsx,
+                    components: []
+                  };
+                } else {
+                  const main = yield node.getMainComponentAsync();
+                  unmappedComponent = ((_a = main == null ? void 0 : main.parent) == null ? void 0 : _a.type) === "COMPONENT_SET" ? main.parent.name : (_b = main == null ? void 0 : main.name) != null ? _b : node.name;
+                }
               }
             }
             figma.ui.postMessage({

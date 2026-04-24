@@ -3,7 +3,8 @@
     "target": "ES6",
     "lib": ["ES6"],
     "strict": true,
-    "typeRoots": ["./node_modules/@figma/plugin-typings"]
+    "typeRoots": ["./node_modules/@types", "./node_modules/@figma/plugin-typings"],
+    "types": ["@figma/plugin-typings"]
   },
   "include": ["src/**/*.ts"]
 }
