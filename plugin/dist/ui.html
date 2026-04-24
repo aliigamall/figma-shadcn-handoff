@@ -33,7 +33,6 @@
   <div class="flex border-b border-[#e5e5e5] flex-shrink-0">
     <button class="tab flex-1 py-[10px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors active" data-tab="tokens">Export Tokens</button>
     <button class="tab flex-1 py-[10px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="tailwind">Inspect</button>
-    <button class="tab flex-1 py-[10px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="dev">Dev</button>
   </div>
 
   <!-- Tokens panel -->
@@ -87,31 +86,6 @@
     <span id="status-tailwind" class="status text-[11px] text-[#888] min-h-4"></span>
   </div>
 
-  <!-- Dev tab -->
-  <div id="panel-dev" class="panel flex-1 p-4 flex flex-col gap-3 overflow-y-auto hidden">
-    <div id="dev-empty" class="text-[#999] text-[12px] text-center mt-8 flex flex-col gap-2 items-center">
-      <div id="dev-empty-msg">Select a component instance to inspect</div>
-      <div id="dev-node-type" class="text-[11px] bg-[#fff3cd] text-[#856404] rounded-[5px] px-[10px] py-[5px] hidden"></div>
-      <div class="text-[10px] text-[#bbb] max-w-[240px] leading-relaxed">Click any component, component set, or instance — frames and groups won't work</div>
-    </div>
-
-    <div id="dev-content" class="hidden">
-      <div class="mb-[10px]">
-        <span id="dev-component-name" class="text-[14px] font-semibold block"></span>
-        <span id="dev-figma-name" class="text-[11px] text-[#888]"></span>
-      </div>
-
-      <div class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888] mb-1">Properties</div>
-      <div id="dev-props" class="flex flex-col gap-1 mb-1"></div>
-
-      <div class="flex items-center justify-between mt-2">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Draft JSON</span>
-        <button id="btn-copy-draft" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Copy</button>
-      </div>
-      <textarea id="dev-draft" class="w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-[200px] flex-1 mt-1" readonly></textarea>
-      <p class="text-[10px] text-[#aaa] mt-1">Copy → paste to Claude → say which shadcn component this is</p>
-    </div>
-  </div>
 
 <script>"use strict";
 (() => {
@@ -154,14 +128,6 @@
   var outputJsx = document.getElementById("output-jsx");
   var btnCopyJsx = document.getElementById("btn-copy-jsx");
   var unmappedHint = document.getElementById("unmapped-hint");
-  var devEmpty = document.getElementById("dev-empty");
-  var devNodeType = document.getElementById("dev-node-type");
-  var devContent = document.getElementById("dev-content");
-  var devComponentName = document.getElementById("dev-component-name");
-  var devFigmaName = document.getElementById("dev-figma-name");
-  var devProps = document.getElementById("dev-props");
-  var devDraft = document.getElementById("dev-draft");
-  var btnCopyDraft = document.getElementById("btn-copy-draft");
   btnExport.addEventListener("click", () => {
     btnExport.disabled = true;
     btnExport.textContent = "Exporting\u2026";
@@ -192,77 +158,8 @@
 ${outputJsx.value}`;
     copyToClipboard(full, btnCopyJsx);
   });
-  btnCopyDraft.addEventListener("click", () => {
-    copyToClipboard(devDraft.value, btnCopyDraft);
-  });
-  function renderDevTab(info, nodeType) {
-    var _a;
-    if (!info) {
-      devEmpty.classList.remove("hidden");
-      devContent.classList.add("hidden");
-      const validTypes = ["INSTANCE", "COMPONENT", "COMPONENT_SET"];
-      if (nodeType && !validTypes.includes(nodeType)) {
-        devNodeType.classList.remove("hidden");
-        devNodeType.textContent = `Selected: ${nodeType} \u2014 select a component, component set, or instance`;
-      } else {
-        devNodeType.classList.add("hidden");
-      }
-      return;
-    }
-    devEmpty.classList.add("hidden");
-    devContent.classList.remove("hidden");
-    devComponentName.textContent = info.componentName;
-    devFigmaName.textContent = `Figma: "${info.figmaNodeName}"`;
-    const typeBadgeColors = {
-      variant: "bg-[#dbeafe] text-[#1d4ed8]",
-      text: "bg-[#dcfce7] text-[#15803d]",
-      boolean: "bg-[#fef9c3] text-[#a16207]",
-      instance_swap: "bg-[#fce7f3] text-[#be185d]"
-    };
-    devProps.innerHTML = "";
-    for (const prop of info.properties) {
-      const el = document.createElement("div");
-      el.className = "bg-[#f7f7f7] rounded-[5px] px-2 py-1.5";
-      const header = document.createElement("div");
-      header.className = "flex items-center gap-1.5 mb-[3px]";
-      const nameEl = document.createElement("span");
-      nameEl.className = "text-[12px] font-medium";
-      nameEl.textContent = prop.name;
-      const typeKey = prop.type.toLowerCase();
-      const badge = document.createElement("span");
-      badge.className = `text-[9px] font-semibold uppercase tracking-[0.04em] px-[5px] py-[1px] rounded-[3px] ${(_a = typeBadgeColors[typeKey]) != null ? _a : "bg-[#e5e5e5] text-[#555]"}`;
-      badge.textContent = prop.type;
-      header.appendChild(nameEl);
-      header.appendChild(badge);
-      el.appendChild(header);
-      if (prop.type === "VARIANT" && prop.options.length > 0) {
-        const opts = document.createElement("div");
-        opts.className = "flex flex-wrap gap-[3px]";
-        for (const opt of prop.options) {
-          const isCurrent = String(prop.currentValue).toLowerCase() === opt.toLowerCase();
-          const chip = document.createElement("span");
-          chip.className = `text-[10px] px-1.5 py-[1px] rounded-[10px] ${isCurrent ? "bg-black text-white" : "bg-[#e5e5e5] text-[#444]"}`;
-          chip.textContent = opt;
-          opts.appendChild(chip);
-        }
-        el.appendChild(opts);
-      } else if (prop.type === "TEXT") {
-        const val = document.createElement("div");
-        val.className = "text-[11px] text-[#555] italic";
-        val.textContent = `"${prop.currentValue}"`;
-        el.appendChild(val);
-      } else if (prop.type === "BOOLEAN") {
-        const val = document.createElement("div");
-        val.className = "text-[11px] text-[#555] italic";
-        val.textContent = String(prop.currentValue);
-        el.appendChild(val);
-      }
-      devProps.appendChild(el);
-    }
-    devDraft.value = info.draft;
-  }
   window.onmessage = (event) => {
-    var _a, _b;
+    var _a;
     const msg = event.data.pluginMessage;
     if (!msg)
       return;
@@ -339,7 +236,6 @@ ${outputJsx.value}`;
         btnCopyTailwind.disabled = true;
         statusTailwind.textContent = "";
       }
-      renderDevTab((_b = msg.componentInfo) != null ? _b : null, msg.nodeType);
     }
     if (msg.type === "ERROR") {
       btnExport.disabled = false;

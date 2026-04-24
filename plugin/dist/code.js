@@ -859,6 +859,38 @@ ${darkLines}
       if (node.type === "FRAME" || node.type === "GROUP" || node.type === "COMPONENT") {
         return scanFrameNode(node);
       }
+      if (node.type === "TEXT") {
+        const text = node;
+        const content = text.characters.trim();
+        if (!content)
+          return null;
+        const fontSize = typeof text.fontSize === "number" ? text.fontSize : 14;
+        const fontWeight = typeof text.fontWeight === "number" ? text.fontWeight : 400;
+        const bold = fontWeight >= 600;
+        let tag = "p";
+        if (fontSize >= 28)
+          tag = "h1";
+        else if (fontSize >= 22)
+          tag = "h2";
+        else if (fontSize >= 20)
+          tag = "h3";
+        else if (bold)
+          tag = "span";
+        return { isText: true, id: node.id, content, tag, bold };
+      }
+      if (node.type === "RECTANGLE" || node.type === "ELLIPSE") {
+        const shape = node;
+        const hasImage = Array.isArray(shape.fills) && shape.fills.some((f) => f.type === "IMAGE");
+        if (hasImage) {
+          return {
+            isImage: true,
+            id: node.id,
+            name: node.name,
+            width: Math.round(node.width),
+            height: Math.round(node.height)
+          };
+        }
+      }
       return null;
     });
   }
@@ -1003,21 +1035,32 @@ ${darkLines}
   }
   function renderNode(node, imports, indent) {
     const pad = "  ".repeat(indent);
+    if ("isText" in node) {
+      const t = node;
+      const cls = t.tag === "span" && t.bold ? ` className="font-semibold"` : "";
+      return `${pad}<${t.tag}${cls}>${t.content}</${t.tag}>`;
+    }
+    if ("isImage" in node) {
+      const img = node;
+      return `${pad}<img src="" alt="${img.name}" width={${img.width}} height={${img.height}} className="w-full object-cover" />`;
+    }
     if ("isLayout" in node) {
-      const cls2 = layoutClasses(node.layout);
-      const clsAttr2 = cls2 ? ` className="${cls2}"` : "";
-      const childrenStr = node.children.map((c) => renderNode(c, imports, indent + 1)).join("\n");
+      if (node.children.length === 1 && "isImage" in node.children[0]) {
+        return renderNode(node.children[0], imports, indent);
+      }
+      const cls = layoutClasses(node.layout);
+      const clsAttr2 = cls ? ` className="${cls}"` : "";
+      const childrenStr = node.children.map((c) => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
       if (!childrenStr)
         return "";
-      return node.children.length === 0 ? `${pad}<div${clsAttr2} />` : `${pad}<div${clsAttr2}>
+      return `${pad}<div${clsAttr2}>
 ${childrenStr}
 ${pad}</div>`;
     }
     const { component, importPath, props, children } = node;
     addImport(imports, importPath, component);
     const propsStr = renderProps(props);
-    const cls = layoutClasses(node.layout);
-    const clsAttr = cls ? ` className="${cls}"` : "";
+    const clsAttr = "";
     if (typeof children === "string" && children) {
       return `${pad}<${component}${propsStr}${clsAttr}>${children}</${component}>`;
     }

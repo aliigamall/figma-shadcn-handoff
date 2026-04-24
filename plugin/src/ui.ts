@@ -51,14 +51,6 @@ const outputJsx = document.getElementById("output-jsx") as HTMLTextAreaElement;
 const btnCopyJsx = document.getElementById("btn-copy-jsx") as HTMLButtonElement;
 const unmappedHint = document.getElementById("unmapped-hint") as HTMLDivElement;
 
-const devEmpty = document.getElementById("dev-empty") as HTMLDivElement;
-const devNodeType = document.getElementById("dev-node-type") as HTMLDivElement;
-const devContent = document.getElementById("dev-content") as HTMLDivElement;
-const devComponentName = document.getElementById("dev-component-name") as HTMLSpanElement;
-const devFigmaName = document.getElementById("dev-figma-name") as HTMLSpanElement;
-const devProps = document.getElementById("dev-props") as HTMLDivElement;
-const devDraft = document.getElementById("dev-draft") as HTMLTextAreaElement;
-const btnCopyDraft = document.getElementById("btn-copy-draft") as HTMLButtonElement;
 
 // ── Tokens tab ─────────────────────────────────────────────────────────────
 
@@ -97,89 +89,6 @@ btnCopyJsx.addEventListener("click", () => {
   copyToClipboard(full, btnCopyJsx);
 });
 
-btnCopyDraft.addEventListener("click", () => {
-  copyToClipboard(devDraft.value, btnCopyDraft);
-});
-
-// ── Dev tab renderer ───────────────────────────────────────────────────────
-
-function renderDevTab(info: any, nodeType?: string): void {
-  if (!info) {
-    devEmpty.classList.remove("hidden");
-    devContent.classList.add("hidden");
-    const validTypes = ["INSTANCE", "COMPONENT", "COMPONENT_SET"];
-    if (nodeType && !validTypes.includes(nodeType)) {
-      devNodeType.classList.remove("hidden");
-      devNodeType.textContent = `Selected: ${nodeType} — select a component, component set, or instance`;
-    } else {
-      devNodeType.classList.add("hidden");
-    }
-    return;
-  }
-
-  devEmpty.classList.add("hidden");
-  devContent.classList.remove("hidden");
-
-  devComponentName.textContent = info.componentName;
-  devFigmaName.textContent = `Figma: "${info.figmaNodeName}"`;
-
-  // Build properties list
-  const typeBadgeColors: Record<string, string> = {
-    variant:       "bg-[#dbeafe] text-[#1d4ed8]",
-    text:          "bg-[#dcfce7] text-[#15803d]",
-    boolean:       "bg-[#fef9c3] text-[#a16207]",
-    instance_swap: "bg-[#fce7f3] text-[#be185d]",
-  };
-
-  devProps.innerHTML = "";
-  for (const prop of info.properties as any[]) {
-    const el = document.createElement("div");
-    el.className = "bg-[#f7f7f7] rounded-[5px] px-2 py-1.5";
-
-    const header = document.createElement("div");
-    header.className = "flex items-center gap-1.5 mb-[3px]";
-
-    const nameEl = document.createElement("span");
-    nameEl.className = "text-[12px] font-medium";
-    nameEl.textContent = prop.name;
-
-    const typeKey = prop.type.toLowerCase();
-    const badge = document.createElement("span");
-    badge.className = `text-[9px] font-semibold uppercase tracking-[0.04em] px-[5px] py-[1px] rounded-[3px] ${typeBadgeColors[typeKey] ?? "bg-[#e5e5e5] text-[#555]"}`;
-    badge.textContent = prop.type;
-
-    header.appendChild(nameEl);
-    header.appendChild(badge);
-    el.appendChild(header);
-
-    if (prop.type === "VARIANT" && prop.options.length > 0) {
-      const opts = document.createElement("div");
-      opts.className = "flex flex-wrap gap-[3px]";
-      for (const opt of prop.options as string[]) {
-        const isCurrent = String(prop.currentValue).toLowerCase() === opt.toLowerCase();
-        const chip = document.createElement("span");
-        chip.className = `text-[10px] px-1.5 py-[1px] rounded-[10px] ${isCurrent ? "bg-black text-white" : "bg-[#e5e5e5] text-[#444]"}`;
-        chip.textContent = opt;
-        opts.appendChild(chip);
-      }
-      el.appendChild(opts);
-    } else if (prop.type === "TEXT") {
-      const val = document.createElement("div");
-      val.className = "text-[11px] text-[#555] italic";
-      val.textContent = `"${prop.currentValue}"`;
-      el.appendChild(val);
-    } else if (prop.type === "BOOLEAN") {
-      const val = document.createElement("div");
-      val.className = "text-[11px] text-[#555] italic";
-      val.textContent = String(prop.currentValue);
-      el.appendChild(val);
-    }
-
-    devProps.appendChild(el);
-  }
-
-  devDraft.value = info.draft;
-}
 
 // ── Messages from plugin backend ───────────────────────────────────────────
 
@@ -274,7 +183,6 @@ window.onmessage = (event: MessageEvent) => {
       btnCopyTailwind.disabled = true;
       statusTailwind.textContent = "";
     }
-    renderDevTab(msg.componentInfo ?? null, msg.nodeType);
   }
 
   if (msg.type === "ERROR") {

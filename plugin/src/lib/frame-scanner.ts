@@ -38,15 +38,30 @@ export interface ScannedNode {
 }
 
 export interface ScannedFrame {
-  /** Raw layout-only nodes (not mapped components) */
   isLayout: true;
   id: string;
   name: string;
   layout: ScannedNode["layout"];
-  children: Array<ScannedNode | ScannedFrame>;
+  children: Array<ScannedTree>;
 }
 
-export type ScannedTree = ScannedNode | ScannedFrame;
+export interface ScannedText {
+  isText: true;
+  id: string;
+  content: string;
+  tag: "h1" | "h2" | "h3" | "p" | "span";
+  bold: boolean;
+}
+
+export interface ScannedImage {
+  isImage: true;
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+}
+
+export type ScannedTree = ScannedNode | ScannedFrame | ScannedText | ScannedImage;
 
 /** Extract layout info from any frame-like node */
 function extractLayout(node: FrameNode | ComponentNode | InstanceNode): ScannedNode["layout"] {
@@ -148,6 +163,40 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
 
   if (node.type === "FRAME" || node.type === "GROUP" || node.type === "COMPONENT") {
     return scanFrameNode(node as FrameNode);
+  }
+
+  if (node.type === "TEXT") {
+    const text = node as TextNode;
+    const content = text.characters.trim();
+    if (!content) return null;
+
+    const fontSize = typeof text.fontSize === "number" ? text.fontSize : 14;
+    const fontWeight = typeof text.fontWeight === "number" ? text.fontWeight : 400;
+    const bold = fontWeight >= 600;
+
+    let tag: ScannedText["tag"] = "p";
+    if (fontSize >= 28) tag = "h1";
+    else if (fontSize >= 22) tag = "h2";
+    else if (fontSize >= 20) tag = "h3";
+    else if (bold) tag = "span";
+
+    return { isText: true, id: node.id, content, tag, bold };
+  }
+
+  // Rectangle/ellipse with image fill → treat as img placeholder
+  if (node.type === "RECTANGLE" || node.type === "ELLIPSE") {
+    const shape = node as RectangleNode;
+    const hasImage = Array.isArray(shape.fills) &&
+      (shape.fills as Paint[]).some((f: Paint) => f.type === "IMAGE");
+    if (hasImage) {
+      return {
+        isImage: true,
+        id: node.id,
+        name: node.name,
+        width: Math.round(node.width),
+        height: Math.round(node.height),
+      };
+    }
   }
 
   return null;

@@ -6,7 +6,7 @@
  *  - A deduplicated list of import statements
  */
 
-import type { ScannedNode, ScannedFrame, ScannedTree } from "./frame-scanner";
+import type { ScannedNode, ScannedFrame, ScannedText, ScannedImage, ScannedTree } from "./frame-scanner";
 
 // ─── Tailwind layout helpers ──────────────────────────────────────────────────
 
@@ -87,28 +87,44 @@ function renderNode(
 ): string {
   const pad = "  ".repeat(indent);
 
+  // Text node
+  if ("isText" in node) {
+    const t = node as ScannedText;
+    const cls = t.tag === "span" && t.bold ? ` className="font-semibold"` : "";
+    return `${pad}<${t.tag}${cls}>${t.content}</${t.tag}>`;
+  }
+
+  // Image placeholder
+  if ("isImage" in node) {
+    const img = node as ScannedImage;
+    return `${pad}<img src="" alt="${img.name}" width={${img.width}} height={${img.height}} className="w-full object-cover" />`;
+  }
+
   // Layout frame — render as a div with Tailwind classes
   if ("isLayout" in node) {
+    // Unwrap single-child frames that only contain an image — no div needed
+    if (node.children.length === 1 && "isImage" in node.children[0]) {
+      return renderNode(node.children[0], imports, indent);
+    }
+
     const cls = layoutClasses(node.layout);
     const clsAttr = cls ? ` className="${cls}"` : "";
     const childrenStr = node.children
       .map(c => renderNode(c, imports, indent + 1))
+      .filter(Boolean)
       .join("\n");
 
     if (!childrenStr) return "";
 
-    return node.children.length === 0
-      ? `${pad}<div${clsAttr} />`
-      : `${pad}<div${clsAttr}>\n${childrenStr}\n${pad}</div>`;
+    return `${pad}<div${clsAttr}>\n${childrenStr}\n${pad}</div>`;
   }
 
-  // Mapped shadcn/ui component
+  // Mapped shadcn/ui component — never apply internal Figma layout as className
   const { component, importPath, props, children } = node;
   addImport(imports, importPath, component);
 
   const propsStr = renderProps(props);
-  const cls = layoutClasses(node.layout);
-  const clsAttr = cls ? ` className="${cls}"` : "";
+  const clsAttr = "";
 
   // Text children
   if (typeof children === "string" && children) {
