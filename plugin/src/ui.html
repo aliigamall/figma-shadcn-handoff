@@ -5,7 +5,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Only rules that Tailwind can't handle via utility classes (JS-toggled compound selectors) */
     .hidden { display: none !important; }
     .tab.active { color: #000; border-bottom-color: #000; font-weight: 500; }
     .status.error { color: #d00; }
@@ -15,24 +14,22 @@
 </head>
 <body class="font-sans text-[13px] text-[#1a1a1a] bg-white h-screen flex flex-col">
 
-  <!-- Header / Logo -->
-  <div class="px-4 py-[10px] border-b border-[#e5e5e5] flex-shrink-0 flex flex-col gap-2">
-    <span class="flex gap-2 items-center flex-shrink-0">
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="7" height="7" rx="1.5" fill="#1a1a1a"/>
-        <rect x="11" y="2" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.4"/>
-        <rect x="2" y="11" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.4"/>
-        <rect x="11" y="11" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.15"/>
-      </svg>
-      <span class="font-['Space_Grotesk'] text-[15px] font-semibold text-[#1a1a1a] tracking-[-0.2px]">Figma Handoff</span>
-    </span>
-    <span class="text-[11px] text-[#aaa] ml-1.5">Export design tokens and inspect components for shadcn/ui integration.</span>
+  <!-- Header / Logo — compact single row -->
+  <div class="px-4 py-[10px] border-b border-[#e5e5e5] flex-shrink-0 flex items-center gap-2">
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0">
+      <rect x="2" y="2" width="7" height="7" rx="1.5" fill="#1a1a1a"/>
+      <rect x="11" y="2" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.4"/>
+      <rect x="2" y="11" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.4"/>
+      <rect x="11" y="11" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.15"/>
+    </svg>
+    <span class="font-['Space_Grotesk'] text-[14px] font-semibold text-[#1a1a1a] tracking-[-0.2px]">Figma Handoff</span>
+    <span class="text-[11px] text-[#bbb] ml-1">for shadcn/ui</span>
   </div>
 
   <!-- Tabs -->
   <div class="flex border-b border-[#e5e5e5] flex-shrink-0">
-    <button class="tab flex-1 py-[10px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors active" data-tab="tokens">Export Tokens</button>
-    <button class="tab flex-1 py-[10px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="tailwind">Inspect</button>
+    <button class="tab flex-1 py-[9px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors active" data-tab="tokens">Export Tokens</button>
+    <button class="tab flex-1 py-[9px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="inspect">Inspect</button>
   </div>
 
   <!-- Tokens panel -->
@@ -50,42 +47,55 @@
         <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Changes since last export</span>
         <button id="btn-copy-patch" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Copy patch</button>
       </div>
-      <div id="diff-summary" class="flex gap-2 text-[11px]"></div>
+      <div id="diff-summary" class="flex gap-2"></div>
       <div id="diff-list" class="flex flex-col gap-1 overflow-y-auto max-h-[180px]"></div>
     </div>
   </div>
 
-  <!-- Tailwind / JSX panel -->
-  <div id="panel-tailwind" class="panel flex-1 p-4 flex flex-col gap-3 overflow-hidden hidden">
-    <div id="selection-badge" class="selection-badge flex items-center gap-1.5 text-[12px] text-[#555] bg-[#f5f5f5] rounded-md px-[10px] py-[7px]">
+  <!-- Inspect panel -->
+  <div id="panel-inspect" class="panel flex-1 p-4 flex flex-col gap-3 overflow-hidden hidden">
+
+    <!-- Selection indicator -->
+    <div id="selection-badge" class="selection-badge flex items-center gap-2 text-[12px] text-[#555] bg-[#f5f5f5] rounded-md px-3 py-2">
       <span class="dot w-[7px] h-[7px] rounded-full bg-[#ccc] flex-shrink-0"></span>
-      <span id="selection-label">No node selected</span>
+      <span id="selection-label" class="flex-1 truncate">No node selected</span>
     </div>
-    <!-- JSX section -->
-    <div id="jsx-section" class="section flex flex-col gap-1.5 hidden">
+
+    <!-- Empty state -->
+    <div id="inspect-empty" class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" class="opacity-20">
+        <rect x="4" y="4" width="11" height="11" rx="2" fill="#1a1a1a"/>
+        <rect x="17" y="4" width="11" height="11" rx="2" fill="#1a1a1a"/>
+        <rect x="4" y="17" width="11" height="11" rx="2" fill="#1a1a1a"/>
+        <rect x="17" y="17" width="11" height="11" rx="2" fill="#1a1a1a"/>
+      </svg>
+      <p class="text-[12px] text-[#999]">Select a frame or component<br/>to inspect</p>
+    </div>
+
+    <!-- JSX output — shown when mapped components found -->
+    <div id="jsx-section" class="section flex flex-col gap-2 flex-1 min-h-0 hidden">
       <div class="flex items-center justify-between">
         <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">JSX</span>
-        <button id="btn-copy-jsx" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Copy</button>
+        <button id="btn-copy-jsx" class="px-3 py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-black text-white hover:bg-[#222]">Copy all</button>
       </div>
-      <div id="jsx-import" class="font-mono text-[10px] text-[#888] bg-[#f5f5f5] rounded px-2 py-[5px] whitespace-nowrap overflow-hidden text-ellipsis"></div>
       <textarea id="output-jsx" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0" readonly></textarea>
     </div>
 
-    <!-- Unmapped component hint -->
-    <div id="unmapped-hint" class="hint text-[11px] text-[#f59e0b] bg-[#fffbeb] border border-[#fde68a] rounded-md px-[10px] py-[7px] hidden"></div>
-
-    <!-- Tailwind section -->
-    <div id="tailwind-section" class="section flex flex-col gap-1.5">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Tailwind</span>
-        <button id="btn-copy-tailwind" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" disabled>Copy</button>
-      </div>
-      <textarea id="output-tailwind" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0" placeholder="Select a node then click Inspect…" readonly></textarea>
+    <!-- Unmapped notice -->
+    <div id="unmapped-hint" class="hidden text-[11px] text-[#888] bg-[#f5f5f5] rounded-md px-3 py-2">
+      Not mapped to a shadcn/ui component — showing Tailwind classes only.
     </div>
 
-    <span id="status-tailwind" class="status text-[11px] text-[#888] min-h-4"></span>
-  </div>
+    <!-- Tailwind output — always shown, secondary -->
+    <div id="tailwind-section" class="section flex flex-col gap-2" style="max-height: 140px">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#bbb]">Tailwind</span>
+        <button id="btn-copy-tailwind" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" disabled>Copy</button>
+      </div>
+      <textarea id="output-tailwind" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0" placeholder="Select a node to inspect…" readonly></textarea>
+    </div>
 
+  </div>
 
 </body>
 </html>
