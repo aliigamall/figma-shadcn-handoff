@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     .hidden { display: none !important; }
@@ -14,6 +15,33 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      padding: 10px 16px;
+      border-bottom: 1px solid #e5e5e5;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-icon {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a1a1a;
+      letter-spacing: -0.2px;
+    }
+    .header-desc {
+      font-size: 11px;
+      color: #aaa;
+      margin-left: 6px;
     }
 
     /* Tabs */
@@ -187,6 +215,19 @@
   </style>
 </head>
 <body>
+
+  <div class="header">
+    <span class="header-icon">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="7" height="7" rx="1.5" fill="#1a1a1a"/>
+        <rect x="11" y="2" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.4"/>
+        <rect x="2" y="11" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.4"/>
+        <rect x="11" y="11" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.15"/>
+      </svg>
+    </span>
+    <span class="header-title">Figma Handoff</span>
+    <span class="header-desc">Export design tokens and inspect components for shadcn/ui integration.</span>
+  </div>
 
   <div class="tabs">
     <button class="tab active" data-tab="tokens">Export Tokens</button>
