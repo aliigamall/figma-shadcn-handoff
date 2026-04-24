@@ -10,6 +10,9 @@
     .status.error { color: #d00; }
     .status.success { color: #080; }
     .selection-badge.has-selection .dot { background: #22c55e; }
+    .neutral-btn { background: #fff; border-color: #e5e5e5; color: #555; }
+    .neutral-btn.active-neutral { background: #000; border-color: #000; color: #fff; font-weight: 500; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #1a1a1a; cursor: pointer; }
   </style>
 </head>
 <body class="font-sans text-[13px] text-[#1a1a1a] bg-white h-screen flex flex-col">
@@ -30,6 +33,7 @@
   <div class="flex border-b border-[#e5e5e5] flex-shrink-0">
     <button class="tab flex-1 py-[9px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors active" data-tab="tokens">Export Tokens</button>
     <button class="tab flex-1 py-[9px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="inspect">Inspect</button>
+    <button class="tab flex-1 py-[9px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="theme">Theme</button>
   </div>
 
   <!-- Tokens panel -->
@@ -50,6 +54,90 @@
       <div id="diff-summary" class="flex gap-2"></div>
       <div id="diff-list" class="flex flex-col gap-1 overflow-y-auto max-h-[180px]"></div>
     </div>
+  </div>
+
+  <!-- Theme panel -->
+  <div id="panel-theme" class="panel flex-1 p-4 flex flex-col gap-3 overflow-y-auto hidden">
+
+    <!-- Info banner -->
+    <div class="text-[11px] text-[#666] bg-[#f5f5f5] rounded-md px-3 py-2 leading-relaxed">
+      Writes into Obra's <strong>brand colors</strong> collection.<br/>
+      <span class="text-[#999]">Primary buttons stay dark (shadcn default). Your accent color drives highlights, rings, and charts.</span>
+    </div>
+
+    <!-- Brand / accent color -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Accent Color <span class="normal-case font-normal text-[#bbb]">→ brand-shades</span></label>
+      <div class="flex items-center gap-2">
+        <input id="theme-brand-color" type="color" value="#6366f1" class="w-8 h-8 rounded-md border border-[#e5e5e5] cursor-pointer p-0.5 bg-white flex-shrink-0" />
+        <input id="theme-brand-hex" type="text" value="#6366f1" maxlength="7"
+          class="w-24 font-mono text-[12px] px-2 py-1.5 border border-[#e5e5e5] rounded-md outline-none focus:border-[#999]" />
+        <div id="theme-brand-swatches" class="flex gap-0.5 flex-1"></div>
+      </div>
+    </div>
+
+    <!-- Neutral preset -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Neutral Palette <span class="normal-case font-normal text-[#bbb]">→ brand-neutrals · drives backgrounds, borders, text</span></label>
+      <div id="theme-neutral-options" class="flex gap-1 flex-wrap">
+        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors active-neutral" data-preset="slate">Slate</button>
+        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors" data-preset="gray">Gray</button>
+        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors" data-preset="zinc">Zinc</button>
+        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors" data-preset="stone">Stone</button>
+        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors" data-preset="neutral">Neutral</button>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Preview</label>
+      <!-- Card mock: shows neutral effect clearly -->
+      <div id="preview-card" class="rounded-lg border p-3 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span id="preview-heading" class="text-[12px] font-semibold">Dashboard</span>
+          <span id="preview-badge" class="text-[10px] px-1.5 py-0.5 rounded-full font-medium">Accent</span>
+        </div>
+        <p id="preview-muted" class="text-[10px]">Muted text — secondary information shown here.</p>
+        <div id="preview-divider" class="h-px"></div>
+        <div class="flex gap-2">
+          <button id="preview-btn-primary" class="px-2.5 py-1 text-[11px] font-medium rounded-md text-white">Primary</button>
+          <button id="preview-btn-secondary" class="px-2.5 py-1 text-[11px] font-medium rounded-md">Secondary</button>
+          <button id="preview-btn-accent" class="px-2.5 py-1 text-[11px] font-medium rounded-md">Accent</button>
+        </div>
+      </div>
+      <!-- Swatch rows -->
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[9px] text-[#bbb] w-14">accent</span>
+          <div id="preview-brand-swatches" class="flex gap-0.5 flex-1"></div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[9px] text-[#bbb] w-14">neutral</span>
+          <div id="preview-neutral-swatches" class="flex gap-0.5 flex-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-2">
+      <button id="btn-apply-theme" class="flex-1 px-4 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium bg-black text-white hover:bg-[#222] transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">Apply to Figma</button>
+      <button id="btn-export-theme" class="px-3 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Export</button>
+      <label id="btn-import-theme" class="px-3 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">
+        Import
+        <input id="theme-import-file" type="file" accept=".json" class="hidden" />
+      </label>
+    </div>
+    <span id="theme-status" class="text-[11px] min-h-4"></span>
+
+    <!-- Generated CSS -->
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">globals.css</span>
+        <button id="btn-copy-theme-css" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5] disabled:opacity-40 disabled:cursor-not-allowed" disabled>Copy</button>
+      </div>
+      <textarea id="output-theme-css" class="w-full font-mono text-[10px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none" rows="8" placeholder="Configure theme above…" readonly></textarea>
+    </div>
+
   </div>
 
   <!-- Inspect panel -->
@@ -100,6 +188,145 @@
 <script>"use strict";
 (() => {
   // src/ui.ts
+  function hexToHsl(hex) {
+    hex = hex.replace(/^#/, "");
+    if (hex.length === 3)
+      hex = hex.split("").map((c) => c + c).join("");
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r:
+          h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+          break;
+        case g:
+          h = ((b - r) / d + 2) / 6;
+          break;
+        case b:
+          h = ((r - g) / d + 4) / 6;
+          break;
+      }
+    }
+    return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+  }
+  var SCALE_LIGHTNESS = {
+    50: 97,
+    100: 94,
+    200: 86,
+    300: 74,
+    400: 62,
+    500: 50,
+    600: 40,
+    700: 32,
+    800: 24,
+    900: 16,
+    950: 11
+  };
+  var SCALE_SAT_FACTOR = {
+    50: 0.3,
+    100: 0.5,
+    200: 0.7,
+    300: 0.85,
+    400: 0.95,
+    500: 1,
+    600: 0.95,
+    700: 0.88,
+    800: 0.8,
+    900: 0.7,
+    950: 0.6
+  };
+  var STEPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+  var NEUTRAL_HUE = { slate: 215, gray: 220, zinc: 240, stone: 25, neutral: 0 };
+  var NEUTRAL_SAT = { slate: 16, gray: 9, zinc: 5, stone: 6, neutral: 0 };
+  function hslVar(h, s, l) {
+    return `${h} ${s}% ${l}%`;
+  }
+  function generateScale(hex) {
+    const [h, s] = hexToHsl(hex);
+    const scale = {};
+    for (const step of STEPS) {
+      scale[step] = hslVar(h, Math.min(100, Math.round(s * SCALE_SAT_FACTOR[step])), SCALE_LIGHTNESS[step]);
+    }
+    return scale;
+  }
+  function generateNeutral(preset) {
+    const h = NEUTRAL_HUE[preset], s = NEUTRAL_SAT[preset];
+    const scale = {};
+    for (const step of STEPS)
+      scale[step] = hslVar(h, s, SCALE_LIGHTNESS[step]);
+    return scale;
+  }
+  function buildThemeCss(config) {
+    const brand = generateScale(config.brandHex);
+    const neutral = generateNeutral(config.neutralPreset);
+    const light = {
+      "--background": neutral[50],
+      "--foreground": neutral[950],
+      "--card": neutral[50],
+      "--card-foreground": neutral[950],
+      "--popover": neutral[50],
+      "--popover-foreground": neutral[950],
+      "--primary": neutral[900],
+      "--primary-foreground": neutral[50],
+      "--secondary": neutral[100],
+      "--secondary-foreground": neutral[900],
+      "--muted": neutral[100],
+      "--muted-foreground": neutral[500],
+      "--accent": brand[100],
+      "--accent-foreground": brand[900],
+      "--destructive": "0 84% 60%",
+      "--destructive-foreground": neutral[50],
+      "--border": neutral[200],
+      "--input": neutral[200],
+      "--ring": brand[500]
+    };
+    const dark = {
+      "--background": neutral[950],
+      "--foreground": neutral[50],
+      "--card": neutral[900],
+      "--card-foreground": neutral[50],
+      "--popover": neutral[900],
+      "--popover-foreground": neutral[50],
+      "--primary": neutral[50],
+      "--primary-foreground": neutral[900],
+      "--secondary": neutral[800],
+      "--secondary-foreground": neutral[50],
+      "--muted": neutral[800],
+      "--muted-foreground": neutral[400],
+      "--accent": brand[900],
+      "--accent-foreground": brand[100],
+      "--destructive": "0 72% 51%",
+      "--destructive-foreground": neutral[50],
+      "--border": neutral[800],
+      "--input": neutral[800],
+      "--ring": brand[400]
+    };
+    const indent = "    ";
+    const vars = (obj) => Object.entries(obj).map(([k, v]) => `${indent}${k}: ${v};`).join("\n");
+    const scaleBlock = (name, sc) => `  /* ${name} */
+` + STEPS.map((s) => `  --${name}-${s}: ${sc[s]};`).join("\n");
+    return [
+      `@layer base {`,
+      `  :root {`,
+      vars(light),
+      `  }`,
+      ``,
+      `  .dark {`,
+      vars(dark),
+      `  }`,
+      ``,
+      scaleBlock("brand-shades", brand),
+      ``,
+      scaleBlock("brand-neutrals", neutral),
+      `}`
+    ].join("\n");
+  }
   function copyToClipboard(text, btn) {
     const ta = document.createElement("textarea");
     ta.value = text;
@@ -247,7 +474,166 @@ ${jsx}` : jsx;
       statusTokens.textContent = msg.message;
       statusTokens.className = "status error";
     }
+    if (msg.type === "THEME_APPLIED") {
+      const themeStatus = document.getElementById("theme-status");
+      themeStatus.textContent = msg.success ? "Applied to Figma variables!" : `Error: ${msg.error}`;
+      themeStatus.style.color = msg.success ? "#080" : "#d00";
+      const btnApply = document.getElementById("btn-apply-theme");
+      btnApply.disabled = false;
+      btnApply.textContent = "Apply to Figma";
+    }
   };
+  (function initThemeTab() {
+    const brandColorInput = document.getElementById("theme-brand-color");
+    const brandHexInput = document.getElementById("theme-brand-hex");
+    const neutralOptions = document.querySelectorAll(".neutral-btn");
+    const previewCard = document.getElementById("preview-card");
+    const previewHeading = document.getElementById("preview-heading");
+    const previewBadge = document.getElementById("preview-badge");
+    const previewMuted = document.getElementById("preview-muted");
+    const previewDivider = document.getElementById("preview-divider");
+    const previewBtnPrimary = document.getElementById("preview-btn-primary");
+    const previewBtnSecondary = document.getElementById("preview-btn-secondary");
+    const previewBtnAccent = document.getElementById("preview-btn-accent");
+    const previewBrandSwatches = document.getElementById("preview-brand-swatches");
+    const previewNeutralSwatches = document.getElementById("preview-neutral-swatches");
+    const outputCss = document.getElementById("output-theme-css");
+    const btnCopyCss = document.getElementById("btn-copy-theme-css");
+    const btnApply = document.getElementById("btn-apply-theme");
+    const btnExportTheme = document.getElementById("btn-export-theme");
+    const importFile = document.getElementById("theme-import-file");
+    const themeStatus = document.getElementById("theme-status");
+    let currentConfig = { brandHex: "#6366f1", neutralPreset: "slate" };
+    function isValidHex(hex) {
+      return /^#[0-9a-fA-F]{6}$/.test(hex);
+    }
+    function hslToHex(h, s, l) {
+      s /= 100;
+      l /= 100;
+      const a = s * Math.min(l, 1 - l);
+      const f = (n) => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, "0");
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
+    function hslVarToHex(val) {
+      const parts = val.trim().split(/\s+/);
+      return hslToHex(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
+    }
+    function swatchRow(container, scale, label) {
+      container.innerHTML = STEPS.map((step) => {
+        const hex = hslVarToHex(scale[step]);
+        return `<div title="${label}-${step}" style="flex:1;height:16px;border-radius:2px;background:${hex}"></div>`;
+      }).join("");
+    }
+    function updatePreview() {
+      if (!isValidHex(currentConfig.brandHex))
+        return;
+      const brand = generateScale(currentConfig.brandHex);
+      const neutral = generateNeutral(currentConfig.neutralPreset);
+      const bg = hslVarToHex(neutral[50]);
+      const fg = hslVarToHex(neutral[950]);
+      const border = hslVarToHex(neutral[200]);
+      const muted = hslVarToHex(neutral[500]);
+      const secondary = hslVarToHex(neutral[100]);
+      const primaryBg = hslVarToHex(neutral[900]);
+      const accentBg = hslVarToHex(brand[100]);
+      const accentFg = hslVarToHex(brand[900]);
+      const accentBadge = hslVarToHex(brand[500]);
+      previewCard.style.backgroundColor = bg;
+      previewCard.style.borderColor = border;
+      previewCard.style.color = fg;
+      previewHeading.style.color = fg;
+      previewBadge.style.backgroundColor = accentBg;
+      previewBadge.style.color = accentFg;
+      previewMuted.style.color = muted;
+      previewDivider.style.backgroundColor = border;
+      previewBtnPrimary.style.backgroundColor = primaryBg;
+      previewBtnPrimary.style.color = hslVarToHex(neutral[50]);
+      previewBtnSecondary.style.backgroundColor = secondary;
+      previewBtnSecondary.style.color = fg;
+      previewBtnAccent.style.backgroundColor = accentBadge;
+      previewBtnAccent.style.color = "#fff";
+      swatchRow(previewBrandSwatches, brand, "accent");
+      swatchRow(previewNeutralSwatches, neutral, "neutral");
+      outputCss.value = buildThemeCss(currentConfig);
+      btnCopyCss.disabled = false;
+      themeStatus.textContent = "";
+    }
+    brandColorInput.addEventListener("input", () => {
+      currentConfig.brandHex = brandColorInput.value;
+      brandHexInput.value = brandColorInput.value;
+      updatePreview();
+    });
+    brandHexInput.addEventListener("input", () => {
+      const v = brandHexInput.value;
+      if (isValidHex(v)) {
+        currentConfig.brandHex = v;
+        brandColorInput.value = v;
+        updatePreview();
+      }
+    });
+    neutralOptions.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        var _a;
+        neutralOptions.forEach((b) => b.classList.remove("active-neutral"));
+        btn.classList.add("active-neutral");
+        currentConfig.neutralPreset = (_a = btn.dataset.preset) != null ? _a : "slate";
+        updatePreview();
+      });
+    });
+    btnCopyCss.addEventListener("click", () => copyToClipboard(outputCss.value, btnCopyCss));
+    btnApply.addEventListener("click", () => {
+      btnApply.disabled = true;
+      btnApply.textContent = "Applying\u2026";
+      themeStatus.textContent = "";
+      themeStatus.style.color = "#888";
+      parent.postMessage({ pluginMessage: { type: "APPLY_THEME", config: currentConfig } }, "*");
+    });
+    btnExportTheme.addEventListener("click", () => {
+      const json = JSON.stringify(currentConfig, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "figma-theme-config.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    importFile.addEventListener("change", () => {
+      var _a;
+      const file = (_a = importFile.files) == null ? void 0 : _a[0];
+      if (!file)
+        return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        var _a2;
+        try {
+          const parsed = JSON.parse((_a2 = e.target) == null ? void 0 : _a2.result);
+          if (parsed.brandHex && isValidHex(parsed.brandHex)) {
+            currentConfig.brandHex = parsed.brandHex;
+            brandColorInput.value = parsed.brandHex;
+            brandHexInput.value = parsed.brandHex;
+          }
+          if (parsed.neutralPreset && ["slate", "gray", "zinc", "stone", "neutral"].includes(parsed.neutralPreset)) {
+            currentConfig.neutralPreset = parsed.neutralPreset;
+            neutralOptions.forEach((b) => b.classList.toggle("active-neutral", b.dataset.preset === parsed.neutralPreset));
+          }
+          updatePreview();
+          themeStatus.textContent = "Config imported.";
+          themeStatus.style.color = "#080";
+        } catch (e2) {
+          themeStatus.textContent = "Invalid JSON file.";
+          themeStatus.style.color = "#d00";
+        }
+        importFile.value = "";
+      };
+      reader.readAsText(file);
+    });
+    updatePreview();
+  })();
 })();
 </script></body>
 </html>

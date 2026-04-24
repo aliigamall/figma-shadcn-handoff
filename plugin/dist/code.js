@@ -1190,6 +1190,170 @@ ${pad}</${component}>`;
     }
   });
 
+  // src/lib/theme-builder.ts
+  function hexToHsl(hex) {
+    hex = hex.replace(/^#/, "");
+    if (hex.length === 3)
+      hex = hex.split("").map((c) => c + c).join("");
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r:
+          h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+          break;
+        case g:
+          h = ((b - r) / d + 2) / 6;
+          break;
+        case b:
+          h = ((r - g) / d + 4) / 6;
+          break;
+      }
+    }
+    return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+  }
+  function hslString(h, s, l) {
+    return `${h} ${s}% ${l}%`;
+  }
+  function generateScale(hex) {
+    const [h, s] = hexToHsl(hex);
+    const scale = {};
+    for (const step of [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]) {
+      const l = SCALE_LIGHTNESS[step];
+      const adjS = Math.min(100, Math.round(s * SCALE_SATURATION_FACTOR[step]));
+      scale[step] = hslString(h, adjS, l);
+    }
+    return scale;
+  }
+  function generateNeutralScale(preset) {
+    const h = NEUTRAL_HUE[preset];
+    const s = NEUTRAL_SATURATION[preset];
+    const scale = {};
+    for (const step of [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]) {
+      const l = SCALE_LIGHTNESS[step];
+      scale[step] = hslString(h, s, l);
+    }
+    return scale;
+  }
+  function buildTheme(config) {
+    const brandScale = generateScale(config.brandHex);
+    const neutralScale = generateNeutralScale(config.neutralPreset);
+    const light = {
+      "--background": neutralScale[50],
+      "--foreground": neutralScale[950],
+      "--card": neutralScale[50],
+      "--card-foreground": neutralScale[950],
+      "--popover": neutralScale[50],
+      "--popover-foreground": neutralScale[950],
+      "--primary": neutralScale[900],
+      "--primary-foreground": neutralScale[50],
+      "--secondary": neutralScale[100],
+      "--secondary-foreground": neutralScale[900],
+      "--muted": neutralScale[100],
+      "--muted-foreground": neutralScale[500],
+      "--accent": brandScale[100],
+      "--accent-foreground": brandScale[900],
+      "--destructive": "0 84% 60%",
+      "--destructive-foreground": neutralScale[50],
+      "--border": neutralScale[200],
+      "--input": neutralScale[200],
+      "--ring": brandScale[500]
+    };
+    const dark = {
+      "--background": neutralScale[950],
+      "--foreground": neutralScale[50],
+      "--card": neutralScale[900],
+      "--card-foreground": neutralScale[50],
+      "--popover": neutralScale[900],
+      "--popover-foreground": neutralScale[50],
+      "--primary": neutralScale[50],
+      "--primary-foreground": neutralScale[900],
+      "--secondary": neutralScale[800],
+      "--secondary-foreground": neutralScale[50],
+      "--muted": neutralScale[800],
+      "--muted-foreground": neutralScale[400],
+      "--accent": brandScale[900],
+      "--accent-foreground": brandScale[100],
+      "--destructive": "0 72% 51%",
+      "--destructive-foreground": neutralScale[50],
+      "--border": neutralScale[800],
+      "--input": neutralScale[800],
+      "--ring": brandScale[400]
+    };
+    const indent = "    ";
+    const toVarLines = (vars) => Object.entries(vars).map(([k, v]) => `${indent}${k}: ${v};`).join("\n");
+    const scaleBlock = (name, scale) => `  /* ${name} */
+` + Object.entries(scale).map(([step, val]) => `  --${name}-${step}: ${val};`).join("\n");
+    const css = [
+      `@layer base {`,
+      `  :root {`,
+      toVarLines(light),
+      `  }`,
+      ``,
+      `  .dark {`,
+      toVarLines(dark),
+      `  }`,
+      ``,
+      scaleBlock("brand-shades", brandScale),
+      ``,
+      scaleBlock("brand-neutrals", neutralScale),
+      `}`
+    ].join("\n");
+    return { brandScale, neutralScale, css, config };
+  }
+  var SCALE_LIGHTNESS, SCALE_SATURATION_FACTOR, NEUTRAL_HUE, NEUTRAL_SATURATION;
+  var init_theme_builder = __esm({
+    "src/lib/theme-builder.ts"() {
+      "use strict";
+      SCALE_LIGHTNESS = {
+        50: 97,
+        100: 94,
+        200: 86,
+        300: 74,
+        400: 62,
+        500: 50,
+        600: 40,
+        700: 32,
+        800: 24,
+        900: 16,
+        950: 11
+      };
+      SCALE_SATURATION_FACTOR = {
+        50: 0.3,
+        100: 0.5,
+        200: 0.7,
+        300: 0.85,
+        400: 0.95,
+        500: 1,
+        600: 0.95,
+        700: 0.88,
+        800: 0.8,
+        900: 0.7,
+        950: 0.6
+      };
+      NEUTRAL_HUE = {
+        slate: 215,
+        gray: 220,
+        zinc: 240,
+        stone: 25,
+        neutral: 0
+      };
+      NEUTRAL_SATURATION = {
+        slate: 16,
+        gray: 9,
+        zinc: 5,
+        stone: 6,
+        neutral: 0
+      };
+    }
+  });
+
   // components.json
   var components_default;
   var init_components = __esm({
@@ -1540,6 +1704,7 @@ ${pad}</${component}>`;
       init_frame_scanner();
       init_jsx_generator();
       init_token_diff();
+      init_theme_builder();
       init_components();
       figma.showUI(__html__, { width: 360, height: 500, title: "Figma Handoff" });
       function collectVariables() {
@@ -1689,7 +1854,7 @@ ${pad}</${component}>`;
         });
       }
       figma.ui.onmessage = (msg) => __async(exports, null, function* () {
-        var _a, _b;
+        var _a, _b, _c, _d, _e, _f, _g;
         if (msg.type === "EXPORT_TOKENS") {
           try {
             const { collections, variables } = yield collectVariables();
@@ -1752,6 +1917,73 @@ ${pad}</${component}>`;
             });
           } catch (err) {
             figma.ui.postMessage({ type: "ERROR", message: String(err) });
+          }
+        }
+        if (msg.type === "APPLY_THEME") {
+          try {
+            let hslToRgba2 = function(hsl) {
+              const parts = hsl.trim().split(/\s+/);
+              const h = parseFloat(parts[0]) / 360;
+              const s = parseFloat(parts[1]) / 100;
+              const l = parseFloat(parts[2]) / 100;
+              function hue2rgb(p2, q2, t) {
+                if (t < 0)
+                  t += 1;
+                if (t > 1)
+                  t -= 1;
+                if (t < 1 / 6)
+                  return p2 + (q2 - p2) * 6 * t;
+                if (t < 1 / 2)
+                  return q2;
+                if (t < 2 / 3)
+                  return p2 + (q2 - p2) * (2 / 3 - t) * 6;
+                return p2;
+              }
+              if (s === 0)
+                return { r: l, g: l, b: l, a: 1 };
+              const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+              const p = 2 * l - q;
+              return { r: hue2rgb(p, q, h + 1 / 3), g: hue2rgb(p, q, h), b: hue2rgb(p, q, h - 1 / 3), a: 1 };
+            };
+            var hslToRgba = hslToRgba2;
+            const config = msg.config;
+            const theme = buildTheme(config);
+            const collections = yield figma.variables.getLocalVariableCollectionsAsync();
+            const existingColl = collections.find((c) => c.name === "brand colors");
+            let coll;
+            if (existingColl) {
+              coll = existingColl;
+            } else {
+              coll = figma.variables.createVariableCollection("brand colors");
+              coll.renameMode(coll.modes[0].modeId, "light");
+              coll.addMode("dark");
+            }
+            const lightModeId = (_d = (_c = coll.modes.find((m) => m.name === "light")) == null ? void 0 : _c.modeId) != null ? _d : coll.modes[0].modeId;
+            const darkModeId = (_g = (_e = coll.modes.find((m) => m.name === "dark")) == null ? void 0 : _e.modeId) != null ? _g : (_f = coll.modes[1]) == null ? void 0 : _f.modeId;
+            function upsertColorVar(name, lightHsl, darkHsl) {
+              return __async(this, null, function* () {
+                const allVars = yield figma.variables.getLocalVariablesAsync();
+                let variable = allVars.find((v) => v.name === name && v.variableCollectionId === coll.id);
+                if (!variable) {
+                  variable = figma.variables.createVariable(name, coll, "COLOR");
+                }
+                variable.setValueForMode(lightModeId, hslToRgba2(lightHsl));
+                if (darkModeId) {
+                  variable.setValueForMode(darkModeId, hslToRgba2(darkHsl));
+                }
+              });
+            }
+            for (const step of [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]) {
+              const hsl = theme.brandScale[step];
+              yield upsertColorVar(`brand-shades/${step}`, hsl, hsl);
+            }
+            for (const step of [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]) {
+              const hsl = theme.neutralScale[step];
+              yield upsertColorVar(`brand-neutrals/${step}`, hsl, hsl);
+            }
+            figma.ui.postMessage({ type: "THEME_APPLIED", success: true });
+          } catch (err) {
+            figma.ui.postMessage({ type: "THEME_APPLIED", success: false, error: String(err) });
           }
         }
       });

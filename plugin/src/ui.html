@@ -10,6 +10,9 @@
     .status.error { color: #d00; }
     .status.success { color: #080; }
     .selection-badge.has-selection .dot { background: #22c55e; }
+    .neutral-btn { background: #fff; border-color: #e5e5e5; color: #555; }
+    .neutral-btn.active-neutral { background: #000; border-color: #000; color: #fff; font-weight: 500; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #1a1a1a; cursor: pointer; }
   </style>
 </head>
 <body class="font-sans text-[13px] text-[#1a1a1a] bg-white h-screen flex flex-col">
@@ -30,6 +33,7 @@
   <div class="flex border-b border-[#e5e5e5] flex-shrink-0">
     <button class="tab flex-1 py-[9px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors active" data-tab="tokens">Export Tokens</button>
     <button class="tab flex-1 py-[9px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="inspect">Inspect</button>
+    <button class="tab flex-1 py-[9px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="theme">Theme</button>
   </div>
 
   <!-- Tokens panel -->
@@ -50,6 +54,129 @@
       <div id="diff-summary" class="flex gap-2"></div>
       <div id="diff-list" class="flex flex-col gap-1 overflow-y-auto max-h-[180px]"></div>
     </div>
+  </div>
+
+  <!-- Theme panel -->
+  <div id="panel-theme" class="panel flex-1 flex flex-col overflow-hidden hidden">
+
+    <!-- Color inputs + swatches row (fixed top) -->
+    <div class="flex-shrink-0 px-4 pt-3 pb-2 flex flex-col gap-2 border-b border-[#f0f0f0]">
+
+      <!-- Accent color row -->
+      <div class="flex items-center gap-2">
+        <input id="theme-brand-color" type="color" value="#6366f1"
+          class="w-6 h-6 rounded border border-[#e5e5e5] cursor-pointer p-0 bg-white flex-shrink-0" style="padding:1px" />
+        <span class="text-[11px] text-[#555] w-12 flex-shrink-0">Accent</span>
+        <input id="theme-brand-hex" type="text" value="#6366f1" maxlength="7"
+          class="w-16 font-mono text-[11px] px-1.5 py-1 border border-[#e5e5e5] rounded outline-none focus:border-[#999] flex-shrink-0" />
+        <div id="theme-brand-swatches" class="flex gap-px flex-1 min-w-0"></div>
+      </div>
+
+      <!-- Neutral row -->
+      <div class="flex items-center gap-2">
+        <div id="theme-neutral-dot" class="w-6 h-6 rounded border border-[#e5e5e5] flex-shrink-0" style="background:#64748b"></div>
+        <span class="text-[11px] text-[#555] w-12 flex-shrink-0">Neutral</span>
+        <div id="theme-neutral-options" class="flex gap-1">
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer active-neutral" data-preset="slate">Slate</button>
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer" data-preset="gray">Gray</button>
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer" data-preset="zinc">Zinc</button>
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer" data-preset="stone">Stone</button>
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer" data-preset="neutral">Neutral</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live preview (scrollable, fills remaining space) -->
+    <div class="flex-1 overflow-y-auto p-3">
+
+      <!-- Mini app shell -->
+      <div id="pv-app" class="rounded-lg border overflow-hidden text-[11px]">
+
+        <!-- App header -->
+        <div id="pv-header" class="flex items-center justify-between px-3 py-2 border-b">
+          <div class="flex items-center gap-1.5">
+            <div id="pv-logo" class="w-4 h-4 rounded" style="background:#6366f1"></div>
+            <span id="pv-app-name" class="font-semibold text-[11px]">Acme</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span id="pv-badge" class="px-1.5 py-px rounded-full text-[9px] font-medium">Pro</span>
+            <button id="pv-btn-new" class="px-2 py-0.5 rounded text-[10px] font-medium">New</button>
+          </div>
+        </div>
+
+        <!-- Stats row -->
+        <div id="pv-body" class="p-3 flex flex-col gap-2">
+          <div class="flex gap-2">
+            <div id="pv-card-a" class="flex-1 rounded border p-2">
+              <p id="pv-card-a-label" class="text-[9px] mb-0.5">Revenue</p>
+              <p id="pv-card-a-value" class="font-semibold text-[13px]">$15,231</p>
+              <p id="pv-card-a-sub" class="text-[9px] mt-0.5">+12% this month</p>
+            </div>
+            <div id="pv-card-b" class="flex-1 rounded border p-2">
+              <p id="pv-card-b-label" class="text-[9px] mb-0.5">Active users</p>
+              <p id="pv-card-b-value" class="font-semibold text-[13px]">2,350</p>
+              <p id="pv-card-b-sub" class="text-[9px] mt-0.5">+4% this month</p>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div id="pv-table" class="rounded border overflow-hidden">
+            <div id="pv-table-head" class="flex items-center px-2 py-1 border-b">
+              <span class="flex-1 text-[9px] font-medium uppercase tracking-wide">Name</span>
+              <span class="w-16 text-right text-[9px] font-medium uppercase tracking-wide">Amount</span>
+              <span class="w-12 text-right text-[9px] font-medium uppercase tracking-wide">Status</span>
+            </div>
+            <div id="pv-row-1" class="flex items-center px-2 py-1.5 border-b">
+              <span class="flex-1 text-[10px]">Alice Johnson</span>
+              <span class="w-16 text-right text-[10px]">$250.00</span>
+              <div class="w-12 flex justify-end"><span id="pv-status-a" class="px-1.5 py-px rounded-full text-[8px] font-medium">Paid</span></div>
+            </div>
+            <div id="pv-row-2" class="flex items-center px-2 py-1.5">
+              <span class="flex-1 text-[10px]">Bob Smith</span>
+              <span class="w-16 text-right text-[10px]">$149.00</span>
+              <div class="w-12 flex justify-end"><span id="pv-status-b" class="text-[10px]">Pending</span></div>
+            </div>
+          </div>
+
+          <!-- Form row -->
+          <div id="pv-form" class="rounded border p-2 flex flex-col gap-1.5">
+            <p id="pv-form-title" class="font-medium text-[10px]">Quick action</p>
+            <div id="pv-input" class="rounded border px-2 py-1 text-[10px]" style="outline:none">user@example.com</div>
+            <div class="flex gap-1.5">
+              <button id="pv-btn-primary" class="flex-1 py-1 rounded text-[10px] font-medium">Save changes</button>
+              <button id="pv-btn-secondary" class="px-3 py-1 rounded text-[10px] font-medium">Cancel</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Swatch legend -->
+      <div class="mt-2 flex flex-col gap-1">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[9px] text-[#bbb] w-12">accent</span>
+          <div id="preview-brand-swatches" class="flex gap-px flex-1"></div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[9px] text-[#bbb] w-12">neutral</span>
+          <div id="preview-neutral-swatches" class="flex gap-px flex-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom bar: actions + CSS -->
+    <div class="flex-shrink-0 border-t border-[#f0f0f0] px-3 py-2 flex flex-col gap-2">
+      <div class="flex gap-1.5">
+        <button id="btn-apply-theme" class="flex-1 py-1.5 border-none rounded cursor-pointer text-[12px] font-medium bg-black text-white hover:bg-[#222] disabled:opacity-40 disabled:cursor-not-allowed">Apply to Figma</button>
+        <button id="btn-copy-theme-css" class="px-3 py-1.5 border-none rounded cursor-pointer text-[12px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5] disabled:opacity-40 disabled:cursor-not-allowed" disabled>Copy CSS</button>
+        <button id="btn-export-theme" class="px-2.5 py-1.5 border-none rounded cursor-pointer text-[12px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" title="Export config JSON">↓</button>
+        <label class="px-2.5 py-1.5 border-none rounded cursor-pointer text-[12px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" title="Import config JSON">↑
+          <input id="theme-import-file" type="file" accept=".json" class="hidden" />
+        </label>
+      </div>
+      <span id="theme-status" class="text-[11px] min-h-[14px]"></span>
+    </div>
+
   </div>
 
   <!-- Inspect panel -->

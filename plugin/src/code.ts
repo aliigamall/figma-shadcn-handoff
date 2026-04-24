@@ -7,6 +7,8 @@ import { generateJsx } from "./jsx";
 import { scanFrame, scanNode } from "./lib/frame-scanner";
 import { generateJSX } from "./lib/jsx-generator";
 import { saveSnapshot, loadSnapshot, tokensToSnapshot, diffTokens, generatePatch } from "./lib/token-diff";
+import { buildTheme } from "./lib/theme-builder";
+import type { ThemeConfig } from "./lib/theme-builder";
 import componentMap from "../components.json";
 
 figma.showUI(__html__, { width: 360, height: 500, title: "Figma Handoff" });
@@ -295,6 +297,76 @@ figma.ui.onmessage = async (msg: { type: string }) => {
       });
     } catch (err) {
       figma.ui.postMessage({ type: "ERROR", message: String(err) });
+    }
+  }
+
+  if (msg.type === "APPLY_THEME") {
+    try {
+      const config = (msg as any).config as ThemeConfig;
+      const theme = buildTheme(config);
+
+      // Find or create "brand colors" collection (matches Obra's collection name)
+      const collections = await figma.variables.getLocalVariableCollectionsAsync();
+      const existingColl = collections.find(c => c.name === "brand colors");
+
+      let coll: VariableCollection;
+      if (existingColl) {
+        coll = existingColl;
+      } else {
+        coll = figma.variables.createVariableCollection("brand colors");
+        coll.renameMode(coll.modes[0].modeId, "light");
+        coll.addMode("dark");
+      }
+
+      const lightModeId = coll.modes.find(m => m.name === "light")?.modeId ?? coll.modes[0].modeId;
+      const darkModeId  = coll.modes.find(m => m.name === "dark")?.modeId  ?? coll.modes[1]?.modeId;
+
+      function hslToRgba(hsl: string): RGBA {
+        const parts = hsl.trim().split(/\s+/);
+        const h = parseFloat(parts[0]) / 360;
+        const s = parseFloat(parts[1]) / 100;
+        const l = parseFloat(parts[2]) / 100;
+        function hue2rgb(p: number, q: number, t: number): number {
+          if (t < 0) t += 1; if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        }
+        if (s === 0) return { r: l, g: l, b: l, a: 1 };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        return { r: hue2rgb(p, q, h + 1/3), g: hue2rgb(p, q, h), b: hue2rgb(p, q, h - 1/3), a: 1 };
+      }
+
+      // Upsert a color variable (find existing by name, create if missing)
+      async function upsertColorVar(name: string, lightHsl: string, darkHsl: string) {
+        const allVars = await figma.variables.getLocalVariablesAsync();
+        let variable = allVars.find(v => v.name === name && v.variableCollectionId === coll.id);
+        if (!variable) {
+          variable = figma.variables.createVariable(name, coll, "COLOR");
+        }
+        variable.setValueForMode(lightModeId, hslToRgba(lightHsl));
+        if (darkModeId) {
+          variable.setValueForMode(darkModeId, hslToRgba(darkHsl));
+        }
+      }
+
+      // Write brand-shades (accent color scale, same for light+dark — semantic layer handles mode switching)
+      for (const step of [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]) {
+        const hsl = theme.brandScale[step];
+        await upsertColorVar(`brand-shades/${step}`, hsl, hsl);
+      }
+
+      // Write brand-neutrals (drives backgrounds, text, primary buttons)
+      for (const step of [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]) {
+        const hsl = theme.neutralScale[step];
+        await upsertColorVar(`brand-neutrals/${step}`, hsl, hsl);
+      }
+
+      figma.ui.postMessage({ type: "THEME_APPLIED", success: true });
+    } catch (err) {
+      figma.ui.postMessage({ type: "THEME_APPLIED", success: false, error: String(err) });
     }
   }
 };

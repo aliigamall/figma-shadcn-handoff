@@ -1,5 +1,134 @@
 // Plugin UI — runs in the iframe (DOM access, no figma.* API)
 
+// ── Inline theme builder (mirrors lib/theme-builder.ts for UI use) ──────────
+
+type NeutralPreset = "slate" | "gray" | "zinc" | "stone" | "neutral";
+interface ThemeConfig { brandHex: string; neutralPreset: NeutralPreset; }
+type ColorScale = Record<number, string>;
+
+function hexToHsl(hex: string): [number, number, number] {
+  hex = hex.replace(/^#/, "");
+  if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+}
+
+const SCALE_LIGHTNESS: Record<number, number> = {
+  50: 97, 100: 94, 200: 86, 300: 74, 400: 62, 500: 50,
+  600: 40, 700: 32, 800: 24, 900: 16, 950: 11,
+};
+const SCALE_SAT_FACTOR: Record<number, number> = {
+  50: 0.3, 100: 0.5, 200: 0.7, 300: 0.85, 400: 0.95, 500: 1,
+  600: 0.95, 700: 0.88, 800: 0.8, 900: 0.7, 950: 0.6,
+};
+const STEPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+const NEUTRAL_HUE: Record<NeutralPreset, number> = { slate: 215, gray: 220, zinc: 240, stone: 25, neutral: 0 };
+const NEUTRAL_SAT: Record<NeutralPreset, number> = { slate: 16, gray: 9, zinc: 5, stone: 6, neutral: 0 };
+
+function hslStr(h: number, s: number, l: number) { return `hsl(${h} ${s}% ${l}%)`; }
+function hslVar(h: number, s: number, l: number) { return `${h} ${s}% ${l}%`; }
+
+function generateScale(hex: string): ColorScale {
+  const [h, s] = hexToHsl(hex);
+  const scale: ColorScale = {};
+  for (const step of STEPS) {
+    scale[step] = hslVar(h, Math.min(100, Math.round(s * SCALE_SAT_FACTOR[step])), SCALE_LIGHTNESS[step]);
+  }
+  return scale;
+}
+
+function generateNeutral(preset: NeutralPreset): ColorScale {
+  const h = NEUTRAL_HUE[preset], s = NEUTRAL_SAT[preset];
+  const scale: ColorScale = {};
+  for (const step of STEPS) scale[step] = hslVar(h, s, SCALE_LIGHTNESS[step]);
+  return scale;
+}
+
+function buildThemeCss(config: ThemeConfig): string {
+  const brand = generateScale(config.brandHex);
+  const neutral = generateNeutral(config.neutralPreset);
+
+  // shadcn/ui default: primary = dark neutral (black buttons), accent = brand color
+  const light: Record<string, string> = {
+    "--background":            neutral[50],
+    "--foreground":            neutral[950],
+    "--card":                  neutral[50],
+    "--card-foreground":       neutral[950],
+    "--popover":               neutral[50],
+    "--popover-foreground":    neutral[950],
+    "--primary":               neutral[900],
+    "--primary-foreground":    neutral[50],
+    "--secondary":             neutral[100],
+    "--secondary-foreground":  neutral[900],
+    "--muted":                 neutral[100],
+    "--muted-foreground":      neutral[500],
+    "--accent":                brand[100],
+    "--accent-foreground":     brand[900],
+    "--destructive":           "0 84% 60%",
+    "--destructive-foreground": neutral[50],
+    "--border":                neutral[200],
+    "--input":                 neutral[200],
+    "--ring":                  brand[500],
+  };
+  const dark: Record<string, string> = {
+    "--background":            neutral[950],
+    "--foreground":            neutral[50],
+    "--card":                  neutral[900],
+    "--card-foreground":       neutral[50],
+    "--popover":               neutral[900],
+    "--popover-foreground":    neutral[50],
+    "--primary":               neutral[50],
+    "--primary-foreground":    neutral[900],
+    "--secondary":             neutral[800],
+    "--secondary-foreground":  neutral[50],
+    "--muted":                 neutral[800],
+    "--muted-foreground":      neutral[400],
+    "--accent":                brand[900],
+    "--accent-foreground":     brand[100],
+    "--destructive":           "0 72% 51%",
+    "--destructive-foreground": neutral[50],
+    "--border":                neutral[800],
+    "--input":                 neutral[800],
+    "--ring":                  brand[400],
+  };
+
+  const indent = "    ";
+  const vars = (obj: Record<string, string>) =>
+    Object.entries(obj).map(([k, v]) => `${indent}${k}: ${v};`).join("\n");
+  const scaleBlock = (name: string, sc: ColorScale) =>
+    `  /* ${name} */\n` + STEPS.map(s => `  --${name}-${s}: ${sc[s]};`).join("\n");
+
+  return [
+    `@layer base {`,
+    `  :root {`,
+    vars(light),
+    `  }`,
+    ``,
+    `  .dark {`,
+    vars(dark),
+    `  }`,
+    ``,
+    scaleBlock("brand-shades", brand),
+    ``,
+    scaleBlock("brand-neutrals", neutral),
+    `}`,
+  ].join("\n");
+}
+
 function copyToClipboard(text: string, btn: HTMLButtonElement): void {
   const ta = document.createElement("textarea");
   ta.value = text;
@@ -173,4 +302,195 @@ window.onmessage = (event: MessageEvent) => {
     statusTokens.textContent = msg.message;
     statusTokens.className = "status error";
   }
+
+  if (msg.type === "THEME_APPLIED") {
+    const themeStatus = document.getElementById("theme-status") as HTMLSpanElement;
+    themeStatus.textContent = msg.success ? "Applied to Figma variables!" : `Error: ${msg.error}`;
+    themeStatus.style.color = msg.success ? "#080" : "#d00";
+    const btnApply = document.getElementById("btn-apply-theme") as HTMLButtonElement;
+    btnApply.disabled = false;
+    btnApply.textContent = "Apply to Figma";
+  }
 };
+
+// ── Theme tab ──────────────────────────────────────────────────────────────
+
+(function initThemeTab() {
+  const brandColorInput    = document.getElementById("theme-brand-color") as HTMLInputElement;
+  const brandHexInput      = document.getElementById("theme-brand-hex") as HTMLInputElement;
+  const neutralOptions     = document.querySelectorAll<HTMLButtonElement>(".neutral-btn");
+  const previewCard        = document.getElementById("preview-card") as HTMLDivElement;
+  const previewHeading     = document.getElementById("preview-heading") as HTMLSpanElement;
+  const previewBadge       = document.getElementById("preview-badge") as HTMLSpanElement;
+  const previewMuted       = document.getElementById("preview-muted") as HTMLParagraphElement;
+  const previewDivider     = document.getElementById("preview-divider") as HTMLDivElement;
+  const previewBtnPrimary  = document.getElementById("preview-btn-primary") as HTMLButtonElement;
+  const previewBtnSecondary = document.getElementById("preview-btn-secondary") as HTMLButtonElement;
+  const previewBtnAccent   = document.getElementById("preview-btn-accent") as HTMLButtonElement;
+  const previewBrandSwatches   = document.getElementById("preview-brand-swatches") as HTMLDivElement;
+  const previewNeutralSwatches = document.getElementById("preview-neutral-swatches") as HTMLDivElement;
+  const outputCss          = document.getElementById("output-theme-css") as HTMLTextAreaElement;
+  const btnCopyCss         = document.getElementById("btn-copy-theme-css") as HTMLButtonElement;
+  const btnApply           = document.getElementById("btn-apply-theme") as HTMLButtonElement;
+  const btnExportTheme     = document.getElementById("btn-export-theme") as HTMLButtonElement;
+  const importFile         = document.getElementById("theme-import-file") as HTMLInputElement;
+  const themeStatus        = document.getElementById("theme-status") as HTMLSpanElement;
+
+  let currentConfig: ThemeConfig = { brandHex: "#6366f1", neutralPreset: "slate" };
+
+  function isValidHex(hex: string): boolean {
+    return /^#[0-9a-fA-F]{6}$/.test(hex);
+  }
+
+  function hslToHex(h: number, s: number, l: number): string {
+    s /= 100; l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n: number) => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, "0");
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  }
+
+  function hslVarToHex(val: string): string {
+    const parts = val.trim().split(/\s+/);
+    return hslToHex(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
+  }
+
+  function swatchRow(container: HTMLDivElement, scale: ColorScale, label: string) {
+    container.innerHTML = STEPS
+      .map(step => {
+        const hex = hslVarToHex(scale[step]);
+        return `<div title="${label}-${step}" style="flex:1;height:16px;border-radius:2px;background:${hex}"></div>`;
+      }).join("");
+  }
+
+  function updatePreview() {
+    if (!isValidHex(currentConfig.brandHex)) return;
+    const brand   = generateScale(currentConfig.brandHex);
+    const neutral = generateNeutral(currentConfig.neutralPreset);
+
+    const bg          = hslVarToHex(neutral[50]);
+    const fg          = hslVarToHex(neutral[950]);
+    const border      = hslVarToHex(neutral[200]);
+    const muted       = hslVarToHex(neutral[500]);
+    const secondary   = hslVarToHex(neutral[100]);
+    const primaryBg   = hslVarToHex(neutral[900]);   // dark neutral = primary
+    const accentBg    = hslVarToHex(brand[100]);
+    const accentFg    = hslVarToHex(brand[900]);
+    const accentBadge = hslVarToHex(brand[500]);
+
+    // Card shell
+    previewCard.style.backgroundColor = bg;
+    previewCard.style.borderColor = border;
+    previewCard.style.color = fg;
+    // Heading
+    previewHeading.style.color = fg;
+    // Badge (accent color)
+    previewBadge.style.backgroundColor = accentBg;
+    previewBadge.style.color = accentFg;
+    // Muted text
+    previewMuted.style.color = muted;
+    // Divider
+    previewDivider.style.backgroundColor = border;
+    // Primary button — dark neutral
+    previewBtnPrimary.style.backgroundColor = primaryBg;
+    previewBtnPrimary.style.color = hslVarToHex(neutral[50]);
+    // Secondary button
+    previewBtnSecondary.style.backgroundColor = secondary;
+    previewBtnSecondary.style.color = fg;
+    // Accent button
+    previewBtnAccent.style.backgroundColor = accentBadge;
+    previewBtnAccent.style.color = "#fff";
+
+    // Swatches
+    swatchRow(previewBrandSwatches, brand, "accent");
+    swatchRow(previewNeutralSwatches, neutral, "neutral");
+
+    // CSS
+    outputCss.value = buildThemeCss(currentConfig);
+    btnCopyCss.disabled = false;
+    themeStatus.textContent = "";
+  }
+
+  // Accent color picker ↔ hex input
+  brandColorInput.addEventListener("input", () => {
+    currentConfig.brandHex = brandColorInput.value;
+    brandHexInput.value = brandColorInput.value;
+    updatePreview();
+  });
+  brandHexInput.addEventListener("input", () => {
+    const v = brandHexInput.value;
+    if (isValidHex(v)) {
+      currentConfig.brandHex = v;
+      brandColorInput.value = v;
+      updatePreview();
+    }
+  });
+
+  // Neutral preset buttons
+  neutralOptions.forEach(btn => {
+    btn.addEventListener("click", () => {
+      neutralOptions.forEach(b => b.classList.remove("active-neutral"));
+      btn.classList.add("active-neutral");
+      currentConfig.neutralPreset = (btn.dataset.preset as NeutralPreset) ?? "slate";
+      updatePreview();
+    });
+  });
+
+  // Copy CSS
+  btnCopyCss.addEventListener("click", () => copyToClipboard(outputCss.value, btnCopyCss));
+
+  // Apply to Figma
+  btnApply.addEventListener("click", () => {
+    btnApply.disabled = true;
+    btnApply.textContent = "Applying…";
+    themeStatus.textContent = "";
+    themeStatus.style.color = "#888";
+    parent.postMessage({ pluginMessage: { type: "APPLY_THEME", config: currentConfig } }, "*");
+  });
+
+  // Export config
+  btnExportTheme.addEventListener("click", () => {
+    const json = JSON.stringify(currentConfig, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "figma-theme-config.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Import config
+  importFile.addEventListener("change", () => {
+    const file = importFile.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result as string) as Partial<ThemeConfig>;
+        if (parsed.brandHex && isValidHex(parsed.brandHex)) {
+          currentConfig.brandHex = parsed.brandHex;
+          brandColorInput.value = parsed.brandHex;
+          brandHexInput.value = parsed.brandHex;
+        }
+        if (parsed.neutralPreset && ["slate","gray","zinc","stone","neutral"].includes(parsed.neutralPreset)) {
+          currentConfig.neutralPreset = parsed.neutralPreset;
+          neutralOptions.forEach(b => b.classList.toggle("active-neutral", b.dataset.preset === parsed.neutralPreset));
+        }
+        updatePreview();
+        themeStatus.textContent = "Config imported.";
+        themeStatus.style.color = "#080";
+      } catch {
+        themeStatus.textContent = "Invalid JSON file.";
+        themeStatus.style.color = "#d00";
+      }
+      importFile.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  updatePreview();
+})();
