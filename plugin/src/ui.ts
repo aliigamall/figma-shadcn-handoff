@@ -34,6 +34,10 @@ const btnExport = document.getElementById("btn-export") as HTMLButtonElement;
 const outputTokens = document.getElementById("output-tokens") as HTMLTextAreaElement;
 const statusTokens = document.getElementById("status-tokens") as HTMLSpanElement;
 const btnCopyTokens = document.getElementById("btn-copy-tokens") as HTMLButtonElement;
+const diffSection = document.getElementById("diff-section") as HTMLDivElement;
+const diffSummary = document.getElementById("diff-summary") as HTMLDivElement;
+const diffList = document.getElementById("diff-list") as HTMLDivElement;
+const btnCopyPatch = document.getElementById("btn-copy-patch") as HTMLButtonElement;
 
 const selectionBadge = document.getElementById("selection-badge") as HTMLDivElement;
 const selectionLabel = document.getElementById("selection-label") as HTMLSpanElement;
@@ -68,6 +72,10 @@ btnExport.addEventListener("click", () => {
 
 btnCopyTokens.addEventListener("click", () => {
   copyToClipboard(outputTokens.value, btnCopyTokens);
+});
+
+btnCopyPatch.addEventListener("click", () => {
+  copyToClipboard(btnCopyPatch.dataset.patch ?? "", btnCopyPatch);
 });
 
 // ── Tailwind tab ───────────────────────────────────────────────────────────
@@ -186,6 +194,41 @@ window.onmessage = (event: MessageEvent) => {
     btnExport.textContent = "Export globals.css";
     statusTokens.textContent = `${msg.count} tokens exported`;
     statusTokens.className = "status success";
+
+    // Render diff if available
+    const diff = msg.diff;
+    if (diff && diff.hasChanges) {
+      diffSection.classList.remove("hidden");
+      btnCopyPatch.dataset.patch = msg.patch ?? "";
+
+      // Summary badges
+      const badges = [];
+      if (diff.changed > 0) badges.push(`<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#fef9c3] text-[#a16207]">${diff.changed} changed</span>`);
+      if (diff.added > 0)   badges.push(`<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#dcfce7] text-[#15803d]">${diff.added} added</span>`);
+      if (diff.removed > 0) badges.push(`<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#fee2e2] text-[#b91c1c]">${diff.removed} removed</span>`);
+      diffSummary.innerHTML = badges.join("");
+
+      // Change list
+      diffList.innerHTML = diff.changes.map((c: any) => {
+        const colors: Record<string, string> = {
+          changed: "border-l-[#f59e0b]",
+          added:   "border-l-[#22c55e]",
+          removed: "border-l-[#ef4444]",
+        };
+        const valueStr = c.type === "removed"
+          ? `<span class="text-[#ef4444]">${c.before.light}</span>`
+          : c.type === "added"
+          ? `<span class="text-[#22c55e]">${c.after.light}</span>`
+          : `<span class="text-[#ef4444] line-through mr-1">${c.before.light}</span><span class="text-[#22c55e]">${c.after.light}</span>`;
+
+        return `<div class="flex flex-col pl-2 border-l-2 ${colors[c.type]} py-0.5">
+          <span class="font-mono text-[10px] text-[#555]">${c.cssVar}</span>
+          <span class="text-[10px] mt-0.5">${valueStr}</span>
+        </div>`;
+      }).join("");
+    } else if (diff) {
+      diffSection.classList.add("hidden");
+    }
   }
 
   if (msg.type === "TAILWIND_RESULT") {

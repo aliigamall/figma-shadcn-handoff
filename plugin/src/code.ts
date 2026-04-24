@@ -6,6 +6,7 @@ import { getTailwindClasses } from "./tailwind";
 import { generateJsx } from "./jsx";
 import { scanFrame, scanNode } from "./lib/frame-scanner";
 import { generateJSX } from "./lib/jsx-generator";
+import { saveSnapshot, loadSnapshot, tokensToSnapshot, diffTokens, generatePatch } from "./lib/token-diff";
 import componentMap from "../components.json";
 
 figma.showUI(__html__, { width: 360, height: 500, title: "Figma Handoff" });
@@ -223,7 +224,23 @@ figma.ui.onmessage = async (msg: { type: string }) => {
       const { collections, variables } = await collectVariables();
       const tokens = buildTokens(collections, variables);
       const css = generateCss(tokens);
-      figma.ui.postMessage({ type: "TOKENS_CSS", css, count: tokens.length });
+
+      // Diff against last snapshot
+      const previous = loadSnapshot();
+      const current  = tokensToSnapshot(tokens);
+      const diff     = diffTokens(previous, current);
+      const patch    = generatePatch(diff);
+
+      // Save new snapshot
+      saveSnapshot(tokens);
+
+      figma.ui.postMessage({
+        type:  "TOKENS_CSS",
+        css,
+        count: tokens.length,
+        diff,
+        patch,
+      });
     } catch (err) {
       figma.ui.postMessage({ type: "ERROR", message: String(err) });
     }
