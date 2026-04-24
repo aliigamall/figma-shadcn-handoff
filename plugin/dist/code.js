@@ -1047,6 +1047,106 @@ ${pad}</${component}>`;
     }
   });
 
+  // src/lib/token-diff.ts
+  function tokensToSnapshot(tokens) {
+    const snapshot = {};
+    for (const t of tokens) {
+      snapshot[t.cssVar] = __spreadValues({ light: t.light }, t.dark ? { dark: t.dark } : {});
+    }
+    return snapshot;
+  }
+  function saveSnapshot(tokens) {
+    const snapshot = tokensToSnapshot(tokens);
+    figma.root.setSharedPluginData(PLUGIN_NAMESPACE, SNAPSHOT_KEY, JSON.stringify(snapshot));
+  }
+  function loadSnapshot() {
+    const raw = figma.root.getSharedPluginData(PLUGIN_NAMESPACE, SNAPSHOT_KEY);
+    if (!raw)
+      return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+  function diffTokens(previous, current) {
+    const changes = [];
+    if (!previous) {
+      return { changes: [], hasChanges: false, added: 0, removed: 0, changed: 0 };
+    }
+    const allKeys = /* @__PURE__ */ new Set([...Object.keys(previous), ...Object.keys(current)]);
+    for (const cssVar of allKeys) {
+      const before = previous[cssVar];
+      const after = current[cssVar];
+      if (!before && after) {
+        changes.push({ cssVar, type: "added", after });
+      } else if (before && !after) {
+        changes.push({ cssVar, type: "removed", before });
+      } else if (before && after) {
+        if (before.light !== after.light || before.dark !== after.dark) {
+          changes.push({ cssVar, type: "changed", before, after });
+        }
+      }
+    }
+    const order = { changed: 0, added: 1, removed: 2 };
+    changes.sort((a, b) => order[a.type] - order[b.type]);
+    return {
+      changes,
+      hasChanges: changes.length > 0,
+      added: changes.filter((c) => c.type === "added").length,
+      removed: changes.filter((c) => c.type === "removed").length,
+      changed: changes.filter((c) => c.type === "changed").length
+    };
+  }
+  function generatePatch(diff) {
+    var _a;
+    if (!diff.hasChanges)
+      return "";
+    const lines = [];
+    const changed = diff.changes.filter((c) => c.type === "changed" || c.type === "added");
+    const removed = diff.changes.filter((c) => c.type === "removed");
+    if (changed.length > 0) {
+      lines.push("/* Updated/Added tokens */");
+      lines.push(":root {");
+      for (const c of changed) {
+        if (c.type === "changed" && c.before) {
+          lines.push(`  /* was: ${c.before.light} */`);
+        }
+        lines.push(`  ${c.cssVar}: ${c.after.light};`);
+      }
+      lines.push("}");
+      const darkChanged = changed.filter((c) => {
+        var _a2;
+        return (_a2 = c.after) == null ? void 0 : _a2.dark;
+      });
+      if (darkChanged.length > 0) {
+        lines.push('\n[data-theme="dark"] {');
+        for (const c of darkChanged) {
+          if (c.type === "changed" && ((_a = c.before) == null ? void 0 : _a.dark)) {
+            lines.push(`  /* was: ${c.before.dark} */`);
+          }
+          lines.push(`  ${c.cssVar}: ${c.after.dark};`);
+        }
+        lines.push("}");
+      }
+    }
+    if (removed.length > 0) {
+      lines.push("\n/* Removed tokens \u2014 delete these from your globals.css */");
+      for (const c of removed) {
+        lines.push(`/* ${c.cssVar}: ${c.before.light}; */`);
+      }
+    }
+    return lines.join("\n");
+  }
+  var PLUGIN_NAMESPACE, SNAPSHOT_KEY;
+  var init_token_diff = __esm({
+    "src/lib/token-diff.ts"() {
+      "use strict";
+      PLUGIN_NAMESPACE = "figma_handoff";
+      SNAPSHOT_KEY = "token-snapshot";
+    }
+  });
+
   // components.json
   var components_default;
   var init_components = __esm({
@@ -1396,6 +1496,7 @@ ${pad}</${component}>`;
       init_jsx();
       init_frame_scanner();
       init_jsx_generator();
+      init_token_diff();
       init_components();
       figma.showUI(__html__, { width: 360, height: 500, title: "Figma Handoff" });
       function collectVariables() {
@@ -1551,7 +1652,18 @@ ${pad}</${component}>`;
             const { collections, variables } = yield collectVariables();
             const tokens = buildTokens(collections, variables);
             const css = generateCss(tokens);
-            figma.ui.postMessage({ type: "TOKENS_CSS", css, count: tokens.length });
+            const previous = loadSnapshot();
+            const current = tokensToSnapshot(tokens);
+            const diff = diffTokens(previous, current);
+            const patch = generatePatch(diff);
+            saveSnapshot(tokens);
+            figma.ui.postMessage({
+              type: "TOKENS_CSS",
+              css,
+              count: tokens.length,
+              diff,
+              patch
+            });
           } catch (err) {
             figma.ui.postMessage({ type: "ERROR", message: String(err) });
           }

@@ -44,6 +44,16 @@
       <span id="status-tokens" class="status text-[11px] text-[#888] min-h-4 flex-1"></span>
       <button id="btn-copy-tokens" class="px-4 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" disabled>Copy</button>
     </div>
+
+    <!-- Diff section -->
+    <div id="diff-section" class="hidden flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Changes since last export</span>
+        <button id="btn-copy-patch" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Copy patch</button>
+      </div>
+      <div id="diff-summary" class="flex gap-2 text-[11px]"></div>
+      <div id="diff-list" class="flex flex-col gap-1 overflow-y-auto max-h-[180px]"></div>
+    </div>
   </div>
 
   <!-- Tailwind / JSX panel -->
@@ -130,6 +140,10 @@
   var outputTokens = document.getElementById("output-tokens");
   var statusTokens = document.getElementById("status-tokens");
   var btnCopyTokens = document.getElementById("btn-copy-tokens");
+  var diffSection = document.getElementById("diff-section");
+  var diffSummary = document.getElementById("diff-summary");
+  var diffList = document.getElementById("diff-list");
+  var btnCopyPatch = document.getElementById("btn-copy-patch");
   var selectionBadge = document.getElementById("selection-badge");
   var selectionLabel = document.getElementById("selection-label");
   var outputTailwind = document.getElementById("output-tailwind");
@@ -157,6 +171,10 @@
   });
   btnCopyTokens.addEventListener("click", () => {
     copyToClipboard(outputTokens.value, btnCopyTokens);
+  });
+  btnCopyPatch.addEventListener("click", () => {
+    var _a;
+    copyToClipboard((_a = btnCopyPatch.dataset.patch) != null ? _a : "", btnCopyPatch);
   });
   function triggerInspect() {
     statusTailwind.textContent = "";
@@ -244,7 +262,7 @@ ${outputJsx.value}`;
     devDraft.value = info.draft;
   }
   window.onmessage = (event) => {
-    var _a;
+    var _a, _b;
     const msg = event.data.pluginMessage;
     if (!msg)
       return;
@@ -255,6 +273,33 @@ ${outputJsx.value}`;
       btnExport.textContent = "Export globals.css";
       statusTokens.textContent = `${msg.count} tokens exported`;
       statusTokens.className = "status success";
+      const diff = msg.diff;
+      if (diff && diff.hasChanges) {
+        diffSection.classList.remove("hidden");
+        btnCopyPatch.dataset.patch = (_a = msg.patch) != null ? _a : "";
+        const badges = [];
+        if (diff.changed > 0)
+          badges.push(`<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#fef9c3] text-[#a16207]">${diff.changed} changed</span>`);
+        if (diff.added > 0)
+          badges.push(`<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#dcfce7] text-[#15803d]">${diff.added} added</span>`);
+        if (diff.removed > 0)
+          badges.push(`<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#fee2e2] text-[#b91c1c]">${diff.removed} removed</span>`);
+        diffSummary.innerHTML = badges.join("");
+        diffList.innerHTML = diff.changes.map((c) => {
+          const colors = {
+            changed: "border-l-[#f59e0b]",
+            added: "border-l-[#22c55e]",
+            removed: "border-l-[#ef4444]"
+          };
+          const valueStr = c.type === "removed" ? `<span class="text-[#ef4444]">${c.before.light}</span>` : c.type === "added" ? `<span class="text-[#22c55e]">${c.after.light}</span>` : `<span class="text-[#ef4444] line-through mr-1">${c.before.light}</span><span class="text-[#22c55e]">${c.after.light}</span>`;
+          return `<div class="flex flex-col pl-2 border-l-2 ${colors[c.type]} py-0.5">
+          <span class="font-mono text-[10px] text-[#555]">${c.cssVar}</span>
+          <span class="text-[10px] mt-0.5">${valueStr}</span>
+        </div>`;
+        }).join("");
+      } else if (diff) {
+        diffSection.classList.add("hidden");
+      }
     }
     if (msg.type === "TAILWIND_RESULT") {
       if (msg.error) {
@@ -294,7 +339,7 @@ ${outputJsx.value}`;
         btnCopyTailwind.disabled = true;
         statusTailwind.textContent = "";
       }
-      renderDevTab((_a = msg.componentInfo) != null ? _a : null, msg.nodeType);
+      renderDevTab((_b = msg.componentInfo) != null ? _b : null, msg.nodeType);
     }
     if (msg.type === "ERROR") {
       btnExport.disabled = false;
