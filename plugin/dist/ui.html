@@ -52,8 +52,6 @@
       <span class="dot w-[7px] h-[7px] rounded-full bg-[#ccc] flex-shrink-0"></span>
       <span id="selection-label">No node selected</span>
     </div>
-    <button id="btn-get-tailwind" class="px-4 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed bg-black text-white hover:bg-[#222]">Inspect</button>
-
     <!-- JSX section -->
     <div id="jsx-section" class="section flex flex-col gap-1.5 hidden">
       <div class="flex items-center justify-between">
@@ -134,7 +132,6 @@
   var btnCopyTokens = document.getElementById("btn-copy-tokens");
   var selectionBadge = document.getElementById("selection-badge");
   var selectionLabel = document.getElementById("selection-label");
-  var btnGetTailwind = document.getElementById("btn-get-tailwind");
   var outputTailwind = document.getElementById("output-tailwind");
   var statusTailwind = document.getElementById("status-tailwind");
   var btnCopyTailwind = document.getElementById("btn-copy-tailwind");
@@ -161,15 +158,13 @@
   btnCopyTokens.addEventListener("click", () => {
     copyToClipboard(outputTokens.value, btnCopyTokens);
   });
-  btnGetTailwind.addEventListener("click", () => {
-    btnGetTailwind.disabled = true;
-    btnGetTailwind.textContent = "Inspecting\u2026";
+  function triggerInspect() {
     statusTailwind.textContent = "";
     statusTailwind.className = "status";
     jsxSection.classList.add("hidden");
     unmappedHint.classList.add("hidden");
     parent.postMessage({ pluginMessage: { type: "GET_TAILWIND" } }, "*");
-  });
+  }
   btnCopyTailwind.addEventListener("click", () => {
     copyToClipboard(outputTailwind.value, btnCopyTailwind);
   });
@@ -262,8 +257,6 @@ ${outputJsx.value}`;
       statusTokens.className = "status success";
     }
     if (msg.type === "TAILWIND_RESULT") {
-      btnGetTailwind.disabled = false;
-      btnGetTailwind.textContent = "Inspect";
       if (msg.error) {
         statusTailwind.textContent = msg.error;
         statusTailwind.className = "status error";
@@ -291,17 +284,21 @@ ${outputJsx.value}`;
       if (msg.hasSelection) {
         selectionBadge.classList.add("has-selection");
         selectionLabel.textContent = msg.nodeName || "1 node selected";
+        triggerInspect();
       } else {
         selectionBadge.classList.remove("has-selection");
         selectionLabel.textContent = "No node selected";
+        outputTailwind.value = "";
+        jsxSection.classList.add("hidden");
+        unmappedHint.classList.add("hidden");
+        btnCopyTailwind.disabled = true;
+        statusTailwind.textContent = "";
       }
       renderDevTab((_a = msg.componentInfo) != null ? _a : null, msg.nodeType);
     }
     if (msg.type === "ERROR") {
       btnExport.disabled = false;
       btnExport.textContent = "Export globals.css";
-      btnGetTailwind.disabled = false;
-      btnGetTailwind.textContent = "Get Tailwind Classes";
       statusTokens.textContent = msg.message;
       statusTokens.className = "status error";
       statusTailwind.textContent = msg.message;

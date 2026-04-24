@@ -37,7 +37,6 @@ const btnCopyTokens = document.getElementById("btn-copy-tokens") as HTMLButtonEl
 
 const selectionBadge = document.getElementById("selection-badge") as HTMLDivElement;
 const selectionLabel = document.getElementById("selection-label") as HTMLSpanElement;
-const btnGetTailwind = document.getElementById("btn-get-tailwind") as HTMLButtonElement;
 const outputTailwind = document.getElementById("output-tailwind") as HTMLTextAreaElement;
 const statusTailwind = document.getElementById("status-tailwind") as HTMLSpanElement;
 const btnCopyTailwind = document.getElementById("btn-copy-tailwind") as HTMLButtonElement;
@@ -73,15 +72,13 @@ btnCopyTokens.addEventListener("click", () => {
 
 // ── Tailwind tab ───────────────────────────────────────────────────────────
 
-btnGetTailwind.addEventListener("click", () => {
-  btnGetTailwind.disabled = true;
-  btnGetTailwind.textContent = "Inspecting…";
+function triggerInspect(): void {
   statusTailwind.textContent = "";
   statusTailwind.className = "status";
   jsxSection.classList.add("hidden");
   unmappedHint.classList.add("hidden");
   parent.postMessage({ pluginMessage: { type: "GET_TAILWIND" } }, "*");
-});
+}
 
 btnCopyTailwind.addEventListener("click", () => {
   copyToClipboard(outputTailwind.value, btnCopyTailwind);
@@ -192,9 +189,6 @@ window.onmessage = (event: MessageEvent) => {
   }
 
   if (msg.type === "TAILWIND_RESULT") {
-    btnGetTailwind.disabled = false;
-    btnGetTailwind.textContent = "Inspect";
-
     if (msg.error) {
       statusTailwind.textContent = msg.error;
       statusTailwind.className = "status error";
@@ -227,19 +221,22 @@ window.onmessage = (event: MessageEvent) => {
     if (msg.hasSelection) {
       selectionBadge.classList.add("has-selection");
       selectionLabel.textContent = msg.nodeName || "1 node selected";
+      triggerInspect();
     } else {
       selectionBadge.classList.remove("has-selection");
       selectionLabel.textContent = "No node selected";
+      outputTailwind.value = "";
+      jsxSection.classList.add("hidden");
+      unmappedHint.classList.add("hidden");
+      btnCopyTailwind.disabled = true;
+      statusTailwind.textContent = "";
     }
     renderDevTab(msg.componentInfo ?? null, msg.nodeType);
   }
 
   if (msg.type === "ERROR") {
-    // Reset button states
     btnExport.disabled = false;
     btnExport.textContent = "Export globals.css";
-    btnGetTailwind.disabled = false;
-    btnGetTailwind.textContent = "Get Tailwind Classes";
 
     statusTokens.textContent = msg.message;
     statusTokens.className = "status error";
