@@ -3,304 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Only rules that Tailwind can't handle via utility classes (JS-toggled compound selectors) */
     .hidden { display: none !important; }
-
-    body {
-      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 13px;
-      color: #1a1a1a;
-      background: #fff;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Header */
-    .header {
-      padding: 10px 16px;
-      border-bottom: 1px solid #e5e5e5;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .header-icon {
-      display: flex;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .header-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 15px;
-      font-weight: 600;
-      color: #1a1a1a;
-      letter-spacing: -0.2px;
-    }
-    .header-desc {
-      font-size: 11px;
-      color: #aaa;
-      margin-left: 6px;
-    }
-
-    /* Tabs */
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid #e5e5e5;
-      flex-shrink: 0;
-    }
-    .tab {
-      flex: 1;
-      padding: 10px 0;
-      border: none;
-      background: none;
-      cursor: pointer;
-      font-size: 13px;
-      color: #666;
-      font-family: inherit;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      transition: color 0.15s;
-    }
-    .tab.active {
-      color: #000;
-      border-bottom-color: #000;
-      font-weight: 500;
-    }
-
-    /* Panels */
-    .panel {
-      flex: 1;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      overflow: hidden;
-    }
-    .panel.hidden { display: none; }
-
-    /* Buttons */
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      font-family: inherit;
-      font-weight: 500;
-      transition: opacity 0.15s;
-    }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-primary { background: #000; color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: #222; }
-    .btn-secondary { background: #f0f0f0; color: #000; }
-    .btn-secondary:hover:not(:disabled) { background: #e5e5e5; }
-
-    .row { display: flex; gap: 8px; }
-    .row .btn { flex: 1; }
-
-    /* Output area */
-    textarea {
-      flex: 1;
-      width: 100%;
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 11px;
-      line-height: 1.5;
-      padding: 10px;
-      border: 1px solid #e5e5e5;
-      border-radius: 6px;
-      resize: none;
-      color: #1a1a1a;
-      background: #fafafa;
-      outline: none;
-      min-height: 0;
-    }
-    textarea:focus { border-color: #999; background: #fff; }
-
-    /* Status / info */
-    .status {
-      font-size: 11px;
-      color: #888;
-      min-height: 16px;
-    }
+    .tab.active { color: #000; border-bottom-color: #000; font-weight: 500; }
     .status.error { color: #d00; }
     .status.success { color: #080; }
-
-    /* Sections */
-    .section { display: flex; flex-direction: column; gap: 6px; }
-    .section.hidden { display: none; }
-    .section-header { display: flex; align-items: center; justify-content: space-between; }
-    .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; }
-    .btn-sm { padding: 4px 10px; font-size: 11px; }
-
-    /* Import line */
-    .import-line {
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 10px;
-      color: #888;
-      background: #f5f5f5;
-      border-radius: 4px;
-      padding: 5px 8px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* Hint for unmapped components */
-    .hint {
-      font-size: 11px;
-      color: #f59e0b;
-      background: #fffbeb;
-      border: 1px solid #fde68a;
-      border-radius: 6px;
-      padding: 7px 10px;
-    }
-    .hint.hidden { display: none; }
-
-    /* Dev tab */
-    .dev-empty { color: #999; font-size: 12px; text-align: center; margin-top: 32px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
-    .dev-node-type { font-size: 11px; background: #fff3cd; color: #856404; border-radius: 5px; padding: 5px 10px; }
-    .dev-tip { font-size: 10px; color: #bbb; max-width: 240px; line-height: 1.5; }
-    .dev-header { margin-bottom: 10px; }
-    .dev-name { font-size: 14px; font-weight: 600; display: block; }
-    .dev-figma-name { font-size: 11px; color: #888; }
-    .dev-props { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
-    .dev-prop { background: #f7f7f7; border-radius: 5px; padding: 6px 8px; }
-    .dev-prop-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-    .dev-prop-name { font-size: 12px; font-weight: 500; }
-    .dev-type-badge {
-      font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-      padding: 1px 5px; border-radius: 3px; background: #e5e5e5; color: #555;
-    }
-    .dev-type-badge.variant { background: #dbeafe; color: #1d4ed8; }
-    .dev-type-badge.text    { background: #dcfce7; color: #15803d; }
-    .dev-type-badge.boolean { background: #fef9c3; color: #a16207; }
-    .dev-type-badge.instance_swap { background: #fce7f3; color: #be185d; }
-    .dev-options { display: flex; flex-wrap: wrap; gap: 3px; }
-    .dev-option {
-      font-size: 10px; padding: 1px 6px; border-radius: 10px;
-      background: #e5e5e5; color: #444;
-    }
-    .dev-option.current { background: #000; color: #fff; }
-    .dev-text-value { font-size: 11px; color: #555; font-style: italic; }
-    .dev-note { font-size: 10px; color: #aaa; margin-top: 4px; }
-
-    /* Selection indicator (Tailwind tab) */
-    .selection-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: #555;
-      background: #f5f5f5;
-      border-radius: 6px;
-      padding: 7px 10px;
-    }
-    .selection-badge .dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: #ccc;
-      flex-shrink: 0;
-    }
     .selection-badge.has-selection .dot { background: #22c55e; }
-    .selection-badge .name {
-      font-weight: 500;
-      color: #111;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 200px;
-    }
   </style>
 </head>
-<body>
+<body class="font-sans text-[13px] text-[#1a1a1a] bg-white h-screen flex flex-col">
 
-  <div class="header">
-    <span class="header-icon">
+  <!-- Header / Logo -->
+  <div class="px-4 py-[10px] border-b border-[#e5e5e5] flex-shrink-0 flex flex-col gap-2">
+    <span class="flex gap-2 items-center flex-shrink-0">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="2" width="7" height="7" rx="1.5" fill="#1a1a1a"/>
         <rect x="11" y="2" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.4"/>
         <rect x="2" y="11" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.4"/>
         <rect x="11" y="11" width="7" height="7" rx="1.5" fill="#1a1a1a" opacity="0.15"/>
       </svg>
+      <span class="font-['Space_Grotesk'] text-[15px] font-semibold text-[#1a1a1a] tracking-[-0.2px]">Figma Handoff</span>
     </span>
-    <span class="header-title">Figma Handoff</span>
-    <span class="header-desc">Export design tokens and inspect components for shadcn/ui integration.</span>
+    <span class="text-[11px] text-[#aaa] ml-1.5">Export design tokens and inspect components for shadcn/ui integration.</span>
   </div>
 
-  <div class="tabs">
-    <button class="tab active" data-tab="tokens">Export Tokens</button>
-    <button class="tab" data-tab="tailwind">Inspect</button>
-    <button class="tab" data-tab="dev">Dev</button>
+  <!-- Tabs -->
+  <div class="flex border-b border-[#e5e5e5] flex-shrink-0">
+    <button class="tab flex-1 py-[10px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors active" data-tab="tokens">Export Tokens</button>
+    <button class="tab flex-1 py-[10px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="tailwind">Inspect</button>
+    <button class="tab flex-1 py-[10px] border-none bg-transparent cursor-pointer text-[13px] text-[#666] font-[inherit] border-b-2 border-b-transparent -mb-px transition-colors" data-tab="dev">Dev</button>
   </div>
 
   <!-- Tokens panel -->
-  <div id="panel-tokens" class="panel">
-    <button id="btn-export" class="btn btn-primary">Export globals.css</button>
-    <textarea id="output-tokens" placeholder="Click Export to generate CSS…" readonly></textarea>
-    <div class="row">
-      <span id="status-tokens" class="status"></span>
-      <button id="btn-copy-tokens" class="btn btn-secondary" disabled>Copy</button>
+  <div id="panel-tokens" class="panel flex-1 p-4 flex flex-col gap-3 overflow-hidden">
+    <button id="btn-export" class="px-4 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed bg-black text-white hover:bg-[#222]">Export globals.css</button>
+    <textarea id="output-tokens" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0 focus:border-[#999] focus:bg-white" placeholder="Click Export to generate CSS…" readonly></textarea>
+    <div class="flex gap-2 items-center">
+      <span id="status-tokens" class="status text-[11px] text-[#888] min-h-4 flex-1"></span>
+      <button id="btn-copy-tokens" class="px-4 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" disabled>Copy</button>
     </div>
   </div>
 
   <!-- Tailwind / JSX panel -->
-  <div id="panel-tailwind" class="panel hidden">
-    <div id="selection-badge" class="selection-badge">
-      <span class="dot"></span>
+  <div id="panel-tailwind" class="panel flex-1 p-4 flex flex-col gap-3 overflow-hidden hidden">
+    <div id="selection-badge" class="selection-badge flex items-center gap-1.5 text-[12px] text-[#555] bg-[#f5f5f5] rounded-md px-[10px] py-[7px]">
+      <span class="dot w-[7px] h-[7px] rounded-full bg-[#ccc] flex-shrink-0"></span>
       <span id="selection-label">No node selected</span>
     </div>
-    <button id="btn-get-tailwind" class="btn btn-primary">Inspect</button>
+    <button id="btn-get-tailwind" class="px-4 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed bg-black text-white hover:bg-[#222]">Inspect</button>
 
-    <!-- JSX section (shown only for mapped component instances) -->
-    <div id="jsx-section" class="section hidden">
-      <div class="section-header">
-        <span class="section-label">JSX</span>
-        <button id="btn-copy-jsx" class="btn btn-secondary btn-sm">Copy</button>
+    <!-- JSX section -->
+    <div id="jsx-section" class="section flex flex-col gap-1.5 hidden">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">JSX</span>
+        <button id="btn-copy-jsx" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Copy</button>
       </div>
-      <div id="jsx-import" class="import-line"></div>
-      <textarea id="output-jsx" readonly></textarea>
+      <div id="jsx-import" class="font-mono text-[10px] text-[#888] bg-[#f5f5f5] rounded px-2 py-[5px] whitespace-nowrap overflow-hidden text-ellipsis"></div>
+      <textarea id="output-jsx" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0" readonly></textarea>
     </div>
 
     <!-- Unmapped component hint -->
-    <div id="unmapped-hint" class="hint hidden"></div>
+    <div id="unmapped-hint" class="hint text-[11px] text-[#f59e0b] bg-[#fffbeb] border border-[#fde68a] rounded-md px-[10px] py-[7px] hidden"></div>
 
     <!-- Tailwind section -->
-    <div id="tailwind-section" class="section">
-      <div class="section-header">
-        <span class="section-label">Tailwind</span>
-        <button id="btn-copy-tailwind" class="btn btn-secondary btn-sm" disabled>Copy</button>
+    <div id="tailwind-section" class="section flex flex-col gap-1.5">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Tailwind</span>
+        <button id="btn-copy-tailwind" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity disabled:opacity-40 disabled:cursor-not-allowed bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" disabled>Copy</button>
       </div>
-      <textarea id="output-tailwind" placeholder="Select a node then click Inspect…" readonly></textarea>
+      <textarea id="output-tailwind" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0" placeholder="Select a node then click Inspect…" readonly></textarea>
     </div>
 
-    <span id="status-tailwind" class="status"></span>
+    <span id="status-tailwind" class="status text-[11px] text-[#888] min-h-4"></span>
   </div>
 
   <!-- Dev tab -->
-  <div id="panel-dev" class="panel hidden" style="overflow-y:auto">
-    <div id="dev-empty" class="dev-empty">
+  <div id="panel-dev" class="panel flex-1 p-4 flex flex-col gap-3 overflow-y-auto hidden">
+    <div id="dev-empty" class="text-[#999] text-[12px] text-center mt-8 flex flex-col gap-2 items-center">
       <div id="dev-empty-msg">Select a component instance to inspect</div>
-      <div id="dev-node-type" class="dev-node-type hidden"></div>
-      <div class="dev-tip">Click any component, component set, or instance — frames and groups won't work</div>
+      <div id="dev-node-type" class="text-[11px] bg-[#fff3cd] text-[#856404] rounded-[5px] px-[10px] py-[5px] hidden"></div>
+      <div class="text-[10px] text-[#bbb] max-w-[240px] leading-relaxed">Click any component, component set, or instance — frames and groups won't work</div>
     </div>
 
     <div id="dev-content" class="hidden">
-      <div class="dev-header">
-        <span id="dev-component-name" class="dev-name"></span>
-        <span id="dev-figma-name" class="dev-figma-name"></span>
+      <div class="mb-[10px]">
+        <span id="dev-component-name" class="text-[14px] font-semibold block"></span>
+        <span id="dev-figma-name" class="text-[11px] text-[#888]"></span>
       </div>
 
-      <div class="section-label" style="margin-bottom:4px">Properties</div>
-      <div id="dev-props" class="dev-props"></div>
+      <div class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888] mb-1">Properties</div>
+      <div id="dev-props" class="flex flex-col gap-1 mb-1"></div>
 
-      <div class="section-header" style="margin-top:8px">
-        <span class="section-label">Draft JSON</span>
-        <button id="btn-copy-draft" class="btn btn-secondary btn-sm">Copy</button>
+      <div class="flex items-center justify-between mt-2">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Draft JSON</span>
+        <button id="btn-copy-draft" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium transition-opacity bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Copy</button>
       </div>
-      <textarea id="dev-draft" readonly style="min-height:200px;flex:1"></textarea>
-      <p class="dev-note">Copy → paste to Claude → say which shadcn component this is</p>
+      <textarea id="dev-draft" class="w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-[200px] flex-1 mt-1" readonly></textarea>
+      <p class="text-[10px] text-[#aaa] mt-1">Copy → paste to Claude → say which shadcn component this is</p>
     </div>
   </div>
 
@@ -382,6 +183,7 @@ ${outputJsx.value}`;
     copyToClipboard(devDraft.value, btnCopyDraft);
   });
   function renderDevTab(info, nodeType) {
+    var _a;
     if (!info) {
       devEmpty.classList.remove("hidden");
       devContent.classList.add("hidden");
@@ -398,39 +200,47 @@ ${outputJsx.value}`;
     devContent.classList.remove("hidden");
     devComponentName.textContent = info.componentName;
     devFigmaName.textContent = `Figma: "${info.figmaNodeName}"`;
+    const typeBadgeColors = {
+      variant: "bg-[#dbeafe] text-[#1d4ed8]",
+      text: "bg-[#dcfce7] text-[#15803d]",
+      boolean: "bg-[#fef9c3] text-[#a16207]",
+      instance_swap: "bg-[#fce7f3] text-[#be185d]"
+    };
     devProps.innerHTML = "";
     for (const prop of info.properties) {
       const el = document.createElement("div");
-      el.className = "dev-prop";
+      el.className = "bg-[#f7f7f7] rounded-[5px] px-2 py-1.5";
       const header = document.createElement("div");
-      header.className = "dev-prop-header";
+      header.className = "flex items-center gap-1.5 mb-[3px]";
       const nameEl = document.createElement("span");
-      nameEl.className = "dev-prop-name";
+      nameEl.className = "text-[12px] font-medium";
       nameEl.textContent = prop.name;
+      const typeKey = prop.type.toLowerCase();
       const badge = document.createElement("span");
-      badge.className = `dev-type-badge ${prop.type.toLowerCase()}`;
+      badge.className = `text-[9px] font-semibold uppercase tracking-[0.04em] px-[5px] py-[1px] rounded-[3px] ${(_a = typeBadgeColors[typeKey]) != null ? _a : "bg-[#e5e5e5] text-[#555]"}`;
       badge.textContent = prop.type;
       header.appendChild(nameEl);
       header.appendChild(badge);
       el.appendChild(header);
       if (prop.type === "VARIANT" && prop.options.length > 0) {
         const opts = document.createElement("div");
-        opts.className = "dev-options";
+        opts.className = "flex flex-wrap gap-[3px]";
         for (const opt of prop.options) {
+          const isCurrent = String(prop.currentValue).toLowerCase() === opt.toLowerCase();
           const chip = document.createElement("span");
-          chip.className = "dev-option" + (String(prop.currentValue).toLowerCase() === opt.toLowerCase() ? " current" : "");
+          chip.className = `text-[10px] px-1.5 py-[1px] rounded-[10px] ${isCurrent ? "bg-black text-white" : "bg-[#e5e5e5] text-[#444]"}`;
           chip.textContent = opt;
           opts.appendChild(chip);
         }
         el.appendChild(opts);
       } else if (prop.type === "TEXT") {
         const val = document.createElement("div");
-        val.className = "dev-text-value";
+        val.className = "text-[11px] text-[#555] italic";
         val.textContent = `"${prop.currentValue}"`;
         el.appendChild(val);
       } else if (prop.type === "BOOLEAN") {
         const val = document.createElement("div");
-        val.className = "dev-text-value";
+        val.className = "text-[11px] text-[#555] italic";
         val.textContent = String(prop.currentValue);
         el.appendChild(val);
       }

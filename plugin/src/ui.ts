@@ -119,20 +119,28 @@ function renderDevTab(info: any, nodeType?: string): void {
   devFigmaName.textContent = `Figma: "${info.figmaNodeName}"`;
 
   // Build properties list
+  const typeBadgeColors: Record<string, string> = {
+    variant:       "bg-[#dbeafe] text-[#1d4ed8]",
+    text:          "bg-[#dcfce7] text-[#15803d]",
+    boolean:       "bg-[#fef9c3] text-[#a16207]",
+    instance_swap: "bg-[#fce7f3] text-[#be185d]",
+  };
+
   devProps.innerHTML = "";
   for (const prop of info.properties as any[]) {
     const el = document.createElement("div");
-    el.className = "dev-prop";
+    el.className = "bg-[#f7f7f7] rounded-[5px] px-2 py-1.5";
 
     const header = document.createElement("div");
-    header.className = "dev-prop-header";
+    header.className = "flex items-center gap-1.5 mb-[3px]";
 
     const nameEl = document.createElement("span");
-    nameEl.className = "dev-prop-name";
+    nameEl.className = "text-[12px] font-medium";
     nameEl.textContent = prop.name;
 
+    const typeKey = prop.type.toLowerCase();
     const badge = document.createElement("span");
-    badge.className = `dev-type-badge ${prop.type.toLowerCase()}`;
+    badge.className = `text-[9px] font-semibold uppercase tracking-[0.04em] px-[5px] py-[1px] rounded-[3px] ${typeBadgeColors[typeKey] ?? "bg-[#e5e5e5] text-[#555]"}`;
     badge.textContent = prop.type;
 
     header.appendChild(nameEl);
@@ -141,24 +149,23 @@ function renderDevTab(info: any, nodeType?: string): void {
 
     if (prop.type === "VARIANT" && prop.options.length > 0) {
       const opts = document.createElement("div");
-      opts.className = "dev-options";
+      opts.className = "flex flex-wrap gap-[3px]";
       for (const opt of prop.options as string[]) {
+        const isCurrent = String(prop.currentValue).toLowerCase() === opt.toLowerCase();
         const chip = document.createElement("span");
-        chip.className = "dev-option" + (
-          String(prop.currentValue).toLowerCase() === opt.toLowerCase() ? " current" : ""
-        );
+        chip.className = `text-[10px] px-1.5 py-[1px] rounded-[10px] ${isCurrent ? "bg-black text-white" : "bg-[#e5e5e5] text-[#444]"}`;
         chip.textContent = opt;
         opts.appendChild(chip);
       }
       el.appendChild(opts);
     } else if (prop.type === "TEXT") {
       const val = document.createElement("div");
-      val.className = "dev-text-value";
+      val.className = "text-[11px] text-[#555] italic";
       val.textContent = `"${prop.currentValue}"`;
       el.appendChild(val);
     } else if (prop.type === "BOOLEAN") {
       const val = document.createElement("div");
-      val.className = "dev-text-value";
+      val.className = "text-[11px] text-[#555] italic";
       val.textContent = String(prop.currentValue);
       el.appendChild(val);
     }
