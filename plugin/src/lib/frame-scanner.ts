@@ -65,11 +65,27 @@ export interface ScannedIcon {
   isIcon: true;
   id: string;
   name: string;
+  /** PascalCase Lucide icon name, e.g. "ArrowRight" */
+  lucideName: string;
   width: number;
   height: number;
 }
 
 export type ScannedTree = ScannedNode | ScannedFrame | ScannedText | ScannedImage | ScannedIcon;
+
+/**
+ * Convert a Figma layer name to a PascalCase Lucide icon name.
+ * Handles patterns like "arrow-right", "Icon / chevron-right", "Arrow Right".
+ */
+function toLucideName(raw: string): string {
+  const segment = raw.split("/").pop()?.trim() ?? raw;
+  const cleaned = segment.replace(/^icons?[-_\s]*/i, "").trim() || "Icon";
+  return cleaned
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join("");
+}
 
 /** Extract layout info from any frame-like node */
 function extractLayout(node: FrameNode | ComponentNode | InstanceNode): Layout {
@@ -185,6 +201,19 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
       };
     }
 
+    // Unmapped instance that is small → treat as a Lucide icon
+    const isSmall = node.width <= 48 && node.height <= 48;
+    if (isSmall) {
+      return {
+        isIcon:     true,
+        id:         node.id,
+        name:       compName,
+        lucideName: toLucideName(compName),
+        width:      Math.round(node.width),
+        height:     Math.round(node.height),
+      };
+    }
+
     return scanFrameNode(node as unknown as FrameNode);
   }
 
@@ -224,7 +253,7 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     }
   }
 
-  // Vector / icon nodes → SVG placeholder
+  // Raw vector / shape nodes → Lucide icon by layer name
   if (
     node.type === "VECTOR" ||
     node.type === "BOOLEAN_OPERATION" ||
@@ -233,11 +262,12 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     node.type === "LINE"
   ) {
     return {
-      isIcon: true,
-      id: node.id,
-      name: node.name,
-      width:  Math.round(node.width),
-      height: Math.round(node.height),
+      isIcon:     true,
+      id:         node.id,
+      name:       node.name,
+      lucideName: toLucideName(node.name),
+      width:      Math.round(node.width),
+      height:     Math.round(node.height),
     };
   }
 

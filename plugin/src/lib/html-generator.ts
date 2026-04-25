@@ -212,10 +212,11 @@ const HTML_MAP: Record<string, HtmlDef> = {
 function renderNode(node: ScannedTree, indent: number): string {
   const pad = "  ".repeat(indent);
 
-  // Icon / vector node
+  // Lucide icon — output the name as a comment; swap for your icon library of choice
   if ("isIcon" in node) {
     const icon = node as ScannedIcon;
-    return `${pad}<svg width="${icon.width}" height="${icon.height}" class="shrink-0" aria-hidden="true"></svg>`;
+    const size = Math.max(icon.width, icon.height);
+    return `${pad}<!-- lucide: ${icon.lucideName} -->\n${pad}<span class="inline-flex shrink-0 w-[${size}px] h-[${size}px]" aria-hidden="true"></span>`;
   }
 
   // Text node

@@ -788,6 +788,12 @@ ${darkLines}
   });
 
   // src/lib/frame-scanner.ts
+  function toLucideName(raw) {
+    var _a, _b;
+    const segment = (_b = (_a = raw.split("/").pop()) == null ? void 0 : _a.trim()) != null ? _b : raw;
+    const cleaned = segment.replace(/^icons?[-_\s]*/i, "").trim() || "Icon";
+    return cleaned.split(/[-_\s]+/).filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join("");
+  }
   function extractLayout(node) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
     if (node.layoutMode === "GRID") {
@@ -871,6 +877,17 @@ ${darkLines}
             layout: extractLayout(node)
           };
         }
+        const isSmall = node.width <= 48 && node.height <= 48;
+        if (isSmall) {
+          return {
+            isIcon: true,
+            id: node.id,
+            name: compName,
+            lucideName: toLucideName(compName),
+            width: Math.round(node.width),
+            height: Math.round(node.height)
+          };
+        }
         return scanFrameNode(node);
       }
       if (node.type === "FRAME" || node.type === "GROUP" || node.type === "COMPONENT") {
@@ -912,6 +929,7 @@ ${darkLines}
           isIcon: true,
           id: node.id,
           name: node.name,
+          lucideName: toLucideName(node.name),
           width: Math.round(node.width),
           height: Math.round(node.height)
         };
@@ -1083,7 +1101,8 @@ ${darkLines}
     const pad = "  ".repeat(indent);
     if ("isIcon" in node) {
       const icon = node;
-      return `${pad}<svg width={${icon.width}} height={${icon.height}} className="shrink-0" aria-hidden="true" />`;
+      addImport(imports, "lucide-react", icon.lucideName);
+      return `${pad}<${icon.lucideName} size={${Math.max(icon.width, icon.height)}} className="shrink-0" />`;
     }
     if ("isText" in node) {
       const t = node;
@@ -1146,7 +1165,9 @@ ${pad}</${component}>`;
     const pad = "  ".repeat(indent);
     if ("isIcon" in node) {
       const icon = node;
-      return `${pad}<svg width="${icon.width}" height="${icon.height}" class="shrink-0" aria-hidden="true"></svg>`;
+      const size = Math.max(icon.width, icon.height);
+      return `${pad}<!-- lucide: ${icon.lucideName} -->
+${pad}<span class="inline-flex shrink-0 w-[${size}px] h-[${size}px]" aria-hidden="true"></span>`;
     }
     if ("isText" in node) {
       const t = node;

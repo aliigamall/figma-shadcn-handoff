@@ -48,10 +48,11 @@ function renderNode(
 ): string {
   const pad = "  ".repeat(indent);
 
-  // Icon / vector node
+  // Lucide icon
   if ("isIcon" in node) {
     const icon = node as ScannedIcon;
-    return `${pad}<svg width={${icon.width}} height={${icon.height}} className="shrink-0" aria-hidden="true" />`;
+    addImport(imports, "lucide-react", icon.lucideName);
+    return `${pad}<${icon.lucideName} size={${Math.max(icon.width, icon.height)}} className="shrink-0" />`;
   }
 
   // Text node
