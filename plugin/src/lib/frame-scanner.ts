@@ -124,6 +124,19 @@ function toLucideName(raw: string): string {
     .join("");
 }
 
+/**
+ * Returns true when the component/layer name looks like a Lucide icon.
+ * Rejects PascalCase multi-word component names like "Basic Table Header".
+ * Accepts: "arrow-right", "Icon / chevron-right", single-word lowercase names.
+ */
+function looksLikeIconName(name: string): boolean {
+  // "Icon / something" — explicit Obra icon pattern
+  if (name.includes("/")) return true;
+  // Kebab-case or lowercase single-word (e.g. "arrow-right", "check")
+  // Does NOT start with an uppercase letter that would indicate a component name
+  return /^[a-z][a-z0-9\-_\s]*$/.test(name);
+}
+
 /** Extract layout info from any frame-like node */
 function extractLayout(node: FrameNode | ComponentNode | InstanceNode): Layout {
   // Native CSS Grid (Figma 2024+)
@@ -238,9 +251,9 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
       };
     }
 
-    // Unmapped instance that is small → treat as a Lucide icon
+    // Unmapped instance that is small AND looks like an icon → treat as Lucide icon
     const isSmall = node.width <= 48 && node.height <= 48;
-    if (isSmall) {
+    if (isSmall && looksLikeIconName(compName)) {
       return {
         isIcon:     true,
         id:         node.id,
@@ -299,14 +312,17 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     }
   }
 
-  // Raw vector / shape nodes → Lucide icon by layer name
+  // LINE nodes are separators/dividers, not icons — skip them
+  if (node.type === "LINE") return null;
+
+  // Raw vector / shape nodes → Lucide icon by layer name (only if name looks like an icon)
   if (
     node.type === "VECTOR" ||
     node.type === "BOOLEAN_OPERATION" ||
     node.type === "STAR" ||
-    node.type === "POLYGON" ||
-    node.type === "LINE"
+    node.type === "POLYGON"
   ) {
+    if (!looksLikeIconName(node.name)) return null;
     return {
       isIcon:     true,
       id:         node.id,

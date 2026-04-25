@@ -340,6 +340,19 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["State", "Roundness", "Position", "Show left icon", "Show right icon", "⮑ Left icon", "⮑ Right icon"],
   },
 
+  // ── Table ─────────────────────────────────────────────────────────────────
+  "Basic Table Header": {
+    component:  "TableHead",
+    importPath: "@/components/ui/table",
+    ignore:     ["Cell Type", "State", "Alignment"],
+  },
+
+  "Basic Table Cell": {
+    component:  "TableCell",
+    importPath: "@/components/ui/table",
+    ignore:     ["Parity", "State", "Alignment"],
+  },
+
   // ── Toggle Icon Button ────────────────────────────────────────────────────
   "Toggle Icon Button": {
     component:  "Toggle",

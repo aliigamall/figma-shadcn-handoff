@@ -766,6 +766,17 @@ ${darkLines}
           children: "Label",
           ignore: ["State", "Roundness", "Position", "Show left icon", "Show right icon", "\u2B91 Left icon", "\u2B91 Right icon"]
         },
+        // ── Table ─────────────────────────────────────────────────────────────────
+        "Basic Table Header": {
+          component: "TableHead",
+          importPath: "@/components/ui/table",
+          ignore: ["Cell Type", "State", "Alignment"]
+        },
+        "Basic Table Cell": {
+          component: "TableCell",
+          importPath: "@/components/ui/table",
+          ignore: ["Parity", "State", "Alignment"]
+        },
         // ── Toggle Icon Button ────────────────────────────────────────────────────
         "Toggle Icon Button": {
           component: "Toggle",
@@ -813,6 +824,11 @@ ${darkLines}
     const segment = (_b = (_a = raw.split("/").pop()) == null ? void 0 : _a.trim()) != null ? _b : raw;
     const cleaned = segment.replace(/^icons?[-_\s]*/i, "").trim() || "Icon";
     return cleaned.split(/[-_\s]+/).filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join("");
+  }
+  function looksLikeIconName(name) {
+    if (name.includes("/"))
+      return true;
+    return /^[a-z][a-z0-9\-_\s]*$/.test(name);
   }
   function extractLayout(node) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
@@ -898,7 +914,7 @@ ${darkLines}
           };
         }
         const isSmall = node.width <= 48 && node.height <= 48;
-        if (isSmall) {
+        if (isSmall && looksLikeIconName(compName)) {
           return {
             isIcon: true,
             id: node.id,
@@ -947,7 +963,11 @@ ${darkLines}
           };
         }
       }
-      if (node.type === "VECTOR" || node.type === "BOOLEAN_OPERATION" || node.type === "STAR" || node.type === "POLYGON" || node.type === "LINE") {
+      if (node.type === "LINE")
+        return null;
+      if (node.type === "VECTOR" || node.type === "BOOLEAN_OPERATION" || node.type === "STAR" || node.type === "POLYGON") {
+        if (!looksLikeIconName(node.name))
+          return null;
         return {
           isIcon: true,
           id: node.id,
@@ -1142,6 +1162,50 @@ ${darkLines}
   function renderImports(imports) {
     return Array.from(imports.entries()).map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`).join("\n");
   }
+  function isTableCellNode(node) {
+    return "component" in node && TABLE_CELL_COMPONENTS.has(node.component);
+  }
+  function isTableGrid(node) {
+    return node.layout.direction === "grid" && node.layout.columns > 0 && node.children.some(isTableCellNode);
+  }
+  function renderTableGrid(node, imports, indent) {
+    const pad = "  ".repeat(indent);
+    const { columns } = node.layout;
+    const rows = [];
+    for (let i = 0; i < node.children.length; i += columns) {
+      rows.push(node.children.slice(i, i + columns));
+    }
+    const isAllHeads = (row) => row.every((c) => "component" in c && c.component === "TableHead");
+    const headerRows = [];
+    while (rows.length > 0 && isAllHeads(rows[0]))
+      headerRows.push(rows.shift());
+    addImport(imports, "@/components/ui/table", "Table");
+    addImport(imports, "@/components/ui/table", "TableBody");
+    addImport(imports, "@/components/ui/table", "TableRow");
+    if (headerRows.length > 0)
+      addImport(imports, "@/components/ui/table", "TableHeader");
+    const renderRow = (row, ri) => {
+      const rp = "  ".repeat(ri);
+      const cells = row.map((c) => renderNode(c, imports, ri + 1)).join("\n");
+      return `${rp}<TableRow>
+${cells}
+${rp}</TableRow>`;
+    };
+    const parts = [];
+    if (headerRows.length > 0) {
+      const inner = headerRows.map((r) => renderRow(r, indent + 2)).join("\n");
+      parts.push(`${pad}  <TableHeader>
+${inner}
+${pad}  </TableHeader>`);
+    }
+    const bodyInner = rows.map((r) => renderRow(r, indent + 2)).join("\n");
+    parts.push(`${pad}  <TableBody>
+${bodyInner}
+${pad}  </TableBody>`);
+    return `${pad}<Table>
+${parts.join("\n")}
+${pad}</Table>`;
+  }
   function renderProps(props) {
     if (props.length === 0)
       return "";
@@ -1176,6 +1240,9 @@ ${darkLines}
     if ("isLayout" in node) {
       if (node.children.length === 1 && "isImage" in node.children[0]) {
         return renderNode(node.children[0], imports, indent);
+      }
+      if (isTableGrid(node)) {
+        return renderTableGrid(node, imports, indent);
       }
       const layoutCls = layoutClasses(node.layout);
       const visualCls = visualClasses(node.visual);
@@ -1215,14 +1282,60 @@ ${pad}</${component}>`;
       components
     };
   }
+  var TABLE_CELL_COMPONENTS;
   var init_jsx_generator = __esm({
     "src/lib/jsx-generator.ts"() {
       "use strict";
       init_tailwind_layout();
+      TABLE_CELL_COMPONENTS = /* @__PURE__ */ new Set(["TableHead", "TableCell"]);
     }
   });
 
   // src/lib/html-generator.ts
+  function isTableCellNode2(node) {
+    return "component" in node && TABLE_CELL_COMPONENTS2.has(node.component);
+  }
+  function isTableGrid2(node) {
+    return node.layout.direction === "grid" && node.layout.columns > 0 && node.children.some(isTableCellNode2);
+  }
+  function renderTableGrid2(node, indent) {
+    const pad = "  ".repeat(indent);
+    const { columns } = node.layout;
+    const rows = [];
+    for (let i = 0; i < node.children.length; i += columns) {
+      rows.push(node.children.slice(i, i + columns));
+    }
+    const isAllHeads = (row) => row.every((c) => "component" in c && c.component === "TableHead");
+    const headerRows = [];
+    while (rows.length > 0 && isAllHeads(rows[0]))
+      headerRows.push(rows.shift());
+    const tableDef = HTML_MAP["Table"];
+    const theadDef = HTML_MAP["TableHeader"];
+    const tbodyDef = HTML_MAP["TableBody"];
+    const trDef = HTML_MAP["TableRow"];
+    const renderRow = (row, ri) => {
+      const rp = "  ".repeat(ri);
+      const trCls = trDef.getClasses({});
+      const cells = row.map((c) => renderNode2(c, ri + 1)).join("\n");
+      return `${rp}<tr class="${trCls}">
+${cells}
+${rp}</tr>`;
+    };
+    const parts = [];
+    if (headerRows.length > 0) {
+      const inner = headerRows.map((r) => renderRow(r, indent + 2)).join("\n");
+      parts.push(`${pad}  <thead class="${theadDef.getClasses({})}">
+${inner}
+${pad}  </thead>`);
+    }
+    const bodyInner = rows.map((r) => renderRow(r, indent + 2)).join("\n");
+    parts.push(`${pad}  <tbody class="${tbodyDef.getClasses({})}">
+${bodyInner}
+${pad}  </tbody>`);
+    return `${pad}<table class="${tableDef.getClasses({})}">
+${parts.join("\n")}
+${pad}</table>`;
+  }
   function renderNode2(node, indent) {
     const pad = "  ".repeat(indent);
     if ("isIcon" in node) {
@@ -1245,6 +1358,9 @@ ${pad}<span class="inline-flex shrink-0 w-[${size}px] h-[${size}px]" aria-hidden
     if ("isLayout" in node) {
       if (node.children.length === 1 && "isImage" in node.children[0]) {
         return renderNode2(node.children[0], indent);
+      }
+      if (isTableGrid2(node)) {
+        return renderTableGrid2(node, indent);
       }
       const layoutCls = layoutClasses(node.layout);
       const visualCls = visualClasses(node.visual);
@@ -1289,7 +1405,7 @@ ${pad}</${tag}>${interactiveSuffix}`;
   function generateHTML(tree) {
     return renderNode2(tree, 0);
   }
-  var BASE_BTN, HTML_MAP;
+  var BASE_BTN, HTML_MAP, TABLE_CELL_COMPONENTS2;
   var init_html_generator = __esm({
     "src/lib/html-generator.ts"() {
       "use strict";
@@ -1435,6 +1551,34 @@ ${pad}</${tag}>${interactiveSuffix}`;
           tag: "div",
           getClasses: () => "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         },
+        Table: {
+          tag: "table",
+          getClasses: () => "w-full caption-bottom text-sm"
+        },
+        TableHeader: {
+          tag: "thead",
+          getClasses: () => "[&_tr]:border-b"
+        },
+        TableBody: {
+          tag: "tbody",
+          getClasses: () => "[&_tr:last-child]:border-0"
+        },
+        TableFooter: {
+          tag: "tfoot",
+          getClasses: () => "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0"
+        },
+        TableRow: {
+          tag: "tr",
+          getClasses: () => "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+        },
+        TableHead: {
+          tag: "th",
+          getClasses: () => "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"
+        },
+        TableCell: {
+          tag: "td",
+          getClasses: () => "p-4 align-middle [&:has([role=checkbox])]:pr-0"
+        },
         // Interactive-only stubs
         Dialog: {
           tag: "dialog",
@@ -1457,6 +1601,7 @@ ${pad}</${tag}>${interactiveSuffix}`;
           getClasses: () => "relative z-10 flex max-w-max flex-1 items-center justify-center"
         }
       };
+      TABLE_CELL_COMPONENTS2 = /* @__PURE__ */ new Set(["TableHead", "TableCell"]);
     }
   });
 

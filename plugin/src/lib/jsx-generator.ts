@@ -24,6 +24,58 @@ function renderImports(imports: ImportMap): string {
     .join("\n");
 }
 
+// ─── Table grid helpers ───────────────────────────────────────────────────────
+
+const TABLE_CELL_COMPONENTS = new Set(["TableHead", "TableCell"]);
+
+function isTableCellNode(node: ScannedTree): boolean {
+  return "component" in node && TABLE_CELL_COMPONENTS.has((node as ScannedNode).component);
+}
+
+function isTableGrid(node: ScannedFrame): boolean {
+  return node.layout.direction === "grid" &&
+    node.layout.columns > 0 &&
+    node.children.some(isTableCellNode);
+}
+
+function renderTableGrid(node: ScannedFrame, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const { columns } = node.layout;
+
+  // Chunk flat children into rows
+  const rows: ScannedTree[][] = [];
+  for (let i = 0; i < node.children.length; i += columns) {
+    rows.push(node.children.slice(i, i + columns));
+  }
+
+  // Leading rows where every cell is a TableHead → <TableHeader>
+  const isAllHeads = (row: ScannedTree[]) =>
+    row.every(c => "component" in c && (c as ScannedNode).component === "TableHead");
+  const headerRows: ScannedTree[][] = [];
+  while (rows.length > 0 && isAllHeads(rows[0])) headerRows.push(rows.shift()!);
+
+  addImport(imports, "@/components/ui/table", "Table");
+  addImport(imports, "@/components/ui/table", "TableBody");
+  addImport(imports, "@/components/ui/table", "TableRow");
+  if (headerRows.length > 0) addImport(imports, "@/components/ui/table", "TableHeader");
+
+  const renderRow = (row: ScannedTree[], ri: number) => {
+    const rp = "  ".repeat(ri);
+    const cells = row.map(c => renderNode(c, imports, ri + 1)).join("\n");
+    return `${rp}<TableRow>\n${cells}\n${rp}</TableRow>`;
+  };
+
+  const parts: string[] = [];
+  if (headerRows.length > 0) {
+    const inner = headerRows.map(r => renderRow(r, indent + 2)).join("\n");
+    parts.push(`${pad}  <TableHeader>\n${inner}\n${pad}  </TableHeader>`);
+  }
+  const bodyInner = rows.map(r => renderRow(r, indent + 2)).join("\n");
+  parts.push(`${pad}  <TableBody>\n${bodyInner}\n${pad}  </TableBody>`);
+
+  return `${pad}<Table>\n${parts.join("\n")}\n${pad}</Table>`;
+}
+
 // ─── JSX rendering ───────────────────────────────────────────────────────────
 
 function renderProps(props: ScannedNode["props"]): string {
@@ -75,6 +127,11 @@ function renderNode(
     // Unwrap single-child frames that only contain an image — no div needed
     if (node.children.length === 1 && "isImage" in node.children[0]) {
       return renderNode(node.children[0], imports, indent);
+    }
+
+    // CSS grid containing table cells → emit a proper <Table> structure
+    if (isTableGrid(node)) {
+      return renderTableGrid(node, imports, indent);
     }
 
     const layoutCls = layoutClasses(node.layout);

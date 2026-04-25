@@ -9,7 +9,7 @@
  * require JS get an <!-- interactive --> comment.
  */
 
-import type { ScannedText, ScannedImage, ScannedIcon, ScannedTree } from "./frame-scanner";
+import type { ScannedText, ScannedImage, ScannedIcon, ScannedTree, ScannedFrame, ScannedNode } from "./frame-scanner";
 import { layoutClasses, visualClasses, textVisualClasses } from "./tailwind-layout";
 
 // ─── shadcn/ui → HTML component definitions ───────────────────────────────────
@@ -184,6 +184,35 @@ const HTML_MAP: Record<string, HtmlDef> = {
     getClasses: () => "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
   },
 
+  Table: {
+    tag: "table",
+    getClasses: () => "w-full caption-bottom text-sm",
+  },
+  TableHeader: {
+    tag: "thead",
+    getClasses: () => "[&_tr]:border-b",
+  },
+  TableBody: {
+    tag: "tbody",
+    getClasses: () => "[&_tr:last-child]:border-0",
+  },
+  TableFooter: {
+    tag: "tfoot",
+    getClasses: () => "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+  },
+  TableRow: {
+    tag: "tr",
+    getClasses: () => "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+  },
+  TableHead: {
+    tag: "th",
+    getClasses: () => "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+  },
+  TableCell: {
+    tag: "td",
+    getClasses: () => "p-4 align-middle [&:has([role=checkbox])]:pr-0",
+  },
+
   // Interactive-only stubs
   Dialog: {
     tag: "dialog",
@@ -206,6 +235,57 @@ const HTML_MAP: Record<string, HtmlDef> = {
     getClasses: () => "relative z-10 flex max-w-max flex-1 items-center justify-center",
   },
 };
+
+// ─── Table grid helpers ───────────────────────────────────────────────────────
+
+const TABLE_CELL_COMPONENTS = new Set(["TableHead", "TableCell"]);
+
+function isTableCellNode(node: ScannedTree): boolean {
+  return "component" in node && TABLE_CELL_COMPONENTS.has((node as ScannedNode).component);
+}
+
+function isTableGrid(node: ScannedFrame): boolean {
+  return node.layout.direction === "grid" &&
+    node.layout.columns > 0 &&
+    node.children.some(isTableCellNode);
+}
+
+function renderTableGrid(node: ScannedFrame, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const { columns } = node.layout;
+
+  const rows: ScannedTree[][] = [];
+  for (let i = 0; i < node.children.length; i += columns) {
+    rows.push(node.children.slice(i, i + columns));
+  }
+
+  const isAllHeads = (row: ScannedTree[]) =>
+    row.every(c => "component" in c && (c as ScannedNode).component === "TableHead");
+  const headerRows: ScannedTree[][] = [];
+  while (rows.length > 0 && isAllHeads(rows[0])) headerRows.push(rows.shift()!);
+
+  const tableDef = HTML_MAP["Table"];
+  const theadDef = HTML_MAP["TableHeader"];
+  const tbodyDef = HTML_MAP["TableBody"];
+  const trDef    = HTML_MAP["TableRow"];
+
+  const renderRow = (row: ScannedTree[], ri: number) => {
+    const rp = "  ".repeat(ri);
+    const trCls = trDef.getClasses({});
+    const cells = row.map(c => renderNode(c, ri + 1)).join("\n");
+    return `${rp}<tr class="${trCls}">\n${cells}\n${rp}</tr>`;
+  };
+
+  const parts: string[] = [];
+  if (headerRows.length > 0) {
+    const inner = headerRows.map(r => renderRow(r, indent + 2)).join("\n");
+    parts.push(`${pad}  <thead class="${theadDef.getClasses({})}">\n${inner}\n${pad}  </thead>`);
+  }
+  const bodyInner = rows.map(r => renderRow(r, indent + 2)).join("\n");
+  parts.push(`${pad}  <tbody class="${tbodyDef.getClasses({})}">\n${bodyInner}\n${pad}  </tbody>`);
+
+  return `${pad}<table class="${tableDef.getClasses({})}">\n${parts.join("\n")}\n${pad}</table>`;
+}
 
 // ─── Renderer ─────────────────────────────────────────────────────────────────
 
@@ -239,6 +319,10 @@ function renderNode(node: ScannedTree, indent: number): string {
     // Unwrap single-child image wrapper
     if (node.children.length === 1 && "isImage" in node.children[0]) {
       return renderNode(node.children[0], indent);
+    }
+    // CSS grid containing table cells → proper <table> structure
+    if (isTableGrid(node)) {
+      return renderTableGrid(node, indent);
     }
     const layoutCls = layoutClasses(node.layout);
     const visualCls = visualClasses(node.visual);
