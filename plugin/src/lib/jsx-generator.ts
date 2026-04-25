@@ -7,7 +7,7 @@
  */
 
 import type { ScannedNode, ScannedText, ScannedImage, ScannedIcon, ScannedTree } from "./frame-scanner";
-import { layoutClasses } from "./tailwind-layout";
+import { layoutClasses, visualClasses, textVisualClasses } from "./tailwind-layout";
 
 // ─── Import tracking ──────────────────────────────────────────────────────────
 
@@ -58,8 +58,10 @@ function renderNode(
   // Text node
   if ("isText" in node) {
     const t = node as ScannedText;
-    const cls = t.tag === "span" && t.bold ? ` className="font-semibold"` : "";
-    return `${pad}<${t.tag}${cls}>${t.content}</${t.tag}>`;
+    const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
+    const boldCls   = t.tag === "span" && t.bold ? "font-semibold" : "";
+    const cls = [boldCls, visualCls].filter(Boolean).join(" ");
+    return `${pad}<${t.tag}${cls ? ` className="${cls}"` : ""}>${t.content}</${t.tag}>`;
   }
 
   // Image placeholder
@@ -75,7 +77,9 @@ function renderNode(
       return renderNode(node.children[0], imports, indent);
     }
 
-    const cls = layoutClasses(node.layout);
+    const layoutCls = layoutClasses(node.layout);
+    const visualCls = visualClasses(node.visual);
+    const cls = [layoutCls, visualCls].filter(Boolean).join(" ");
     const clsAttr = cls ? ` className="${cls}"` : "";
     const childrenStr = node.children
       .map(c => renderNode(c, imports, indent + 1))

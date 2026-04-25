@@ -788,6 +788,26 @@ ${darkLines}
   });
 
   // src/lib/frame-scanner.ts
+  function rgbToHex(r, g, b) {
+    const h = (v) => Math.round(v * 255).toString(16).padStart(2, "0");
+    return `#${h(r)}${h(g)}${h(b)}`;
+  }
+  function solidColor(fills) {
+    if (!Array.isArray(fills))
+      return null;
+    const s = fills.find((f) => f.type === "SOLID" && f.visible !== false);
+    return s ? rgbToHex(s.color.r, s.color.g, s.color.b) : null;
+  }
+  function extractVisual(node) {
+    var _a, _b, _c, _d;
+    return {
+      bgColor: solidColor((_a = node.fills) != null ? _a : []),
+      radius: typeof node.cornerRadius === "number" ? node.cornerRadius : 0,
+      shadow: ((_b = node.effects) != null ? _b : []).some((e) => e.type === "DROP_SHADOW" && e.visible !== false),
+      opacity: (_c = node.opacity) != null ? _c : 1,
+      borderColor: solidColor((_d = node.strokes) != null ? _d : [])
+    };
+  }
   function toLucideName(raw) {
     var _a, _b;
     const segment = (_b = (_a = raw.split("/").pop()) == null ? void 0 : _a.trim()) != null ? _b : raw;
@@ -910,7 +930,10 @@ ${darkLines}
           tag = "h3";
         else if (bold)
           tag = "span";
-        return { isText: true, id: node.id, content, tag, bold };
+        const align = text.textAlignHorizontal === "CENTER" ? "center" : text.textAlignHorizontal === "RIGHT" ? "right" : text.textAlignHorizontal === "JUSTIFIED" ? null : null;
+        const uppercase = text.textCase === "UPPER";
+        const color = solidColor(Array.isArray(text.fills) ? text.fills : []);
+        return { isText: true, id: node.id, content, tag, bold, align, color, uppercase };
       }
       if ("fills" in node && Array.isArray(node.fills)) {
         const hasImage = node.fills.some((f) => f.type === "IMAGE");
@@ -942,14 +965,10 @@ ${darkLines}
       const children = yield scanChildren(node);
       if (children.length === 0)
         return null;
-      const layout = node.type !== "GROUP" ? extractLayout(node) : { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
-      return {
-        isLayout: true,
-        id: node.id,
-        name: node.name,
-        layout,
-        children
-      };
+      const isGroup = node.type === "GROUP";
+      const layout = !isGroup ? extractLayout(node) : { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+      const visual = !isGroup ? extractVisual(node) : EMPTY_VISUAL;
+      return { isLayout: true, id: node.id, name: node.name, layout, visual, children };
     });
   }
   function scanChildren(node) {
@@ -971,14 +990,17 @@ ${darkLines}
         id: frame.id,
         name: frame.name,
         layout: extractLayout(frame),
+        visual: extractVisual(frame),
         children
       };
     });
   }
+  var EMPTY_VISUAL;
   var init_frame_scanner = __esm({
     "src/lib/frame-scanner.ts"() {
       "use strict";
       init_component_map();
+      EMPTY_VISUAL = { bgColor: null, radius: 0, shadow: false, opacity: 1, borderColor: null };
     }
   });
 
@@ -1038,6 +1060,33 @@ ${darkLines}
   function gridColsClass(cols) {
     return cols >= 1 && cols <= 12 ? `grid-cols-${cols}` : cols > 0 ? `grid-cols-[repeat(${cols},minmax(0,1fr))]` : "";
   }
+  function visualClasses(v) {
+    var _a;
+    const parts = [];
+    if (v.bgColor)
+      parts.push(`bg-[${v.bgColor}]`);
+    if (v.radius > 0)
+      parts.push(v.radius >= 9999 ? "rounded-full" : (_a = RADIUS_MAP[v.radius]) != null ? _a : `rounded-[${v.radius}px]`);
+    if (v.shadow)
+      parts.push("shadow-md");
+    if (v.borderColor)
+      parts.push(`border border-[${v.borderColor}]`);
+    if (v.opacity < 1)
+      parts.push(`opacity-[${Math.round(v.opacity * 100)}%]`);
+    return parts.join(" ");
+  }
+  function textVisualClasses(align, color, uppercase) {
+    const parts = [];
+    if (align === "center")
+      parts.push("text-center");
+    if (align === "right")
+      parts.push("text-right");
+    if (uppercase)
+      parts.push("uppercase");
+    if (color)
+      parts.push(`text-[${color}]`);
+    return parts.join(" ");
+  }
   function layoutClasses(layout) {
     const pad = paddingClasses(layout);
     if (layout.direction === "grid") {
@@ -1052,7 +1101,7 @@ ${darkLines}
     const gapStr = layout.wrap && layout.rowGap && layout.rowGap !== layout.gap ? [gapXClass(layout.gap), gapYClass(layout.rowGap)].filter(Boolean).join(" ") : gapClass(layout.gap);
     return ["flex", dir, wrap, gapStr, pad].filter(Boolean).join(" ");
   }
-  var GAP_MAP;
+  var GAP_MAP, RADIUS_MAP;
   var init_tailwind_layout = __esm({
     "src/lib/tailwind-layout.ts"() {
       "use strict";
@@ -1071,6 +1120,15 @@ ${darkLines}
         40: "10",
         48: "12",
         64: "16"
+      };
+      RADIUS_MAP = {
+        2: "rounded-sm",
+        4: "rounded",
+        6: "rounded-md",
+        8: "rounded-lg",
+        12: "rounded-xl",
+        16: "rounded-2xl",
+        24: "rounded-3xl"
       };
     }
   });
@@ -1106,8 +1164,10 @@ ${darkLines}
     }
     if ("isText" in node) {
       const t = node;
-      const cls = t.tag === "span" && t.bold ? ` className="font-semibold"` : "";
-      return `${pad}<${t.tag}${cls}>${t.content}</${t.tag}>`;
+      const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
+      const boldCls = t.tag === "span" && t.bold ? "font-semibold" : "";
+      const cls = [boldCls, visualCls].filter(Boolean).join(" ");
+      return `${pad}<${t.tag}${cls ? ` className="${cls}"` : ""}>${t.content}</${t.tag}>`;
     }
     if ("isImage" in node) {
       const img = node;
@@ -1117,7 +1177,9 @@ ${darkLines}
       if (node.children.length === 1 && "isImage" in node.children[0]) {
         return renderNode(node.children[0], imports, indent);
       }
-      const cls = layoutClasses(node.layout);
+      const layoutCls = layoutClasses(node.layout);
+      const visualCls = visualClasses(node.visual);
+      const cls = [layoutCls, visualCls].filter(Boolean).join(" ");
       const clsAttr2 = cls ? ` className="${cls}"` : "";
       const childrenStr = node.children.map((c) => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
       if (!childrenStr)
@@ -1171,8 +1233,10 @@ ${pad}<span class="inline-flex shrink-0 w-[${size}px] h-[${size}px]" aria-hidden
     }
     if ("isText" in node) {
       const t = node;
-      const cls = t.tag === "span" && t.bold ? ` class="font-semibold"` : "";
-      return `${pad}<${t.tag}${cls}>${t.content}</${t.tag}>`;
+      const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
+      const boldCls = t.tag === "span" && t.bold ? "font-semibold" : "";
+      const cls = [boldCls, visualCls].filter(Boolean).join(" ");
+      return `${pad}<${t.tag}${cls ? ` class="${cls}"` : ""}>${t.content}</${t.tag}>`;
     }
     if ("isImage" in node) {
       const img = node;
@@ -1182,7 +1246,9 @@ ${pad}<span class="inline-flex shrink-0 w-[${size}px] h-[${size}px]" aria-hidden
       if (node.children.length === 1 && "isImage" in node.children[0]) {
         return renderNode2(node.children[0], indent);
       }
-      const cls = layoutClasses(node.layout);
+      const layoutCls = layoutClasses(node.layout);
+      const visualCls = visualClasses(node.visual);
+      const cls = [layoutCls, visualCls].filter(Boolean).join(" ");
       const clsAttr = cls ? ` class="${cls}"` : "";
       const childrenStr = node.children.map((c) => renderNode2(c, indent + 1)).filter(Boolean).join("\n");
       if (!childrenStr)

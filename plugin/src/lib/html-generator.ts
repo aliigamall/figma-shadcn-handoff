@@ -10,7 +10,7 @@
  */
 
 import type { ScannedText, ScannedImage, ScannedIcon, ScannedTree } from "./frame-scanner";
-import { layoutClasses } from "./tailwind-layout";
+import { layoutClasses, visualClasses, textVisualClasses } from "./tailwind-layout";
 
 // ─── shadcn/ui → HTML component definitions ───────────────────────────────────
 
@@ -222,8 +222,10 @@ function renderNode(node: ScannedTree, indent: number): string {
   // Text node
   if ("isText" in node) {
     const t = node as ScannedText;
-    const cls = t.tag === "span" && t.bold ? ` class="font-semibold"` : "";
-    return `${pad}<${t.tag}${cls}>${t.content}</${t.tag}>`;
+    const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
+    const boldCls   = t.tag === "span" && t.bold ? "font-semibold" : "";
+    const cls = [boldCls, visualCls].filter(Boolean).join(" ");
+    return `${pad}<${t.tag}${cls ? ` class="${cls}"` : ""}>${t.content}</${t.tag}>`;
   }
 
   // Image
@@ -238,7 +240,9 @@ function renderNode(node: ScannedTree, indent: number): string {
     if (node.children.length === 1 && "isImage" in node.children[0]) {
       return renderNode(node.children[0], indent);
     }
-    const cls = layoutClasses(node.layout);
+    const layoutCls = layoutClasses(node.layout);
+    const visualCls = visualClasses(node.visual);
+    const cls = [layoutCls, visualCls].filter(Boolean).join(" ");
     const clsAttr = cls ? ` class="${cls}"` : "";
     const childrenStr = node.children
       .map(c => renderNode(c, indent + 1))

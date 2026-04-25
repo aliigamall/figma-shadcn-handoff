@@ -37,11 +37,20 @@ export interface ScannedNode {
   layout: Layout;
 }
 
+export interface Visual {
+  bgColor: string | null;   // hex, e.g. "#f3e8ff"
+  radius: number;           // cornerRadius in px
+  shadow: boolean;          // has a visible drop shadow
+  opacity: number;          // 0–1
+  borderColor: string | null;
+}
+
 export interface ScannedFrame {
   isLayout: true;
   id: string;
   name: string;
   layout: Layout;
+  visual: Visual;
   children: Array<ScannedTree>;
 }
 
@@ -51,6 +60,9 @@ export interface ScannedText {
   content: string;
   tag: "h1" | "h2" | "h3" | "p" | "span";
   bold: boolean;
+  align: "left" | "center" | "right" | null;
+  color: string | null;     // hex
+  uppercase: boolean;
 }
 
 export interface ScannedImage {
@@ -72,6 +84,31 @@ export interface ScannedIcon {
 }
 
 export type ScannedTree = ScannedNode | ScannedFrame | ScannedText | ScannedImage | ScannedIcon;
+
+// ─── Visual helpers ───────────────────────────────────────────────────────────
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const h = (v: number) => Math.round(v * 255).toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+function solidColor(fills: readonly Paint[] | typeof figma.mixed): string | null {
+  if (!Array.isArray(fills)) return null;
+  const s = (fills as Paint[]).find(f => f.type === "SOLID" && f.visible !== false) as SolidPaint | undefined;
+  return s ? rgbToHex(s.color.r, s.color.g, s.color.b) : null;
+}
+
+function extractVisual(node: BaseNode & { fills?: readonly Paint[] | typeof figma.mixed; strokes?: readonly Paint[] | typeof figma.mixed; effects?: readonly Effect[]; cornerRadius?: number | typeof figma.mixed; opacity?: number }): Visual {
+  return {
+    bgColor:     solidColor(node.fills ?? []),
+    radius:      typeof node.cornerRadius === "number" ? node.cornerRadius : 0,
+    shadow:      (node.effects ?? []).some(e => e.type === "DROP_SHADOW" && e.visible !== false),
+    opacity:     node.opacity ?? 1,
+    borderColor: solidColor(node.strokes ?? []),
+  };
+}
+
+const EMPTY_VISUAL: Visual = { bgColor: null, radius: 0, shadow: false, opacity: 1, borderColor: null };
 
 /**
  * Convert a Figma layer name to a PascalCase Lucide icon name.
@@ -226,8 +263,8 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     const content = text.characters.trim();
     if (!content) return null;
 
-    const fontSize = typeof text.fontSize === "number" ? text.fontSize : 14;
-    const fontWeight = typeof text.fontWeight === "number" ? text.fontWeight : 400;
+    const fontSize   = typeof text.fontSize   === "number" ? text.fontSize   : 14;
+    const fontWeight = typeof text.fontWeight  === "number" ? text.fontWeight  : 400;
     const bold = fontWeight >= 600;
 
     let tag: ScannedText["tag"] = "p";
@@ -236,7 +273,16 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     else if (fontSize >= 20) tag = "h3";
     else if (bold) tag = "span";
 
-    return { isText: true, id: node.id, content, tag, bold };
+    const align: ScannedText["align"] =
+      text.textAlignHorizontal === "CENTER"    ? "center"
+    : text.textAlignHorizontal === "RIGHT"     ? "right"
+    : text.textAlignHorizontal === "JUSTIFIED" ? null
+    : null;
+
+    const uppercase = text.textCase === "UPPER";
+    const color = solidColor(Array.isArray(text.fills) ? text.fills : []);
+
+    return { isText: true, id: node.id, content, tag, bold, align, color, uppercase };
   }
 
   // Any shape with an image fill → img placeholder
@@ -278,17 +324,13 @@ async function scanFrameNode(node: FrameNode | GroupNode | ComponentNode): Promi
   const children = await scanChildren(node);
   if (children.length === 0) return null;
 
-  const layout: Layout = node.type !== "GROUP"
+  const isGroup = node.type === "GROUP";
+  const layout: Layout = !isGroup
     ? extractLayout(node as FrameNode)
     : { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+  const visual: Visual = !isGroup ? extractVisual(node) : EMPTY_VISUAL;
 
-  return {
-    isLayout: true,
-    id:       node.id,
-    name:     node.name,
-    layout,
-    children,
-  };
+  return { isLayout: true, id: node.id, name: node.name, layout, visual, children };
 }
 
 async function scanChildren(node: ChildrenMixin): Promise<ScannedTree[]> {
@@ -308,6 +350,7 @@ export async function scanFrame(frame: FrameNode): Promise<ScannedFrame> {
     id:       frame.id,
     name:     frame.name,
     layout:   extractLayout(frame),
+    visual:   extractVisual(frame),
     children,
   };
 }
