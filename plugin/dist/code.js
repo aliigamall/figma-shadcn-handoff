@@ -939,7 +939,7 @@ ${darkLines}
     }
   });
 
-  // src/lib/jsx-generator.ts
+  // src/lib/tailwind-layout.ts
   function gapClass(gap) {
     var _a;
     const map = {
@@ -959,6 +959,24 @@ ${darkLines}
       64: "gap-16"
     };
     return (_a = map[gap]) != null ? _a : `gap-[${gap}px]`;
+  }
+  function paddingClass(prefix, value) {
+    const map = {
+      2: "0.5",
+      4: "1",
+      6: "1.5",
+      8: "2",
+      10: "2.5",
+      12: "3",
+      16: "4",
+      20: "5",
+      24: "6",
+      32: "8",
+      40: "10",
+      48: "12",
+      64: "16"
+    };
+    return map[value] ? `${prefix}-${map[value]}` : `${prefix}-[${value}px]`;
   }
   function paddingClasses(layout) {
     const { paddingTop: t, paddingRight: r, paddingBottom: b, paddingLeft: l } = layout;
@@ -985,24 +1003,6 @@ ${darkLines}
     }
     return parts.join(" ");
   }
-  function paddingClass(prefix, value) {
-    const map = {
-      2: "0.5",
-      4: "1",
-      6: "1.5",
-      8: "2",
-      10: "2.5",
-      12: "3",
-      16: "4",
-      20: "5",
-      24: "6",
-      32: "8",
-      40: "10",
-      48: "12",
-      64: "16"
-    };
-    return map[value] ? `${prefix}-${map[value]}` : `${prefix}-[${value}px]`;
-  }
   function layoutClasses(layout) {
     if (layout.direction === "none")
       return "";
@@ -1012,6 +1012,13 @@ ${darkLines}
     const pad = paddingClasses(layout);
     return ["flex", dir, wrap, gap, pad].filter(Boolean).join(" ");
   }
+  var init_tailwind_layout = __esm({
+    "src/lib/tailwind-layout.ts"() {
+      "use strict";
+    }
+  });
+
+  // src/lib/jsx-generator.ts
   function addImport(imports, path, name) {
     if (!imports.has(path))
       imports.set(path, /* @__PURE__ */ new Set());
@@ -1087,82 +1094,11 @@ ${pad}</${component}>`;
   var init_jsx_generator = __esm({
     "src/lib/jsx-generator.ts"() {
       "use strict";
+      init_tailwind_layout();
     }
   });
 
   // src/lib/html-generator.ts
-  function gapClass2(gap) {
-    var _a;
-    const map = {
-      0: "",
-      2: "gap-0.5",
-      4: "gap-1",
-      6: "gap-1.5",
-      8: "gap-2",
-      10: "gap-2.5",
-      12: "gap-3",
-      16: "gap-4",
-      20: "gap-5",
-      24: "gap-6",
-      32: "gap-8",
-      40: "gap-10",
-      48: "gap-12",
-      64: "gap-16"
-    };
-    return (_a = map[gap]) != null ? _a : `gap-[${gap}px]`;
-  }
-  function paddingClass2(prefix, value) {
-    const map = {
-      2: "0.5",
-      4: "1",
-      6: "1.5",
-      8: "2",
-      10: "2.5",
-      12: "3",
-      16: "4",
-      20: "5",
-      24: "6",
-      32: "8",
-      40: "10",
-      48: "12",
-      64: "16"
-    };
-    return map[value] ? `${prefix}-${map[value]}` : `${prefix}-[${value}px]`;
-  }
-  function paddingClasses2(layout) {
-    const { paddingTop: t, paddingRight: r, paddingBottom: b, paddingLeft: l } = layout;
-    if (t === 0 && r === 0 && b === 0 && l === 0)
-      return "";
-    if (t === b && l === r && t === l)
-      return paddingClass2("p", t);
-    const parts = [];
-    if (t === b && t > 0)
-      parts.push(paddingClass2("py", t));
-    else {
-      if (t > 0)
-        parts.push(paddingClass2("pt", t));
-      if (b > 0)
-        parts.push(paddingClass2("pb", b));
-    }
-    if (l === r && l > 0)
-      parts.push(paddingClass2("px", l));
-    else {
-      if (l > 0)
-        parts.push(paddingClass2("pl", l));
-      if (r > 0)
-        parts.push(paddingClass2("pr", r));
-    }
-    return parts.join(" ");
-  }
-  function layoutClasses2(layout) {
-    if (layout.direction === "none")
-      return "";
-    const dir = layout.direction === "horizontal" ? "flex-row" : "flex-col";
-    const wrap = layout.wrap ? "flex-wrap" : "";
-    const gap = gapClass2(layout.gap);
-    const pad = paddingClasses2(layout);
-    return ["flex", dir, wrap, gap, pad].filter(Boolean).join(" ");
-  }
   function renderNode2(node, indent) {
     const pad = "  ".repeat(indent);
     if ("isText" in node) {
@@ -1178,7 +1114,7 @@ ${pad}</${component}>`;
       if (node.children.length === 1 && "isImage" in node.children[0]) {
         return renderNode2(node.children[0], indent);
       }
-      const cls = layoutClasses2(node.layout);
+      const cls = layoutClasses(node.layout);
       const clsAttr = cls ? ` class="${cls}"` : "";
       const childrenStr = node.children.map((c) => renderNode2(c, indent + 1)).filter(Boolean).join("\n");
       if (!childrenStr)
@@ -1223,6 +1159,7 @@ ${pad}</${tag}>${interactiveSuffix}`;
   var init_html_generator = __esm({
     "src/lib/html-generator.ts"() {
       "use strict";
+      init_tailwind_layout();
       BASE_BTN = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
       HTML_MAP = {
         Button: {
