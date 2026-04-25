@@ -199,11 +199,14 @@
       <p class="text-[12px] text-[#999]">Select a frame or component<br/>to inspect</p>
     </div>
 
-    <!-- JSX output — shown when mapped components found -->
+    <!-- JSX / HTML output — shown when mapped components found -->
     <div id="jsx-section" class="section flex flex-col gap-2 flex-1 min-h-0 hidden">
       <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">JSX</span>
-        <button id="btn-copy-jsx" class="px-3 py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-black text-white hover:bg-[#222]">Copy all</button>
+        <select id="framework-select" class="text-[11px] border border-[#e5e5e5] rounded-md px-2 py-1 bg-white cursor-pointer outline-none focus:border-[#999] font-medium text-[#555]">
+          <option value="jsx">JSX / React</option>
+          <option value="html">HTML</option>
+        </select>
+        <button id="btn-copy-jsx" class="px-3 py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-black text-white hover:bg-[#222]" data-label="Copy">Copy</button>
       </div>
       <textarea id="output-jsx" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0" readonly></textarea>
     </div>

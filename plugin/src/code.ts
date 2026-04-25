@@ -6,6 +6,7 @@ import { getTailwindClasses } from "./tailwind";
 import { generateJsx } from "./jsx";
 import { scanFrame, scanNode } from "./lib/frame-scanner";
 import { generateJSX } from "./lib/jsx-generator";
+import { generateHTML } from "./lib/html-generator";
 import { saveSnapshot, loadSnapshot, tokensToSnapshot, diffTokens, generatePatch } from "./lib/token-diff";
 import { buildTheme } from "./lib/theme-builder";
 import type { ThemeConfig } from "./lib/theme-builder";
@@ -259,18 +260,21 @@ figma.ui.onmessage = async (msg: { type: string }) => {
       const classes = await getTailwindClasses(node, variables, collections);
 
       let jsxResult: { imports: string; jsx: string; components: string[] } | null = null;
+      let htmlResult: string | null = null;
       let unmappedComponent = null;
 
-      // Frame or group → scan full tree and generate JSX
+      // Frame or group → scan full tree and generate both JSX and HTML
       if (node.type === "FRAME" || node.type === "GROUP") {
         const tree = await scanFrame(node as FrameNode);
         jsxResult = generateJSX(tree);
+        htmlResult = generateHTML(tree);
       }
       // Single component instance → try new scanner first, fall back to old
       else if (node.type === "INSTANCE") {
         const scanned = await scanNode(node);
         if (scanned) {
           jsxResult = generateJSX(scanned);
+          htmlResult = generateHTML(scanned);
         } else {
           const legacyResult = await generateJsx(node, componentMap as ComponentMap);
           if (legacyResult) {
@@ -293,6 +297,7 @@ figma.ui.onmessage = async (msg: { type: string }) => {
         classes,
         nodeName: node.name,
         jsxResult,
+        htmlResult,
         unmappedComponent,
       });
     } catch (err) {

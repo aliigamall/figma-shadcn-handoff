@@ -164,15 +164,27 @@ const diffSummary     = document.getElementById("diff-summary") as HTMLDivElemen
 const diffList        = document.getElementById("diff-list") as HTMLDivElement;
 const btnCopyPatch    = document.getElementById("btn-copy-patch") as HTMLButtonElement;
 
-const selectionBadge  = document.getElementById("selection-badge") as HTMLDivElement;
-const selectionLabel  = document.getElementById("selection-label") as HTMLSpanElement;
-const inspectEmpty    = document.getElementById("inspect-empty") as HTMLDivElement;
-const jsxSection      = document.getElementById("jsx-section") as HTMLDivElement;
-const outputJsx       = document.getElementById("output-jsx") as HTMLTextAreaElement;
-const btnCopyJsx      = document.getElementById("btn-copy-jsx") as HTMLButtonElement;
-const unmappedHint    = document.getElementById("unmapped-hint") as HTMLDivElement;
-const outputTailwind  = document.getElementById("output-tailwind") as HTMLTextAreaElement;
-const btnCopyTailwind = document.getElementById("btn-copy-tailwind") as HTMLButtonElement;
+const selectionBadge   = document.getElementById("selection-badge") as HTMLDivElement;
+const selectionLabel   = document.getElementById("selection-label") as HTMLSpanElement;
+const inspectEmpty     = document.getElementById("inspect-empty") as HTMLDivElement;
+const jsxSection       = document.getElementById("jsx-section") as HTMLDivElement;
+const outputJsx        = document.getElementById("output-jsx") as HTMLTextAreaElement;
+const btnCopyJsx       = document.getElementById("btn-copy-jsx") as HTMLButtonElement;
+const frameworkSelect  = document.getElementById("framework-select") as HTMLSelectElement;
+const unmappedHint     = document.getElementById("unmapped-hint") as HTMLDivElement;
+const outputTailwind   = document.getElementById("output-tailwind") as HTMLTextAreaElement;
+const btnCopyTailwind  = document.getElementById("btn-copy-tailwind") as HTMLButtonElement;
+
+// Stores the last received outputs for both frameworks
+let _cachedJsx  = "";
+let _cachedHtml = "";
+
+function applyFrameworkOutput() {
+  const isHtml = frameworkSelect.value === "html";
+  outputJsx.value = isHtml ? _cachedHtml : _cachedJsx;
+}
+
+frameworkSelect.addEventListener("change", applyFrameworkOutput);
 
 // ── Tokens tab ─────────────────────────────────────────────────────────────
 
@@ -267,17 +279,22 @@ window.onmessage = (event: MessageEvent) => {
     if (msg.jsxResult) {
       jsxSection.classList.remove("hidden");
       unmappedHint.classList.add("hidden");
-      // Combine imports + JSX into one block
+
+      // Cache JSX output
       const imports = msg.jsxResult.imports ?? msg.jsxResult.importLine ?? "";
       const jsx = msg.jsxResult.jsx ?? "";
-      outputJsx.value = imports ? `${imports}\n\n${jsx}` : jsx;
+      _cachedJsx = imports ? `${imports}\n\n${jsx}` : jsx;
+
+      // Cache HTML output
+      _cachedHtml = msg.htmlResult ?? "";
+
+      // Show whichever the user has selected
+      applyFrameworkOutput();
     } else {
       jsxSection.classList.add("hidden");
-      if (msg.unmappedComponent) {
-        unmappedHint.classList.remove("hidden");
-      } else {
-        unmappedHint.classList.add("hidden");
-      }
+      _cachedJsx = "";
+      _cachedHtml = "";
+      unmappedHint.classList.toggle("hidden", !msg.unmappedComponent);
     }
 
     outputTailwind.value = msg.classes || "";

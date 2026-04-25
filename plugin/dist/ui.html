@@ -199,11 +199,14 @@
       <p class="text-[12px] text-[#999]">Select a frame or component<br/>to inspect</p>
     </div>
 
-    <!-- JSX output — shown when mapped components found -->
+    <!-- JSX / HTML output — shown when mapped components found -->
     <div id="jsx-section" class="section flex flex-col gap-2 flex-1 min-h-0 hidden">
       <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">JSX</span>
-        <button id="btn-copy-jsx" class="px-3 py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-black text-white hover:bg-[#222]">Copy all</button>
+        <select id="framework-select" class="text-[11px] border border-[#e5e5e5] rounded-md px-2 py-1 bg-white cursor-pointer outline-none focus:border-[#999] font-medium text-[#555]">
+          <option value="jsx">JSX / React</option>
+          <option value="html">HTML</option>
+        </select>
+        <button id="btn-copy-jsx" class="px-3 py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-black text-white hover:bg-[#222]" data-label="Copy">Copy</button>
       </div>
       <textarea id="output-jsx" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0" readonly></textarea>
     </div>
@@ -403,9 +406,17 @@
   var jsxSection = document.getElementById("jsx-section");
   var outputJsx = document.getElementById("output-jsx");
   var btnCopyJsx = document.getElementById("btn-copy-jsx");
+  var frameworkSelect = document.getElementById("framework-select");
   var unmappedHint = document.getElementById("unmapped-hint");
   var outputTailwind = document.getElementById("output-tailwind");
   var btnCopyTailwind = document.getElementById("btn-copy-tailwind");
+  var _cachedJsx = "";
+  var _cachedHtml = "";
+  function applyFrameworkOutput() {
+    const isHtml = frameworkSelect.value === "html";
+    outputJsx.value = isHtml ? _cachedHtml : _cachedJsx;
+  }
+  frameworkSelect.addEventListener("change", applyFrameworkOutput);
   btnExport.addEventListener("click", () => {
     btnExport.disabled = true;
     btnExport.textContent = "Exporting\u2026";
@@ -436,7 +447,7 @@
   });
   btnCopyTailwind.addEventListener("click", () => copyToClipboard(outputTailwind.value, btnCopyTailwind));
   window.onmessage = (event) => {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     const msg = event.data.pluginMessage;
     if (!msg)
       return;
@@ -482,16 +493,16 @@
         unmappedHint.classList.add("hidden");
         const imports = (_c = (_b = msg.jsxResult.imports) != null ? _b : msg.jsxResult.importLine) != null ? _c : "";
         const jsx = (_d = msg.jsxResult.jsx) != null ? _d : "";
-        outputJsx.value = imports ? `${imports}
+        _cachedJsx = imports ? `${imports}
 
 ${jsx}` : jsx;
+        _cachedHtml = (_e = msg.htmlResult) != null ? _e : "";
+        applyFrameworkOutput();
       } else {
         jsxSection.classList.add("hidden");
-        if (msg.unmappedComponent) {
-          unmappedHint.classList.remove("hidden");
-        } else {
-          unmappedHint.classList.add("hidden");
-        }
+        _cachedJsx = "";
+        _cachedHtml = "";
+        unmappedHint.classList.toggle("hidden", !msg.unmappedComponent);
       }
       outputTailwind.value = msg.classes || "";
       btnCopyTailwind.disabled = !msg.classes;
