@@ -318,25 +318,47 @@ window.onmessage = (event: MessageEvent) => {
 (function initThemeTab() {
   const brandColorInput    = document.getElementById("theme-brand-color") as HTMLInputElement;
   const brandHexInput      = document.getElementById("theme-brand-hex") as HTMLInputElement;
+  const neutralDot         = document.getElementById("theme-neutral-dot") as HTMLDivElement;
   const neutralOptions     = document.querySelectorAll<HTMLButtonElement>(".neutral-btn");
-  const previewCard        = document.getElementById("preview-card") as HTMLDivElement;
-  const previewHeading     = document.getElementById("preview-heading") as HTMLSpanElement;
-  const previewBadge       = document.getElementById("preview-badge") as HTMLSpanElement;
-  const previewMuted       = document.getElementById("preview-muted") as HTMLParagraphElement;
-  const previewDivider     = document.getElementById("preview-divider") as HTMLDivElement;
-  const previewBtnPrimary  = document.getElementById("preview-btn-primary") as HTMLButtonElement;
-  const previewBtnSecondary = document.getElementById("preview-btn-secondary") as HTMLButtonElement;
-  const previewBtnAccent   = document.getElementById("preview-btn-accent") as HTMLButtonElement;
-  const previewBrandSwatches   = document.getElementById("preview-brand-swatches") as HTMLDivElement;
-  const previewNeutralSwatches = document.getElementById("preview-neutral-swatches") as HTMLDivElement;
-  const outputCss          = document.getElementById("output-theme-css") as HTMLTextAreaElement;
+  const brandSwatches      = document.getElementById("theme-brand-swatches") as HTMLDivElement;
+  const previewBrandSw     = document.getElementById("preview-brand-swatches") as HTMLDivElement;
+  const previewNeutralSw   = document.getElementById("preview-neutral-swatches") as HTMLDivElement;
   const btnCopyCss         = document.getElementById("btn-copy-theme-css") as HTMLButtonElement;
   const btnApply           = document.getElementById("btn-apply-theme") as HTMLButtonElement;
   const btnExportTheme     = document.getElementById("btn-export-theme") as HTMLButtonElement;
   const importFile         = document.getElementById("theme-import-file") as HTMLInputElement;
   const themeStatus        = document.getElementById("theme-status") as HTMLSpanElement;
 
+  // Preview element refs
+  const pvApp        = document.getElementById("pv-app") as HTMLDivElement;
+  const pvHeader     = document.getElementById("pv-header") as HTMLDivElement;
+  const pvLogo       = document.getElementById("pv-logo") as HTMLDivElement;
+  const pvAppName    = document.getElementById("pv-app-name") as HTMLSpanElement;
+  const pvBadge      = document.getElementById("pv-badge") as HTMLSpanElement;
+  const pvBtnNew     = document.getElementById("pv-btn-new") as HTMLButtonElement;
+  const pvBody       = document.getElementById("pv-body") as HTMLDivElement;
+  const pvCardA      = document.getElementById("pv-card-a") as HTMLDivElement;
+  const pvCardALabel = document.getElementById("pv-card-a-label") as HTMLParagraphElement;
+  const pvCardAValue = document.getElementById("pv-card-a-value") as HTMLParagraphElement;
+  const pvCardASub   = document.getElementById("pv-card-a-sub") as HTMLParagraphElement;
+  const pvCardB      = document.getElementById("pv-card-b") as HTMLDivElement;
+  const pvCardBLabel = document.getElementById("pv-card-b-label") as HTMLParagraphElement;
+  const pvCardBValue = document.getElementById("pv-card-b-value") as HTMLParagraphElement;
+  const pvCardBSub   = document.getElementById("pv-card-b-sub") as HTMLParagraphElement;
+  const pvTable      = document.getElementById("pv-table") as HTMLDivElement;
+  const pvTableHead  = document.getElementById("pv-table-head") as HTMLDivElement;
+  const pvRow1       = document.getElementById("pv-row-1") as HTMLDivElement;
+  const pvRow2       = document.getElementById("pv-row-2") as HTMLDivElement;
+  const pvStatusA    = document.getElementById("pv-status-a") as HTMLSpanElement;
+  const pvStatusB    = document.getElementById("pv-status-b") as HTMLSpanElement;
+  const pvForm       = document.getElementById("pv-form") as HTMLDivElement;
+  const pvFormTitle  = document.getElementById("pv-form-title") as HTMLParagraphElement;
+  const pvInput      = document.getElementById("pv-input") as HTMLDivElement;
+  const pvBtnPrimary = document.getElementById("pv-btn-primary") as HTMLButtonElement;
+  const pvBtnSecondary = document.getElementById("pv-btn-secondary") as HTMLButtonElement;
+
   let currentConfig: ThemeConfig = { brandHex: "#6366f1", neutralPreset: "slate" };
+  let generatedCss = "";
 
   function isValidHex(hex: string): boolean {
     return /^#[0-9a-fA-F]{6}$/.test(hex);
@@ -358,63 +380,116 @@ window.onmessage = (event: MessageEvent) => {
     return hslToHex(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
   }
 
-  function swatchRow(container: HTMLDivElement, scale: ColorScale, label: string) {
-    container.innerHTML = STEPS
-      .map(step => {
-        const hex = hslVarToHex(scale[step]);
-        return `<div title="${label}-${step}" style="flex:1;height:16px;border-radius:2px;background:${hex}"></div>`;
-      }).join("");
+  function applyBg(el: HTMLElement, hex: string)       { el.style.backgroundColor = hex; }
+  function applyFg(el: HTMLElement, hex: string)       { el.style.color = hex; }
+  function applyBorder(el: HTMLElement, hex: string)   { el.style.borderColor = hex; }
+
+  function swatchRow(container: HTMLDivElement, scale: ColorScale, name: string) {
+    container.innerHTML = STEPS.map(step => {
+      const hex = hslVarToHex(scale[step]);
+      return `<div title="${name}-${step}" style="flex:1;height:14px;border-radius:2px;background:${hex}"></div>`;
+    }).join("");
   }
 
   function updatePreview() {
     if (!isValidHex(currentConfig.brandHex)) return;
+
     const brand   = generateScale(currentConfig.brandHex);
     const neutral = generateNeutral(currentConfig.neutralPreset);
 
-    const bg          = hslVarToHex(neutral[50]);
-    const fg          = hslVarToHex(neutral[950]);
-    const border      = hslVarToHex(neutral[200]);
-    const muted       = hslVarToHex(neutral[500]);
-    const secondary   = hslVarToHex(neutral[100]);
-    const primaryBg   = hslVarToHex(neutral[900]);   // dark neutral = primary
-    const accentBg    = hslVarToHex(brand[100]);
-    const accentFg    = hslVarToHex(brand[900]);
-    const accentBadge = hslVarToHex(brand[500]);
+    // Computed semantic colors
+    const bg         = hslVarToHex(neutral[50]);
+    const fg         = hslVarToHex(neutral[950]);
+    const border     = hslVarToHex(neutral[200]);
+    const muted      = hslVarToHex(neutral[500]);
+    const mutedBg    = hslVarToHex(neutral[100]);
+    const primaryBg  = hslVarToHex(neutral[900]);   // primary = dark neutral (shadcn default)
+    const primaryFg  = hslVarToHex(neutral[50]);
+    const accentHex  = hslVarToHex(brand[500]);
+    const accentBg   = hslVarToHex(brand[100]);
+    const accentFg   = hslVarToHex(brand[800]);
+    const headBg     = hslVarToHex(neutral[100]);
 
-    // Card shell
-    previewCard.style.backgroundColor = bg;
-    previewCard.style.borderColor = border;
-    previewCard.style.color = fg;
-    // Heading
-    previewHeading.style.color = fg;
-    // Badge (accent color)
-    previewBadge.style.backgroundColor = accentBg;
-    previewBadge.style.color = accentFg;
-    // Muted text
-    previewMuted.style.color = muted;
-    // Divider
-    previewDivider.style.backgroundColor = border;
-    // Primary button — dark neutral
-    previewBtnPrimary.style.backgroundColor = primaryBg;
-    previewBtnPrimary.style.color = hslVarToHex(neutral[50]);
+    // ── App shell ──
+    applyBg(pvApp, bg);
+    applyBorder(pvApp, border);
+    pvApp.style.color = fg;
+
+    // Header
+    applyBg(pvHeader, bg);
+    applyBorder(pvHeader, border);
+    applyFg(pvAppName, fg);
+    // Logo dot = accent
+    applyBg(pvLogo, accentHex);
+    // Badge = accent
+    applyBg(pvBadge, accentBg);
+    applyFg(pvBadge, accentFg);
+    // New button = secondary
+    applyBg(pvBtnNew, mutedBg);
+    applyFg(pvBtnNew, fg);
+    applyBorder(pvBtnNew, border);
+
+    // Body bg
+    applyBg(pvBody, bg);
+
+    // Stat cards
+    [pvCardA, pvCardB].forEach(card => {
+      applyBg(card, bg);
+      applyBorder(card, border);
+      card.style.borderWidth = "1px";
+      card.style.borderStyle = "solid";
+    });
+    [pvCardALabel, pvCardBLabel, pvCardASub, pvCardBSub].forEach(el => applyFg(el, muted));
+    [pvCardAValue, pvCardBValue].forEach(el => applyFg(el, fg));
+
+    // Table
+    applyBg(pvTable, bg);
+    applyBorder(pvTable, border);
+    applyBg(pvTableHead, headBg);
+    applyFg(pvTableHead, muted);
+    applyBorder(pvTableHead, border);
+    [pvRow1, pvRow2].forEach(row => {
+      applyBg(row, bg);
+      applyBorder(row, border);
+      applyFg(row, fg);
+    });
+    // "Paid" badge = accent
+    applyBg(pvStatusA, accentBg);
+    applyFg(pvStatusA, accentFg);
+    // "Pending" = muted text
+    applyFg(pvStatusB, muted);
+
+    // Form card
+    applyBg(pvForm, bg);
+    applyBorder(pvForm, border);
+    applyFg(pvFormTitle, fg);
+    applyBg(pvInput, bg);
+    applyBorder(pvInput, border);
+    pvInput.style.borderWidth = "1px";
+    pvInput.style.borderStyle = "solid";
+    applyFg(pvInput, muted);
+    // Primary button = dark neutral
+    applyBg(pvBtnPrimary, primaryBg);
+    applyFg(pvBtnPrimary, primaryFg);
     // Secondary button
-    previewBtnSecondary.style.backgroundColor = secondary;
-    previewBtnSecondary.style.color = fg;
-    // Accent button
-    previewBtnAccent.style.backgroundColor = accentBadge;
-    previewBtnAccent.style.color = "#fff";
+    applyBg(pvBtnSecondary, mutedBg);
+    applyFg(pvBtnSecondary, fg);
 
-    // Swatches
-    swatchRow(previewBrandSwatches, brand, "accent");
-    swatchRow(previewNeutralSwatches, neutral, "neutral");
+    // ── Inputs row swatches ──
+    swatchRow(brandSwatches, brand, "accent");
+    // Neutral dot = neutral[500]
+    applyBg(neutralDot, hslVarToHex(neutral[500]));
 
-    // CSS
-    outputCss.value = buildThemeCss(currentConfig);
+    // ── Legend swatches ──
+    swatchRow(previewBrandSw, brand, "accent");
+    swatchRow(previewNeutralSw, neutral, "neutral");
+
+    // ── Generate CSS ──
+    generatedCss = buildThemeCss(currentConfig);
     btnCopyCss.disabled = false;
-    themeStatus.textContent = "";
   }
 
-  // Accent color picker ↔ hex input
+  // Accent color picker ↔ hex text
   brandColorInput.addEventListener("input", () => {
     currentConfig.brandHex = brandColorInput.value;
     brandHexInput.value = brandColorInput.value;
@@ -429,7 +504,7 @@ window.onmessage = (event: MessageEvent) => {
     }
   });
 
-  // Neutral preset buttons
+  // Neutral preset
   neutralOptions.forEach(btn => {
     btn.addEventListener("click", () => {
       neutralOptions.forEach(b => b.classList.remove("active-neutral"));
@@ -440,18 +515,28 @@ window.onmessage = (event: MessageEvent) => {
   });
 
   // Copy CSS
-  btnCopyCss.addEventListener("click", () => copyToClipboard(outputCss.value, btnCopyCss));
+  btnCopyCss.addEventListener("click", () => {
+    const ta = document.createElement("textarea");
+    ta.value = generatedCss;
+    ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    const orig = btnCopyCss.textContent ?? "Copy CSS";
+    btnCopyCss.textContent = "Copied!";
+    setTimeout(() => (btnCopyCss.textContent = orig), 1500);
+  });
 
   // Apply to Figma
   btnApply.addEventListener("click", () => {
     btnApply.disabled = true;
     btnApply.textContent = "Applying…";
     themeStatus.textContent = "";
-    themeStatus.style.color = "#888";
     parent.postMessage({ pluginMessage: { type: "APPLY_THEME", config: currentConfig } }, "*");
   });
 
-  // Export config
+  // Export JSON config
   btnExportTheme.addEventListener("click", () => {
     const json = JSON.stringify(currentConfig, null, 2);
     const blob = new Blob([json], { type: "application/json" });
@@ -463,7 +548,7 @@ window.onmessage = (event: MessageEvent) => {
     URL.revokeObjectURL(url);
   });
 
-  // Import config
+  // Import JSON config
   importFile.addEventListener("change", () => {
     const file = importFile.files?.[0];
     if (!file) return;

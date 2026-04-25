@@ -57,85 +57,124 @@
   </div>
 
   <!-- Theme panel -->
-  <div id="panel-theme" class="panel flex-1 p-4 flex flex-col gap-3 overflow-y-auto hidden">
+  <div id="panel-theme" class="panel flex-1 flex flex-col overflow-hidden hidden">
 
-    <!-- Info banner -->
-    <div class="text-[11px] text-[#666] bg-[#f5f5f5] rounded-md px-3 py-2 leading-relaxed">
-      Writes into Obra's <strong>brand colors</strong> collection.<br/>
-      <span class="text-[#999]">Primary buttons stay dark (shadcn default). Your accent color drives highlights, rings, and charts.</span>
-    </div>
+    <!-- Color inputs + swatches row (fixed top) -->
+    <div class="flex-shrink-0 px-4 pt-3 pb-2 flex flex-col gap-2 border-b border-[#f0f0f0]">
 
-    <!-- Brand / accent color -->
-    <div class="flex flex-col gap-1.5">
-      <label class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Accent Color <span class="normal-case font-normal text-[#bbb]">→ brand-shades</span></label>
+      <!-- Accent color row -->
       <div class="flex items-center gap-2">
-        <input id="theme-brand-color" type="color" value="#6366f1" class="w-8 h-8 rounded-md border border-[#e5e5e5] cursor-pointer p-0.5 bg-white flex-shrink-0" />
+        <input id="theme-brand-color" type="color" value="#6366f1"
+          class="w-6 h-6 rounded border border-[#e5e5e5] cursor-pointer p-0 bg-white flex-shrink-0" style="padding:1px" />
+        <span class="text-[11px] text-[#555] w-12 flex-shrink-0">Accent</span>
         <input id="theme-brand-hex" type="text" value="#6366f1" maxlength="7"
-          class="w-24 font-mono text-[12px] px-2 py-1.5 border border-[#e5e5e5] rounded-md outline-none focus:border-[#999]" />
-        <div id="theme-brand-swatches" class="flex gap-0.5 flex-1"></div>
+          class="w-16 font-mono text-[11px] px-1.5 py-1 border border-[#e5e5e5] rounded outline-none focus:border-[#999] flex-shrink-0" />
+        <div id="theme-brand-swatches" class="flex gap-px flex-1 min-w-0"></div>
+      </div>
+
+      <!-- Neutral row -->
+      <div class="flex items-center gap-2">
+        <div id="theme-neutral-dot" class="w-6 h-6 rounded border border-[#e5e5e5] flex-shrink-0" style="background:#64748b"></div>
+        <span class="text-[11px] text-[#555] w-12 flex-shrink-0">Neutral</span>
+        <div id="theme-neutral-options" class="flex gap-1">
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer active-neutral" data-preset="slate">Slate</button>
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer" data-preset="gray">Gray</button>
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer" data-preset="zinc">Zinc</button>
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer" data-preset="stone">Stone</button>
+          <button class="neutral-btn px-1.5 py-0.5 text-[10px] border rounded cursor-pointer" data-preset="neutral">Neutral</button>
+        </div>
       </div>
     </div>
 
-    <!-- Neutral preset -->
-    <div class="flex flex-col gap-1.5">
-      <label class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Neutral Palette <span class="normal-case font-normal text-[#bbb]">→ brand-neutrals · drives backgrounds, borders, text</span></label>
-      <div id="theme-neutral-options" class="flex gap-1 flex-wrap">
-        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors active-neutral" data-preset="slate">Slate</button>
-        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors" data-preset="gray">Gray</button>
-        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors" data-preset="zinc">Zinc</button>
-        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors" data-preset="stone">Stone</button>
-        <button class="neutral-btn px-2 py-1 text-[11px] border rounded-md cursor-pointer transition-colors" data-preset="neutral">Neutral</button>
-      </div>
-    </div>
+    <!-- Live preview (scrollable, fills remaining space) -->
+    <div class="flex-1 overflow-y-auto p-3">
 
-    <!-- Preview -->
-    <div class="flex flex-col gap-1.5">
-      <label class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">Preview</label>
-      <!-- Card mock: shows neutral effect clearly -->
-      <div id="preview-card" class="rounded-lg border p-3 flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <span id="preview-heading" class="text-[12px] font-semibold">Dashboard</span>
-          <span id="preview-badge" class="text-[10px] px-1.5 py-0.5 rounded-full font-medium">Accent</span>
+      <!-- Mini app shell -->
+      <div id="pv-app" class="rounded-lg border overflow-hidden text-[11px]">
+
+        <!-- App header -->
+        <div id="pv-header" class="flex items-center justify-between px-3 py-2 border-b">
+          <div class="flex items-center gap-1.5">
+            <div id="pv-logo" class="w-4 h-4 rounded" style="background:#6366f1"></div>
+            <span id="pv-app-name" class="font-semibold text-[11px]">Acme</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span id="pv-badge" class="px-1.5 py-px rounded-full text-[9px] font-medium">Pro</span>
+            <button id="pv-btn-new" class="px-2 py-0.5 rounded text-[10px] font-medium">New</button>
+          </div>
         </div>
-        <p id="preview-muted" class="text-[10px]">Muted text — secondary information shown here.</p>
-        <div id="preview-divider" class="h-px"></div>
-        <div class="flex gap-2">
-          <button id="preview-btn-primary" class="px-2.5 py-1 text-[11px] font-medium rounded-md text-white">Primary</button>
-          <button id="preview-btn-secondary" class="px-2.5 py-1 text-[11px] font-medium rounded-md">Secondary</button>
-          <button id="preview-btn-accent" class="px-2.5 py-1 text-[11px] font-medium rounded-md">Accent</button>
+
+        <!-- Stats row -->
+        <div id="pv-body" class="p-3 flex flex-col gap-2">
+          <div class="flex gap-2">
+            <div id="pv-card-a" class="flex-1 rounded border p-2">
+              <p id="pv-card-a-label" class="text-[9px] mb-0.5">Revenue</p>
+              <p id="pv-card-a-value" class="font-semibold text-[13px]">$15,231</p>
+              <p id="pv-card-a-sub" class="text-[9px] mt-0.5">+12% this month</p>
+            </div>
+            <div id="pv-card-b" class="flex-1 rounded border p-2">
+              <p id="pv-card-b-label" class="text-[9px] mb-0.5">Active users</p>
+              <p id="pv-card-b-value" class="font-semibold text-[13px]">2,350</p>
+              <p id="pv-card-b-sub" class="text-[9px] mt-0.5">+4% this month</p>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div id="pv-table" class="rounded border overflow-hidden">
+            <div id="pv-table-head" class="flex items-center px-2 py-1 border-b">
+              <span class="flex-1 text-[9px] font-medium uppercase tracking-wide">Name</span>
+              <span class="w-16 text-right text-[9px] font-medium uppercase tracking-wide">Amount</span>
+              <span class="w-12 text-right text-[9px] font-medium uppercase tracking-wide">Status</span>
+            </div>
+            <div id="pv-row-1" class="flex items-center px-2 py-1.5 border-b">
+              <span class="flex-1 text-[10px]">Alice Johnson</span>
+              <span class="w-16 text-right text-[10px]">$250.00</span>
+              <div class="w-12 flex justify-end"><span id="pv-status-a" class="px-1.5 py-px rounded-full text-[8px] font-medium">Paid</span></div>
+            </div>
+            <div id="pv-row-2" class="flex items-center px-2 py-1.5">
+              <span class="flex-1 text-[10px]">Bob Smith</span>
+              <span class="w-16 text-right text-[10px]">$149.00</span>
+              <div class="w-12 flex justify-end"><span id="pv-status-b" class="text-[10px]">Pending</span></div>
+            </div>
+          </div>
+
+          <!-- Form row -->
+          <div id="pv-form" class="rounded border p-2 flex flex-col gap-1.5">
+            <p id="pv-form-title" class="font-medium text-[10px]">Quick action</p>
+            <div id="pv-input" class="rounded border px-2 py-1 text-[10px]" style="outline:none">user@example.com</div>
+            <div class="flex gap-1.5">
+              <button id="pv-btn-primary" class="flex-1 py-1 rounded text-[10px] font-medium">Save changes</button>
+              <button id="pv-btn-secondary" class="px-3 py-1 rounded text-[10px] font-medium">Cancel</button>
+            </div>
+          </div>
+
         </div>
       </div>
-      <!-- Swatch rows -->
-      <div class="flex flex-col gap-1">
+
+      <!-- Swatch legend -->
+      <div class="mt-2 flex flex-col gap-1">
         <div class="flex items-center gap-1.5">
-          <span class="text-[9px] text-[#bbb] w-14">accent</span>
-          <div id="preview-brand-swatches" class="flex gap-0.5 flex-1"></div>
+          <span class="text-[9px] text-[#bbb] w-12">accent</span>
+          <div id="preview-brand-swatches" class="flex gap-px flex-1"></div>
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="text-[9px] text-[#bbb] w-14">neutral</span>
-          <div id="preview-neutral-swatches" class="flex gap-0.5 flex-1"></div>
+          <span class="text-[9px] text-[#bbb] w-12">neutral</span>
+          <div id="preview-neutral-swatches" class="flex gap-px flex-1"></div>
         </div>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex gap-2">
-      <button id="btn-apply-theme" class="flex-1 px-4 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium bg-black text-white hover:bg-[#222] transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">Apply to Figma</button>
-      <button id="btn-export-theme" class="px-3 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Export</button>
-      <label id="btn-import-theme" class="px-3 py-2 border-none rounded-md cursor-pointer text-[13px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">
-        Import
-        <input id="theme-import-file" type="file" accept=".json" class="hidden" />
-      </label>
-    </div>
-    <span id="theme-status" class="text-[11px] min-h-4"></span>
-
-    <!-- Generated CSS -->
-    <div class="flex flex-col gap-1">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#888]">globals.css</span>
-        <button id="btn-copy-theme-css" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5] disabled:opacity-40 disabled:cursor-not-allowed" disabled>Copy</button>
+    <!-- Bottom bar: actions + CSS -->
+    <div class="flex-shrink-0 border-t border-[#f0f0f0] px-3 py-2 flex flex-col gap-2">
+      <div class="flex gap-1.5">
+        <button id="btn-apply-theme" class="flex-1 py-1.5 border-none rounded cursor-pointer text-[12px] font-medium bg-black text-white hover:bg-[#222] disabled:opacity-40 disabled:cursor-not-allowed">Apply to Figma</button>
+        <button id="btn-copy-theme-css" class="px-3 py-1.5 border-none rounded cursor-pointer text-[12px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5] disabled:opacity-40 disabled:cursor-not-allowed" disabled>Copy CSS</button>
+        <button id="btn-export-theme" class="px-2.5 py-1.5 border-none rounded cursor-pointer text-[12px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" title="Export config JSON">↓</button>
+        <label class="px-2.5 py-1.5 border-none rounded cursor-pointer text-[12px] font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]" title="Import config JSON">↑
+          <input id="theme-import-file" type="file" accept=".json" class="hidden" />
+        </label>
       </div>
-      <textarea id="output-theme-css" class="w-full font-mono text-[10px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none" rows="8" placeholder="Configure theme above…" readonly></textarea>
+      <span id="theme-status" class="text-[11px] min-h-[14px]"></span>
     </div>
 
   </div>
@@ -486,24 +525,44 @@ ${jsx}` : jsx;
   (function initThemeTab() {
     const brandColorInput = document.getElementById("theme-brand-color");
     const brandHexInput = document.getElementById("theme-brand-hex");
+    const neutralDot = document.getElementById("theme-neutral-dot");
     const neutralOptions = document.querySelectorAll(".neutral-btn");
-    const previewCard = document.getElementById("preview-card");
-    const previewHeading = document.getElementById("preview-heading");
-    const previewBadge = document.getElementById("preview-badge");
-    const previewMuted = document.getElementById("preview-muted");
-    const previewDivider = document.getElementById("preview-divider");
-    const previewBtnPrimary = document.getElementById("preview-btn-primary");
-    const previewBtnSecondary = document.getElementById("preview-btn-secondary");
-    const previewBtnAccent = document.getElementById("preview-btn-accent");
-    const previewBrandSwatches = document.getElementById("preview-brand-swatches");
-    const previewNeutralSwatches = document.getElementById("preview-neutral-swatches");
-    const outputCss = document.getElementById("output-theme-css");
+    const brandSwatches = document.getElementById("theme-brand-swatches");
+    const previewBrandSw = document.getElementById("preview-brand-swatches");
+    const previewNeutralSw = document.getElementById("preview-neutral-swatches");
     const btnCopyCss = document.getElementById("btn-copy-theme-css");
     const btnApply = document.getElementById("btn-apply-theme");
     const btnExportTheme = document.getElementById("btn-export-theme");
     const importFile = document.getElementById("theme-import-file");
     const themeStatus = document.getElementById("theme-status");
+    const pvApp = document.getElementById("pv-app");
+    const pvHeader = document.getElementById("pv-header");
+    const pvLogo = document.getElementById("pv-logo");
+    const pvAppName = document.getElementById("pv-app-name");
+    const pvBadge = document.getElementById("pv-badge");
+    const pvBtnNew = document.getElementById("pv-btn-new");
+    const pvBody = document.getElementById("pv-body");
+    const pvCardA = document.getElementById("pv-card-a");
+    const pvCardALabel = document.getElementById("pv-card-a-label");
+    const pvCardAValue = document.getElementById("pv-card-a-value");
+    const pvCardASub = document.getElementById("pv-card-a-sub");
+    const pvCardB = document.getElementById("pv-card-b");
+    const pvCardBLabel = document.getElementById("pv-card-b-label");
+    const pvCardBValue = document.getElementById("pv-card-b-value");
+    const pvCardBSub = document.getElementById("pv-card-b-sub");
+    const pvTable = document.getElementById("pv-table");
+    const pvTableHead = document.getElementById("pv-table-head");
+    const pvRow1 = document.getElementById("pv-row-1");
+    const pvRow2 = document.getElementById("pv-row-2");
+    const pvStatusA = document.getElementById("pv-status-a");
+    const pvStatusB = document.getElementById("pv-status-b");
+    const pvForm = document.getElementById("pv-form");
+    const pvFormTitle = document.getElementById("pv-form-title");
+    const pvInput = document.getElementById("pv-input");
+    const pvBtnPrimary = document.getElementById("pv-btn-primary");
+    const pvBtnSecondary = document.getElementById("pv-btn-secondary");
     let currentConfig = { brandHex: "#6366f1", neutralPreset: "slate" };
+    let generatedCss = "";
     function isValidHex(hex) {
       return /^#[0-9a-fA-F]{6}$/.test(hex);
     }
@@ -522,10 +581,19 @@ ${jsx}` : jsx;
       const parts = val.trim().split(/\s+/);
       return hslToHex(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
     }
-    function swatchRow(container, scale, label) {
+    function applyBg(el, hex) {
+      el.style.backgroundColor = hex;
+    }
+    function applyFg(el, hex) {
+      el.style.color = hex;
+    }
+    function applyBorder(el, hex) {
+      el.style.borderColor = hex;
+    }
+    function swatchRow(container, scale, name) {
       container.innerHTML = STEPS.map((step) => {
         const hex = hslVarToHex(scale[step]);
-        return `<div title="${label}-${step}" style="flex:1;height:16px;border-radius:2px;background:${hex}"></div>`;
+        return `<div title="${name}-${step}" style="flex:1;height:14px;border-radius:2px;background:${hex}"></div>`;
       }).join("");
     }
     function updatePreview() {
@@ -537,30 +605,65 @@ ${jsx}` : jsx;
       const fg = hslVarToHex(neutral[950]);
       const border = hslVarToHex(neutral[200]);
       const muted = hslVarToHex(neutral[500]);
-      const secondary = hslVarToHex(neutral[100]);
+      const mutedBg = hslVarToHex(neutral[100]);
       const primaryBg = hslVarToHex(neutral[900]);
+      const primaryFg = hslVarToHex(neutral[50]);
+      const accentHex = hslVarToHex(brand[500]);
       const accentBg = hslVarToHex(brand[100]);
-      const accentFg = hslVarToHex(brand[900]);
-      const accentBadge = hslVarToHex(brand[500]);
-      previewCard.style.backgroundColor = bg;
-      previewCard.style.borderColor = border;
-      previewCard.style.color = fg;
-      previewHeading.style.color = fg;
-      previewBadge.style.backgroundColor = accentBg;
-      previewBadge.style.color = accentFg;
-      previewMuted.style.color = muted;
-      previewDivider.style.backgroundColor = border;
-      previewBtnPrimary.style.backgroundColor = primaryBg;
-      previewBtnPrimary.style.color = hslVarToHex(neutral[50]);
-      previewBtnSecondary.style.backgroundColor = secondary;
-      previewBtnSecondary.style.color = fg;
-      previewBtnAccent.style.backgroundColor = accentBadge;
-      previewBtnAccent.style.color = "#fff";
-      swatchRow(previewBrandSwatches, brand, "accent");
-      swatchRow(previewNeutralSwatches, neutral, "neutral");
-      outputCss.value = buildThemeCss(currentConfig);
+      const accentFg = hslVarToHex(brand[800]);
+      const headBg = hslVarToHex(neutral[100]);
+      applyBg(pvApp, bg);
+      applyBorder(pvApp, border);
+      pvApp.style.color = fg;
+      applyBg(pvHeader, bg);
+      applyBorder(pvHeader, border);
+      applyFg(pvAppName, fg);
+      applyBg(pvLogo, accentHex);
+      applyBg(pvBadge, accentBg);
+      applyFg(pvBadge, accentFg);
+      applyBg(pvBtnNew, mutedBg);
+      applyFg(pvBtnNew, fg);
+      applyBorder(pvBtnNew, border);
+      applyBg(pvBody, bg);
+      [pvCardA, pvCardB].forEach((card) => {
+        applyBg(card, bg);
+        applyBorder(card, border);
+        card.style.borderWidth = "1px";
+        card.style.borderStyle = "solid";
+      });
+      [pvCardALabel, pvCardBLabel, pvCardASub, pvCardBSub].forEach((el) => applyFg(el, muted));
+      [pvCardAValue, pvCardBValue].forEach((el) => applyFg(el, fg));
+      applyBg(pvTable, bg);
+      applyBorder(pvTable, border);
+      applyBg(pvTableHead, headBg);
+      applyFg(pvTableHead, muted);
+      applyBorder(pvTableHead, border);
+      [pvRow1, pvRow2].forEach((row) => {
+        applyBg(row, bg);
+        applyBorder(row, border);
+        applyFg(row, fg);
+      });
+      applyBg(pvStatusA, accentBg);
+      applyFg(pvStatusA, accentFg);
+      applyFg(pvStatusB, muted);
+      applyBg(pvForm, bg);
+      applyBorder(pvForm, border);
+      applyFg(pvFormTitle, fg);
+      applyBg(pvInput, bg);
+      applyBorder(pvInput, border);
+      pvInput.style.borderWidth = "1px";
+      pvInput.style.borderStyle = "solid";
+      applyFg(pvInput, muted);
+      applyBg(pvBtnPrimary, primaryBg);
+      applyFg(pvBtnPrimary, primaryFg);
+      applyBg(pvBtnSecondary, mutedBg);
+      applyFg(pvBtnSecondary, fg);
+      swatchRow(brandSwatches, brand, "accent");
+      applyBg(neutralDot, hslVarToHex(neutral[500]));
+      swatchRow(previewBrandSw, brand, "accent");
+      swatchRow(previewNeutralSw, neutral, "neutral");
+      generatedCss = buildThemeCss(currentConfig);
       btnCopyCss.disabled = false;
-      themeStatus.textContent = "";
     }
     brandColorInput.addEventListener("input", () => {
       currentConfig.brandHex = brandColorInput.value;
@@ -584,12 +687,23 @@ ${jsx}` : jsx;
         updatePreview();
       });
     });
-    btnCopyCss.addEventListener("click", () => copyToClipboard(outputCss.value, btnCopyCss));
+    btnCopyCss.addEventListener("click", () => {
+      var _a;
+      const ta = document.createElement("textarea");
+      ta.value = generatedCss;
+      ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      const orig = (_a = btnCopyCss.textContent) != null ? _a : "Copy CSS";
+      btnCopyCss.textContent = "Copied!";
+      setTimeout(() => btnCopyCss.textContent = orig, 1500);
+    });
     btnApply.addEventListener("click", () => {
       btnApply.disabled = true;
       btnApply.textContent = "Applying\u2026";
       themeStatus.textContent = "";
-      themeStatus.style.color = "#888";
       parent.postMessage({ pluginMessage: { type: "APPLY_THEME", config: currentConfig } }, "*");
     });
     btnExportTheme.addEventListener("click", () => {
