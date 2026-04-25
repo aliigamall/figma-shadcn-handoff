@@ -6,7 +6,7 @@
  *  - A deduplicated list of import statements
  */
 
-import type { ScannedNode, ScannedText, ScannedImage, ScannedTree } from "./frame-scanner";
+import type { ScannedNode, ScannedText, ScannedImage, ScannedIcon, ScannedTree } from "./frame-scanner";
 import { layoutClasses } from "./tailwind-layout";
 
 // ─── Import tracking ──────────────────────────────────────────────────────────
@@ -47,6 +47,12 @@ function renderNode(
   indent: number
 ): string {
   const pad = "  ".repeat(indent);
+
+  // Icon / vector node
+  if ("isIcon" in node) {
+    const icon = node as ScannedIcon;
+    return `${pad}<svg width={${icon.width}} height={${icon.height}} className="shrink-0" aria-hidden="true" />`;
+  }
 
   // Text node
   if ("isText" in node) {

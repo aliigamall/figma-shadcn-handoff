@@ -9,7 +9,7 @@
  * require JS get an <!-- interactive --> comment.
  */
 
-import type { ScannedText, ScannedImage, ScannedTree } from "./frame-scanner";
+import type { ScannedText, ScannedImage, ScannedIcon, ScannedTree } from "./frame-scanner";
 import { layoutClasses } from "./tailwind-layout";
 
 // ─── shadcn/ui → HTML component definitions ───────────────────────────────────
@@ -211,6 +211,12 @@ const HTML_MAP: Record<string, HtmlDef> = {
 
 function renderNode(node: ScannedTree, indent: number): string {
   const pad = "  ".repeat(indent);
+
+  // Icon / vector node
+  if ("isIcon" in node) {
+    const icon = node as ScannedIcon;
+    return `${pad}<svg width="${icon.width}" height="${icon.height}" class="shrink-0" aria-hidden="true"></svg>`;
+  }
 
   // Text node
   if ("isText" in node) {

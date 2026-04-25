@@ -12,36 +12,36 @@ export interface ScannedProp {
   value: string;
 }
 
+export interface Layout {
+  direction: "horizontal" | "vertical" | "grid" | "none";
+  /** Primary axis gap (flex) or column gap (grid) */
+  gap: number;
+  /** Row gap — only set for flex-wrap or grid layouts */
+  rowGap: number;
+  /** Number of columns — only set for grid layouts */
+  columns: number;
+  paddingTop: number;
+  paddingRight: number;
+  paddingBottom: number;
+  paddingLeft: number;
+  wrap: boolean;
+}
+
 export interface ScannedNode {
-  /** Figma node id */
   id: string;
-  /** Obra component name (from mainComponent) */
   figmaName: string;
-  /** shadcn/ui component name */
   component: string;
-  /** Import path */
   importPath: string;
-  /** Resolved shadcn/ui props */
   props: ScannedProp[];
-  /** Text children content */
   children: string | ScannedNode[];
-  /** Layout info */
-  layout: {
-    direction: "horizontal" | "vertical" | "none";
-    gap: number;
-    paddingTop: number;
-    paddingRight: number;
-    paddingBottom: number;
-    paddingLeft: number;
-    wrap: boolean;
-  };
+  layout: Layout;
 }
 
 export interface ScannedFrame {
   isLayout: true;
   id: string;
   name: string;
-  layout: ScannedNode["layout"];
+  layout: Layout;
   children: Array<ScannedTree>;
 }
 
@@ -61,21 +61,48 @@ export interface ScannedImage {
   height: number;
 }
 
-export type ScannedTree = ScannedNode | ScannedFrame | ScannedText | ScannedImage;
+export interface ScannedIcon {
+  isIcon: true;
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+}
+
+export type ScannedTree = ScannedNode | ScannedFrame | ScannedText | ScannedImage | ScannedIcon;
 
 /** Extract layout info from any frame-like node */
-function extractLayout(node: FrameNode | ComponentNode | InstanceNode): ScannedNode["layout"] {
+function extractLayout(node: FrameNode | ComponentNode | InstanceNode): Layout {
+  // Native CSS Grid (Figma 2024+)
+  if (node.layoutMode === "GRID") {
+    const g = node as FrameNode & GridLayoutMixin;
+    return {
+      direction:  "grid",
+      gap:        g.gridColumnGap ?? 0,
+      rowGap:     g.gridRowGap    ?? 0,
+      columns:    g.gridColumnCount ?? 1,
+      paddingTop:    node.paddingTop    ?? 0,
+      paddingRight:  node.paddingRight  ?? 0,
+      paddingBottom: node.paddingBottom ?? 0,
+      paddingLeft:   node.paddingLeft   ?? 0,
+      wrap: false,
+    };
+  }
+
   const isAuto = node.layoutMode !== "NONE";
+  const isWrap = isAuto && node.layoutWrap === "WRAP";
   return {
     direction: node.layoutMode === "HORIZONTAL" ? "horizontal"
              : node.layoutMode === "VERTICAL"   ? "vertical"
              : "none",
-    gap:           isAuto ? (node.itemSpacing ?? 0)       : 0,
-    paddingTop:    isAuto ? (node.paddingTop ?? 0)         : 0,
-    paddingRight:  isAuto ? (node.paddingRight ?? 0)       : 0,
-    paddingBottom: isAuto ? (node.paddingBottom ?? 0)      : 0,
-    paddingLeft:   isAuto ? (node.paddingLeft ?? 0)        : 0,
-    wrap:          isAuto ? (node.layoutWrap === "WRAP")   : false,
+    gap:           isAuto ? (node.itemSpacing ?? 0)                 : 0,
+    rowGap:        isWrap ? (node.counterAxisSpacing ?? 0)          : 0,
+    columns:       0,
+    paddingTop:    isAuto ? (node.paddingTop    ?? 0)               : 0,
+    paddingRight:  isAuto ? (node.paddingRight  ?? 0)               : 0,
+    paddingBottom: isAuto ? (node.paddingBottom ?? 0)               : 0,
+    paddingLeft:   isAuto ? (node.paddingLeft   ?? 0)               : 0,
+    wrap:          isWrap,
   };
 }
 
@@ -183,20 +210,35 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     return { isText: true, id: node.id, content, tag, bold };
   }
 
-  // Rectangle/ellipse with image fill → treat as img placeholder
-  if (node.type === "RECTANGLE" || node.type === "ELLIPSE") {
-    const shape = node as RectangleNode;
-    const hasImage = Array.isArray(shape.fills) &&
-      (shape.fills as Paint[]).some((f: Paint) => f.type === "IMAGE");
+  // Any shape with an image fill → img placeholder
+  if ("fills" in node && Array.isArray(node.fills)) {
+    const hasImage = (node.fills as Paint[]).some((f: Paint) => f.type === "IMAGE");
     if (hasImage) {
       return {
         isImage: true,
         id: node.id,
         name: node.name,
-        width: Math.round(node.width),
+        width:  Math.round(node.width),
         height: Math.round(node.height),
       };
     }
+  }
+
+  // Vector / icon nodes → SVG placeholder
+  if (
+    node.type === "VECTOR" ||
+    node.type === "BOOLEAN_OPERATION" ||
+    node.type === "STAR" ||
+    node.type === "POLYGON" ||
+    node.type === "LINE"
+  ) {
+    return {
+      isIcon: true,
+      id: node.id,
+      name: node.name,
+      width:  Math.round(node.width),
+      height: Math.round(node.height),
+    };
   }
 
   return null;
@@ -206,9 +248,9 @@ async function scanFrameNode(node: FrameNode | GroupNode | ComponentNode): Promi
   const children = await scanChildren(node);
   if (children.length === 0) return null;
 
-  const layout = node.type !== "GROUP"
+  const layout: Layout = node.type !== "GROUP"
     ? extractLayout(node as FrameNode)
-    : { direction: "none" as const, gap: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+    : { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
 
   return {
     isLayout: true,

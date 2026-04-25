@@ -789,16 +789,33 @@ ${darkLines}
 
   // src/lib/frame-scanner.ts
   function extractLayout(node) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
+    if (node.layoutMode === "GRID") {
+      const g = node;
+      return {
+        direction: "grid",
+        gap: (_a = g.gridColumnGap) != null ? _a : 0,
+        rowGap: (_b = g.gridRowGap) != null ? _b : 0,
+        columns: (_c = g.gridColumnCount) != null ? _c : 1,
+        paddingTop: (_d = node.paddingTop) != null ? _d : 0,
+        paddingRight: (_e = node.paddingRight) != null ? _e : 0,
+        paddingBottom: (_f = node.paddingBottom) != null ? _f : 0,
+        paddingLeft: (_g = node.paddingLeft) != null ? _g : 0,
+        wrap: false
+      };
+    }
     const isAuto = node.layoutMode !== "NONE";
+    const isWrap = isAuto && node.layoutWrap === "WRAP";
     return {
       direction: node.layoutMode === "HORIZONTAL" ? "horizontal" : node.layoutMode === "VERTICAL" ? "vertical" : "none",
-      gap: isAuto ? (_a = node.itemSpacing) != null ? _a : 0 : 0,
-      paddingTop: isAuto ? (_b = node.paddingTop) != null ? _b : 0 : 0,
-      paddingRight: isAuto ? (_c = node.paddingRight) != null ? _c : 0 : 0,
-      paddingBottom: isAuto ? (_d = node.paddingBottom) != null ? _d : 0 : 0,
-      paddingLeft: isAuto ? (_e = node.paddingLeft) != null ? _e : 0 : 0,
-      wrap: isAuto ? node.layoutWrap === "WRAP" : false
+      gap: isAuto ? (_h = node.itemSpacing) != null ? _h : 0 : 0,
+      rowGap: isWrap ? (_i = node.counterAxisSpacing) != null ? _i : 0 : 0,
+      columns: 0,
+      paddingTop: isAuto ? (_j = node.paddingTop) != null ? _j : 0 : 0,
+      paddingRight: isAuto ? (_k = node.paddingRight) != null ? _k : 0 : 0,
+      paddingBottom: isAuto ? (_l = node.paddingBottom) != null ? _l : 0 : 0,
+      paddingLeft: isAuto ? (_m = node.paddingLeft) != null ? _m : 0 : 0,
+      wrap: isWrap
     };
   }
   function resolveProps(instance, def) {
@@ -878,9 +895,8 @@ ${darkLines}
           tag = "span";
         return { isText: true, id: node.id, content, tag, bold };
       }
-      if (node.type === "RECTANGLE" || node.type === "ELLIPSE") {
-        const shape = node;
-        const hasImage = Array.isArray(shape.fills) && shape.fills.some((f) => f.type === "IMAGE");
+      if ("fills" in node && Array.isArray(node.fills)) {
+        const hasImage = node.fills.some((f) => f.type === "IMAGE");
         if (hasImage) {
           return {
             isImage: true,
@@ -891,6 +907,15 @@ ${darkLines}
           };
         }
       }
+      if (node.type === "VECTOR" || node.type === "BOOLEAN_OPERATION" || node.type === "STAR" || node.type === "POLYGON" || node.type === "LINE") {
+        return {
+          isIcon: true,
+          id: node.id,
+          name: node.name,
+          width: Math.round(node.width),
+          height: Math.round(node.height)
+        };
+      }
       return null;
     });
   }
@@ -899,7 +924,7 @@ ${darkLines}
       const children = yield scanChildren(node);
       if (children.length === 0)
         return null;
-      const layout = node.type !== "GROUP" ? extractLayout(node) : { direction: "none", gap: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+      const layout = node.type !== "GROUP" ? extractLayout(node) : { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
       return {
         isLayout: true,
         id: node.id,
@@ -941,24 +966,13 @@ ${darkLines}
 
   // src/lib/tailwind-layout.ts
   function gapClass(gap) {
-    var _a;
-    const map = {
-      0: "",
-      2: "gap-0.5",
-      4: "gap-1",
-      6: "gap-1.5",
-      8: "gap-2",
-      10: "gap-2.5",
-      12: "gap-3",
-      16: "gap-4",
-      20: "gap-5",
-      24: "gap-6",
-      32: "gap-8",
-      40: "gap-10",
-      48: "gap-12",
-      64: "gap-16"
-    };
-    return (_a = map[gap]) != null ? _a : `gap-[${gap}px]`;
+    return GAP_MAP[gap] ? `gap-${GAP_MAP[gap]}` : gap ? `gap-[${gap}px]` : "";
+  }
+  function gapXClass(gap) {
+    return GAP_MAP[gap] ? `gap-x-${GAP_MAP[gap]}` : gap ? `gap-x-[${gap}px]` : "";
+  }
+  function gapYClass(gap) {
+    return GAP_MAP[gap] ? `gap-y-${GAP_MAP[gap]}` : gap ? `gap-y-[${gap}px]` : "";
   }
   function paddingClass(prefix, value) {
     const map = {
@@ -1003,18 +1017,43 @@ ${darkLines}
     }
     return parts.join(" ");
   }
+  function gridColsClass(cols) {
+    return cols >= 1 && cols <= 12 ? `grid-cols-${cols}` : cols > 0 ? `grid-cols-[repeat(${cols},minmax(0,1fr))]` : "";
+  }
   function layoutClasses(layout) {
+    const pad = paddingClasses(layout);
+    if (layout.direction === "grid") {
+      const cols = gridColsClass(layout.columns);
+      const gapStr2 = layout.gap === layout.rowGap ? gapClass(layout.gap) : [gapXClass(layout.gap), gapYClass(layout.rowGap)].filter(Boolean).join(" ");
+      return ["grid", cols, gapStr2, pad].filter(Boolean).join(" ");
+    }
     if (layout.direction === "none")
       return "";
     const dir = layout.direction === "horizontal" ? "flex-row" : "flex-col";
     const wrap = layout.wrap ? "flex-wrap" : "";
-    const gap = gapClass(layout.gap);
-    const pad = paddingClasses(layout);
-    return ["flex", dir, wrap, gap, pad].filter(Boolean).join(" ");
+    const gapStr = layout.wrap && layout.rowGap && layout.rowGap !== layout.gap ? [gapXClass(layout.gap), gapYClass(layout.rowGap)].filter(Boolean).join(" ") : gapClass(layout.gap);
+    return ["flex", dir, wrap, gapStr, pad].filter(Boolean).join(" ");
   }
+  var GAP_MAP;
   var init_tailwind_layout = __esm({
     "src/lib/tailwind-layout.ts"() {
       "use strict";
+      GAP_MAP = {
+        0: "",
+        2: "0.5",
+        4: "1",
+        6: "1.5",
+        8: "2",
+        10: "2.5",
+        12: "3",
+        16: "4",
+        20: "5",
+        24: "6",
+        32: "8",
+        40: "10",
+        48: "12",
+        64: "16"
+      };
     }
   });
 
@@ -1042,6 +1081,10 @@ ${darkLines}
   }
   function renderNode(node, imports, indent) {
     const pad = "  ".repeat(indent);
+    if ("isIcon" in node) {
+      const icon = node;
+      return `${pad}<svg width={${icon.width}} height={${icon.height}} className="shrink-0" aria-hidden="true" />`;
+    }
     if ("isText" in node) {
       const t = node;
       const cls = t.tag === "span" && t.bold ? ` className="font-semibold"` : "";
@@ -1101,6 +1144,10 @@ ${pad}</${component}>`;
   // src/lib/html-generator.ts
   function renderNode2(node, indent) {
     const pad = "  ".repeat(indent);
+    if ("isIcon" in node) {
+      const icon = node;
+      return `${pad}<svg width="${icon.width}" height="${icon.height}" class="shrink-0" aria-hidden="true"></svg>`;
+    }
     if ("isText" in node) {
       const t = node;
       const cls = t.tag === "span" && t.bold ? ` class="font-semibold"` : "";
