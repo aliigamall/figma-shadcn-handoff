@@ -215,6 +215,21 @@ function resolveChildren(
   return typeof val === "string" ? val : null;
 }
 
+/** Depth-first search for the first TEXT layer whose trimmed text isn't already used */
+function findFirstUnusedText(node: ChildrenMixin, used: Set<string>): string | null {
+  for (const child of (node as SceneNode as ChildrenMixin).children) {
+    if (child.type === "TEXT") {
+      const text = (child as TextNode).characters.trim();
+      if (text && !used.has(text)) return text;
+    }
+    if ("children" in child) {
+      const found = findFirstUnusedText(child as unknown as ChildrenMixin, used);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 /**
  * Scan a node recursively.
  * Returns a ScannedNode if it's a mapped Obra component,
@@ -235,6 +250,44 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     const def = lookupComponent(compName);
 
     if (def) {
+      // Slots: multiple named TEXT properties each wrapped in a sub-component
+      if (def.slots && def.slots.length > 0) {
+        const EMPTY_LAYOUT: Layout = { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+        const usedTexts = new Set<string>();
+        const slotChildren: ScannedNode[] = [];
+        for (const slot of def.slots) {
+          let text: string | null = slot.key ? resolveChildren(node, slot.key) : null;
+          if (text) usedTexts.add(text);
+
+          // Fallback: traverse children tree for first unused TEXT layer
+          if (!text && slot.scanChildren) {
+            text = findFirstUnusedText(node, usedTexts);
+            if (text) usedTexts.add(text);
+          }
+
+          if (text) {
+            slotChildren.push({
+              id:         `${node.id}-slot-${slot.component}`,
+              figmaName:  slot.component,
+              component:  slot.component,
+              importPath: slot.importPath,
+              props:      [],
+              children:   text,
+              layout:     EMPTY_LAYOUT,
+            });
+          }
+        }
+        return {
+          id:         node.id,
+          figmaName:  compName,
+          component:  def.component,
+          importPath: def.importPath,
+          props:      resolveProps(node, def),
+          children:   slotChildren,
+          layout:     extractLayout(node as unknown as FrameNode),
+        };
+      }
+
       const textChildren = resolveChildren(node, def.children);
       const childNodes = textChildren === null
         ? await scanChildren(node)

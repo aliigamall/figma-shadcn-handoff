@@ -576,7 +576,10 @@ ${darkLines}
               values: { Neutral: "default", Error: "destructive" }
             }
           },
-          children: "Line 1",
+          slots: [
+            { key: "Line 1", component: "AlertTitle", importPath: "@/components/ui/alert" },
+            { key: "\u21B3 Line 2", component: "AlertDescription", importPath: "@/components/ui/alert", scanChildren: true }
+          ],
           ignore: ["Show Line 2", "Show Icon", "Show Button", "Flip Icon", "\u2B91 Icon", "\u2B91  Line 2"]
         },
         // ── Alert Dialog ──────────────────────────────────────────────────────────
@@ -722,13 +725,6 @@ ${darkLines}
           component: "Card",
           importPath: "@/components/ui/card",
           ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No."]
-        },
-        // ── Accordion ─────────────────────────────────────────────────────────────
-        "Accordion Trigger": {
-          component: "Accordion",
-          importPath: "@/components/ui/accordion",
-          children: "Accordion label",
-          ignore: ["State", "Show border", "Position"]
         },
         // ── Breadcrumb ────────────────────────────────────────────────────────────
         "Breadcrumb": {
@@ -912,6 +908,21 @@ ${darkLines}
     const val = rawProps[figmaKey].value;
     return typeof val === "string" ? val : null;
   }
+  function findFirstUnusedText(node, used) {
+    for (const child of node.children) {
+      if (child.type === "TEXT") {
+        const text = child.characters.trim();
+        if (text && !used.has(text))
+          return text;
+      }
+      if ("children" in child) {
+        const found = findFirstUnusedText(child, used);
+        if (found)
+          return found;
+      }
+    }
+    return null;
+  }
   function scanNode(node) {
     return __async(this, null, function* () {
       var _a;
@@ -924,6 +935,41 @@ ${darkLines}
         const compName = ((_a = mainComp.parent) == null ? void 0 : _a.type) === "COMPONENT_SET" ? mainComp.parent.name : mainComp.name;
         const def = lookupComponent(compName);
         if (def) {
+          if (def.slots && def.slots.length > 0) {
+            const EMPTY_LAYOUT = { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+            const usedTexts = /* @__PURE__ */ new Set();
+            const slotChildren = [];
+            for (const slot of def.slots) {
+              let text = slot.key ? resolveChildren(node, slot.key) : null;
+              if (text)
+                usedTexts.add(text);
+              if (!text && slot.scanChildren) {
+                text = findFirstUnusedText(node, usedTexts);
+                if (text)
+                  usedTexts.add(text);
+              }
+              if (text) {
+                slotChildren.push({
+                  id: `${node.id}-slot-${slot.component}`,
+                  figmaName: slot.component,
+                  component: slot.component,
+                  importPath: slot.importPath,
+                  props: [],
+                  children: text,
+                  layout: EMPTY_LAYOUT
+                });
+              }
+            }
+            return {
+              id: node.id,
+              figmaName: compName,
+              component: def.component,
+              importPath: def.importPath,
+              props: resolveProps(node, def),
+              children: slotChildren,
+              layout: extractLayout(node)
+            };
+          }
           const textChildren = resolveChildren(node, def.children);
           const childNodes = textChildren === null ? yield scanChildren(node) : [];
           return {

@@ -18,6 +18,17 @@ export interface PropDef {
   values?: Record<string, string | null>;
 }
 
+export interface SlotDef {
+  /** Obra TEXT property name (exact key before '#'). If omitted, falls back to scanChildren. */
+  key?: string;
+  /** shadcn sub-component JSX name */
+  component: string;
+  /** Import path for the sub-component */
+  importPath: string;
+  /** If the named key isn't found as a component property, scan the node's children tree for the next unused TEXT layer */
+  scanChildren?: boolean;
+}
+
 export interface ComponentDef {
   /** shadcn/ui JSX component name */
   component: string;
@@ -27,6 +38,8 @@ export interface ComponentDef {
   props?: Record<string, PropDef>;
   /** Obra TEXT prop key whose value becomes JSX children */
   children?: string;
+  /** Named TEXT properties each wrapped in a specific sub-component */
+  slots?: SlotDef[];
   /** Obra prop keys to skip when generating JSX */
   ignore?: string[];
 }
@@ -126,7 +139,10 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
         values: { Neutral: "default", Error: "destructive" },
       },
     },
-    children: "Line 1",
+    slots: [
+      { key: "Line 1",   component: "AlertTitle",       importPath: "@/components/ui/alert" },
+      { key: "↳ Line 2", component: "AlertDescription", importPath: "@/components/ui/alert", scanChildren: true },
+    ],
     ignore: ["Show Line 2", "Show Icon", "Show Button", "Flip Icon", "⮑ Icon", "⮑  Line 2"],
   },
 
@@ -290,14 +306,6 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     component:  "Card",
     importPath: "@/components/ui/card",
     ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No."],
-  },
-
-  // ── Accordion ─────────────────────────────────────────────────────────────
-  "Accordion Trigger": {
-    component:  "Accordion",
-    importPath: "@/components/ui/accordion",
-    children: "Accordion label",
-    ignore: ["State", "Show border", "Position"],
   },
 
   // ── Breadcrumb ────────────────────────────────────────────────────────────
