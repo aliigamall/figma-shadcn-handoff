@@ -164,6 +164,13 @@ const diffSummary     = document.getElementById("diff-summary") as HTMLDivElemen
 const diffList        = document.getElementById("diff-list") as HTMLDivElement;
 const btnCopyPatch    = document.getElementById("btn-copy-patch") as HTMLButtonElement;
 
+const devEmpty         = document.getElementById("dev-empty") as HTMLDivElement;
+const devInfo          = document.getElementById("dev-info") as HTMLDivElement;
+const devComponentName = document.getElementById("dev-component-name") as HTMLSpanElement;
+const devPropsList     = document.getElementById("dev-props-list") as HTMLDivElement;
+const devDraft         = document.getElementById("dev-draft") as HTMLTextAreaElement;
+const btnCopyDraft     = document.getElementById("btn-copy-draft") as HTMLButtonElement;
+
 const selectionBadge   = document.getElementById("selection-badge") as HTMLDivElement;
 const selectionLabel   = document.getElementById("selection-label") as HTMLSpanElement;
 const inspectEmpty     = document.getElementById("inspect-empty") as HTMLDivElement;
@@ -223,6 +230,43 @@ function showResults(hasJsx: boolean): void {
 btnCopyJsx.addEventListener("click", () => {
   copyToClipboard(outputJsx.value, btnCopyJsx);
 });
+
+btnCopyDraft.addEventListener("click", () => copyToClipboard(devDraft.value, btnCopyDraft));
+
+function renderDevInfo(info: any): void {
+  if (!info) {
+    devEmpty.classList.remove("hidden");
+    devInfo.classList.add("hidden");
+    return;
+  }
+  devEmpty.classList.add("hidden");
+  devInfo.classList.remove("hidden");
+  devComponentName.textContent = info.componentName;
+  devDraft.value = info.draft ?? "";
+
+  const TYPE_COLORS: Record<string, string> = {
+    VARIANT:       "bg-[#e0f2fe] text-[#0369a1]",
+    TEXT:          "bg-[#dcfce7] text-[#15803d]",
+    BOOLEAN:       "bg-[#fef9c3] text-[#a16207]",
+    INSTANCE_SWAP: "bg-[#f3e8ff] text-[#7e22ce]",
+  };
+
+  devPropsList.innerHTML = info.properties.map((p: any) => {
+    const badgeCls = TYPE_COLORS[p.type] ?? "bg-[#f0f0f0] text-[#555]";
+    const options  = p.options?.length
+      ? `<span class="text-[#aaa] ml-1">${p.options.join(" · ")}</span>`
+      : "";
+    const current  = p.currentValue !== ""
+      ? `<span class="ml-auto font-mono text-[10px] text-[#555] bg-[#f5f5f5] px-1.5 py-0.5 rounded">${p.currentValue}</span>`
+      : "";
+    return `
+      <div class="flex items-center gap-2 py-1 border-b border-[#f0f0f0]">
+        <span class="font-mono text-[11px] text-[#1a1a1a] min-w-0 truncate flex-1">${p.name}${options}</span>
+        ${current}
+        <span class="text-[9px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${badgeCls}">${p.type}</span>
+      </div>`;
+  }).join("");
+}
 
 btnCopyTailwind.addEventListener("click", () => copyToClipboard(outputTailwind.value, btnCopyTailwind));
 
@@ -311,6 +355,7 @@ window.onmessage = (event: MessageEvent) => {
       selectionLabel.textContent = "No node selected";
       showEmpty();
     }
+    renderDevInfo(msg.componentInfo ?? null);
   }
 
   if (msg.type === "ERROR") {

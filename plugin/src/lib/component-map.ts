@@ -340,6 +340,33 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["State", "Roundness", "Position", "Show left icon", "Show right icon", "⮑ Left icon", "⮑ Right icon"],
   },
 
+  // ── Accordion ─────────────────────────────────────────────────────────────
+  // "Bordered" variants are Figma-only visual styles — same shadcn output.
+  // State (Closed/Open/Focus) and Position (First/Middle/Last) are design-only.
+  "Accordion Trigger": {
+    component:  "AccordionTrigger",
+    importPath: "@/components/ui/accordion",
+    children:   "Accordion label",
+    ignore:     ["State"],
+  },
+
+  "Accordion Content": {
+    component:  "AccordionContent",
+    importPath: "@/components/ui/accordion",
+  },
+
+  "Accordion Trigger (Bordered)": {
+    component:  "AccordionTrigger",
+    importPath: "@/components/ui/accordion",
+    children:   "Accordion label",
+    ignore:     ["State", "Position"],
+  },
+
+  "Accordion Content (Bordered)": {
+    component:  "AccordionContent",
+    importPath: "@/components/ui/accordion",
+  },
+
   // ── Table ─────────────────────────────────────────────────────────────────
   "Basic Table Header": {
     component:  "TableHead",

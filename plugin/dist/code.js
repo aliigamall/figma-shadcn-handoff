@@ -766,6 +766,29 @@ ${darkLines}
           children: "Label",
           ignore: ["State", "Roundness", "Position", "Show left icon", "Show right icon", "\u2B91 Left icon", "\u2B91 Right icon"]
         },
+        // ── Accordion ─────────────────────────────────────────────────────────────
+        // "Bordered" variants are Figma-only visual styles — same shadcn output.
+        // State (Closed/Open/Focus) and Position (First/Middle/Last) are design-only.
+        "Accordion Trigger": {
+          component: "AccordionTrigger",
+          importPath: "@/components/ui/accordion",
+          children: "Accordion label",
+          ignore: ["State"]
+        },
+        "Accordion Content": {
+          component: "AccordionContent",
+          importPath: "@/components/ui/accordion"
+        },
+        "Accordion Trigger (Bordered)": {
+          component: "AccordionTrigger",
+          importPath: "@/components/ui/accordion",
+          children: "Accordion label",
+          ignore: ["State", "Position"]
+        },
+        "Accordion Content (Bordered)": {
+          component: "AccordionContent",
+          importPath: "@/components/ui/accordion"
+        },
         // ── Table ─────────────────────────────────────────────────────────────────
         "Basic Table Header": {
           component: "TableHead",
@@ -1206,6 +1229,44 @@ ${pad}  </TableBody>`);
 ${parts.join("\n")}
 ${pad}</Table>`;
   }
+  function isAccordionTrigger(node) {
+    return "component" in node && node.component === "AccordionTrigger";
+  }
+  function isAccordionContent(node) {
+    return "component" in node && node.component === "AccordionContent";
+  }
+  function isAccordionContainer(node) {
+    return node.layout.direction === "vertical" && node.children.some(isAccordionTrigger);
+  }
+  function renderAccordion(node, imports, indent) {
+    const pad = "  ".repeat(indent);
+    const ip = "  ".repeat(indent + 1);
+    addImport(imports, "@/components/ui/accordion", "Accordion");
+    addImport(imports, "@/components/ui/accordion", "AccordionItem");
+    const items = [];
+    const children = node.children;
+    let i = 0;
+    while (i < children.length) {
+      if (isAccordionTrigger(children[i])) {
+        const next = children[i + 1];
+        const hasContent = next != null && isAccordionContent(next);
+        items.push({ trigger: children[i], content: hasContent ? next : null });
+        i += hasContent ? 2 : 1;
+      } else {
+        i++;
+      }
+    }
+    const itemsJsx = items.map((item, idx) => {
+      const triggerJsx = renderNode(item.trigger, imports, indent + 2);
+      const contentJsx = item.content ? "\n" + renderNode(item.content, imports, indent + 2) : "";
+      return `${ip}<AccordionItem value="item-${idx + 1}">
+${triggerJsx}${contentJsx}
+${ip}</AccordionItem>`;
+    }).join("\n");
+    return `${pad}<Accordion type="single" collapsible>
+${itemsJsx}
+${pad}</Accordion>`;
+  }
   function renderProps(props) {
     if (props.length === 0)
       return "";
@@ -1243,6 +1304,9 @@ ${pad}</Table>`;
       }
       if (isTableGrid(node)) {
         return renderTableGrid(node, imports, indent);
+      }
+      if (isAccordionContainer(node)) {
+        return renderAccordion(node, imports, indent);
       }
       const layoutCls = layoutClasses(node.layout);
       const visualCls = visualClasses(node.visual);

@@ -76,6 +76,52 @@ function renderTableGrid(node: ScannedFrame, imports: ImportMap, indent: number)
   return `${pad}<Table>\n${parts.join("\n")}\n${pad}</Table>`;
 }
 
+// ─── Accordion helpers ────────────────────────────────────────────────────────
+
+function isAccordionTrigger(node: ScannedTree): boolean {
+  return "component" in node && (node as ScannedNode).component === "AccordionTrigger";
+}
+
+function isAccordionContent(node: ScannedTree): boolean {
+  return "component" in node && (node as ScannedNode).component === "AccordionContent";
+}
+
+function isAccordionContainer(node: ScannedFrame): boolean {
+  return node.layout.direction === "vertical" &&
+    node.children.some(isAccordionTrigger);
+}
+
+function renderAccordion(node: ScannedFrame, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const ip  = "  ".repeat(indent + 1);
+
+  addImport(imports, "@/components/ui/accordion", "Accordion");
+  addImport(imports, "@/components/ui/accordion", "AccordionItem");
+
+  // Group children: each AccordionTrigger + optional following AccordionContent = one item
+  const items: Array<{ trigger: ScannedTree; content: ScannedTree | null }> = [];
+  const children = node.children;
+  let i = 0;
+  while (i < children.length) {
+    if (isAccordionTrigger(children[i])) {
+      const next = children[i + 1];
+      const hasContent = next != null && isAccordionContent(next);
+      items.push({ trigger: children[i], content: hasContent ? next : null });
+      i += hasContent ? 2 : 1;
+    } else {
+      i++;
+    }
+  }
+
+  const itemsJsx = items.map((item, idx) => {
+    const triggerJsx = renderNode(item.trigger, imports, indent + 2);
+    const contentJsx = item.content ? "\n" + renderNode(item.content, imports, indent + 2) : "";
+    return `${ip}<AccordionItem value="item-${idx + 1}">\n${triggerJsx}${contentJsx}\n${ip}</AccordionItem>`;
+  }).join("\n");
+
+  return `${pad}<Accordion type="single" collapsible>\n${itemsJsx}\n${pad}</Accordion>`;
+}
+
 // ─── JSX rendering ───────────────────────────────────────────────────────────
 
 function renderProps(props: ScannedNode["props"]): string {
@@ -132,6 +178,11 @@ function renderNode(
     // CSS grid containing table cells → emit a proper <Table> structure
     if (isTableGrid(node)) {
       return renderTableGrid(node, imports, indent);
+    }
+
+    // Vertical stack of AccordionTrigger/Content → emit full <Accordion> structure
+    if (isAccordionContainer(node)) {
+      return renderAccordion(node, imports, indent);
     }
 
     const layoutCls = layoutClasses(node.layout);
