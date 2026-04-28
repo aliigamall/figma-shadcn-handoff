@@ -160,6 +160,12 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["Picture", "Size", "Roundness Type"],
   },
 
+  "Avatar Stack": {
+    component:  "AvatarGroup",
+    importPath: "@/components/ui/avatar",
+    ignore: ["Size", "Type"],
+  },
+
   // ── Input ─────────────────────────────────────────────────────────────────
   "Input": {
     component:  "Input",

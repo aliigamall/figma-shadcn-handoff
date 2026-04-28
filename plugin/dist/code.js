@@ -594,6 +594,11 @@ ${darkLines}
           importPath: "@/components/ui/avatar",
           ignore: ["Picture", "Size", "Roundness Type"]
         },
+        "Avatar Stack": {
+          component: "AvatarGroup",
+          importPath: "@/components/ui/avatar",
+          ignore: ["Size", "Type"]
+        },
         // ── Input ─────────────────────────────────────────────────────────────────
         "Input": {
           component: "Input",
@@ -884,7 +889,12 @@ ${darkLines}
     if (!def || !def.props)
       return [];
     const result = [];
-    const rawProps = (_a = instance.componentProperties) != null ? _a : {};
+    let rawProps;
+    try {
+      rawProps = (_a = instance.componentProperties) != null ? _a : {};
+    } catch (e) {
+      return [];
+    }
     for (const [obraKey, propDef] of Object.entries(def.props)) {
       const figmaKey = Object.keys(rawProps).find((k) => k.split("#")[0] === obraKey);
       if (!figmaKey)
@@ -901,7 +911,12 @@ ${darkLines}
     var _a;
     if (!childrenKey)
       return null;
-    const rawProps = (_a = instance.componentProperties) != null ? _a : {};
+    let rawProps;
+    try {
+      rawProps = (_a = instance.componentProperties) != null ? _a : {};
+    } catch (e) {
+      return null;
+    }
     const figmaKey = Object.keys(rawProps).find((k) => k.split("#")[0] === childrenKey);
     if (!figmaKey)
       return null;
@@ -929,7 +944,12 @@ ${darkLines}
       if (!node.visible)
         return null;
       if (node.type === "INSTANCE") {
-        const mainComp = yield node.getMainComponentAsync();
+        let mainComp = null;
+        try {
+          mainComp = yield node.getMainComponentAsync();
+        } catch (e) {
+          return scanFrameNode(node);
+        }
         if (!mainComp)
           return scanFrameNode(node);
         const compName = ((_a = mainComp.parent) == null ? void 0 : _a.type) === "COMPONENT_SET" ? mainComp.parent.name : mainComp.name;
@@ -1313,6 +1333,104 @@ ${ip}</AccordionItem>`;
 ${itemsJsx}
 ${pad}</Accordion>`;
   }
+  function collectTexts(nodes) {
+    const out = [];
+    for (const n of nodes) {
+      if ("isText" in n) {
+        out.push(n.content);
+        continue;
+      }
+      if ("isLayout" in n)
+        out.push(...collectTexts(n.children));
+      if ("component" in n && Array.isArray(n.children))
+        out.push(...collectTexts(n.children));
+    }
+    return out;
+  }
+  function collectButtons(nodes) {
+    const out = [];
+    for (const n of nodes) {
+      if ("component" in n) {
+        const sn = n;
+        if (sn.component === "Button") {
+          out.push(sn);
+          continue;
+        }
+        if (Array.isArray(sn.children))
+          out.push(...collectButtons(sn.children));
+      }
+      if ("isLayout" in n)
+        out.push(...collectButtons(n.children));
+    }
+    return out;
+  }
+  function renderAlertDialog(node, imports, indent) {
+    var _a, _b, _c, _d, _e, _f;
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    const p4 = "  ".repeat(indent + 4);
+    const children = Array.isArray(node.children) ? node.children : [];
+    const texts = collectTexts(children);
+    const buttons = collectButtons(children);
+    const title = (_a = texts[0]) != null ? _a : "Are you absolutely sure?";
+    const description = (_b = texts[1]) != null ? _b : "This action cannot be undone.";
+    const isCancel = (b) => b.props.some((p) => p.shadcnProp === "variant" && ["outline", "ghost", "secondary"].includes(p.value));
+    const cancelBtn = (_c = buttons.find(isCancel)) != null ? _c : buttons[1];
+    const actionBtn = (_d = buttons.find((b) => b !== cancelBtn)) != null ? _d : buttons[0];
+    const cancelLabel = typeof (cancelBtn == null ? void 0 : cancelBtn.children) === "string" ? cancelBtn.children : "Cancel";
+    const actionLabel = typeof (actionBtn == null ? void 0 : actionBtn.children) === "string" ? actionBtn.children : "Continue";
+    const cancelVariant = (_e = cancelBtn == null ? void 0 : cancelBtn.props.find((p) => p.shadcnProp === "variant")) == null ? void 0 : _e.value;
+    const actionVariant = (_f = actionBtn == null ? void 0 : actionBtn.props.find((p) => p.shadcnProp === "variant")) == null ? void 0 : _f.value;
+    const cancelProps = cancelVariant && cancelVariant !== "default" ? ` variant="${cancelVariant}"` : "";
+    const actionProps = actionVariant && actionVariant !== "default" ? ` variant="${actionVariant}"` : "";
+    const propsStr = renderProps(node.props);
+    [
+      "AlertDialog",
+      "AlertDialogTrigger",
+      "AlertDialogContent",
+      "AlertDialogHeader",
+      "AlertDialogTitle",
+      "AlertDialogDescription",
+      "AlertDialogFooter",
+      "AlertDialogCancel",
+      "AlertDialogAction"
+    ].forEach((n) => addImport(imports, "@/components/ui/alert-dialog", n));
+    addImport(imports, "@/components/ui/button", "Button");
+    return [
+      `${p0}<AlertDialog${propsStr}>`,
+      `${p1}<AlertDialogTrigger asChild>`,
+      `${p2}<Button variant="outline">Open</Button>`,
+      `${p1}</AlertDialogTrigger>`,
+      `${p1}<AlertDialogContent>`,
+      `${p2}<AlertDialogHeader>`,
+      `${p3}<AlertDialogTitle>${title}</AlertDialogTitle>`,
+      `${p3}<AlertDialogDescription>${description}</AlertDialogDescription>`,
+      `${p2}</AlertDialogHeader>`,
+      `${p2}<AlertDialogFooter>`,
+      `${p3}<AlertDialogCancel${cancelProps}>${cancelLabel}</AlertDialogCancel>`,
+      `${p3}<AlertDialogAction${actionProps}>${actionLabel}</AlertDialogAction>`,
+      `${p2}</AlertDialogFooter>`,
+      `${p1}</AlertDialogContent>`,
+      `${p0}</AlertDialog>`
+    ].join("\n");
+  }
+  function renderAvatar(node, imports, indent) {
+    var _a;
+    const pad = "  ".repeat(indent);
+    const ip = "  ".repeat(indent + 1);
+    const children = Array.isArray(node.children) ? node.children : [];
+    const texts = collectTexts(children);
+    const fallback = (_a = texts[0]) != null ? _a : "??";
+    addImport(imports, "@/components/ui/avatar", "Avatar");
+    addImport(imports, "@/components/ui/avatar", "AvatarImage");
+    addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+    return `${pad}<Avatar>
+${ip}<AvatarImage src="" alt="" />
+${ip}<AvatarFallback>${fallback}</AvatarFallback>
+${pad}</Avatar>`;
+  }
   function renderProps(props) {
     if (props.length === 0)
       return "";
@@ -1364,6 +1482,13 @@ ${pad}</Accordion>`;
       return `${pad}<div${clsAttr2}>
 ${childrenStr}
 ${pad}</div>`;
+    }
+    const sn = node;
+    if (sn.component === "AlertDialog") {
+      return renderAlertDialog(sn, imports, indent);
+    }
+    if (sn.component === "Avatar") {
+      return renderAvatar(sn, imports, indent);
     }
     const { component, importPath, props, children } = node;
     addImport(imports, importPath, component);

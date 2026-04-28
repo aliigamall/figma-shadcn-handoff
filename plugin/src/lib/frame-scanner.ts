@@ -180,7 +180,8 @@ function resolveProps(
   if (!def || !def.props) return [];
 
   const result: ScannedProp[] = [];
-  const rawProps = instance.componentProperties ?? {};
+  let rawProps: Record<string, ComponentProperty>;
+  try { rawProps = instance.componentProperties ?? {}; } catch { return []; }
 
   for (const [obraKey, propDef] of Object.entries(def.props)) {
     // Find the matching Figma property (key includes a '#...' suffix)
@@ -208,7 +209,8 @@ function resolveChildren(
   childrenKey: string | undefined
 ): string | null {
   if (!childrenKey) return null;
-  const rawProps = instance.componentProperties ?? {};
+  let rawProps: Record<string, ComponentProperty>;
+  try { rawProps = instance.componentProperties ?? {}; } catch { return null; }
   const figmaKey = Object.keys(rawProps).find(k => k.split("#")[0] === childrenKey);
   if (!figmaKey) return null;
   const val = rawProps[figmaKey].value;
@@ -240,7 +242,12 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
   if (!node.visible) return null;
 
   if (node.type === "INSTANCE") {
-    const mainComp = await node.getMainComponentAsync();
+    let mainComp: ComponentNode | null = null;
+    try {
+      mainComp = await node.getMainComponentAsync();
+    } catch {
+      return scanFrameNode(node as unknown as FrameNode);
+    }
     if (!mainComp) return scanFrameNode(node as unknown as FrameNode);
 
     const compName = mainComp.parent?.type === "COMPONENT_SET"

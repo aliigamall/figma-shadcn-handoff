@@ -122,6 +122,106 @@ function renderAccordion(node: ScannedFrame, imports: ImportMap, indent: number)
   return `${pad}<Accordion type="single" collapsible>\n${itemsJsx}\n${pad}</Accordion>`;
 }
 
+// ─── AlertDialog helpers ──────────────────────────────────────────────────────
+
+/** Recursively collect all ScannedText nodes from a tree */
+function collectTexts(nodes: ScannedTree[]): string[] {
+  const out: string[] = [];
+  for (const n of nodes) {
+    if ("isText" in n) { out.push((n as ScannedText).content); continue; }
+    if ("isLayout" in n) out.push(...collectTexts((n as ScannedFrame).children));
+    if ("component" in n && Array.isArray((n as ScannedNode).children))
+      out.push(...collectTexts((n as ScannedNode).children as ScannedTree[]));
+  }
+  return out;
+}
+
+/** Recursively collect Button ScannedNodes */
+function collectButtons(nodes: ScannedTree[]): ScannedNode[] {
+  const out: ScannedNode[] = [];
+  for (const n of nodes) {
+    if ("component" in n) {
+      const sn = n as ScannedNode;
+      if (sn.component === "Button") { out.push(sn); continue; }
+      if (Array.isArray(sn.children)) out.push(...collectButtons(sn.children as ScannedTree[]));
+    }
+    if ("isLayout" in n) out.push(...collectButtons((n as ScannedFrame).children));
+  }
+  return out;
+}
+
+function renderAlertDialog(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const p0 = "  ".repeat(indent);
+  const p1 = "  ".repeat(indent + 1);
+  const p2 = "  ".repeat(indent + 2);
+  const p3 = "  ".repeat(indent + 3);
+  const p4 = "  ".repeat(indent + 4);
+
+  const children = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+  const texts   = collectTexts(children);
+  const buttons = collectButtons(children);
+
+  const title       = texts[0]  ?? "Are you absolutely sure?";
+  const description = texts[1]  ?? "This action cannot be undone.";
+
+  // Heuristic: the destructive/primary button is the action; the ghost/outline is cancel
+  const isCancel = (b: ScannedNode) =>
+    b.props.some(p => p.shadcnProp === "variant" && ["outline", "ghost", "secondary"].includes(p.value));
+  const cancelBtn = buttons.find(isCancel) ?? buttons[1];
+  const actionBtn = buttons.find(b => b !== cancelBtn) ?? buttons[0];
+  const cancelLabel = typeof cancelBtn?.children === "string" ? cancelBtn.children : "Cancel";
+  const actionLabel = typeof actionBtn?.children === "string" ? actionBtn.children : "Continue";
+
+  const cancelVariant = cancelBtn?.props.find(p => p.shadcnProp === "variant")?.value;
+  const actionVariant = actionBtn?.props.find(p => p.shadcnProp === "variant")?.value;
+
+  const cancelProps = cancelVariant && cancelVariant !== "default" ? ` variant="${cancelVariant}"` : "";
+  const actionProps = actionVariant && actionVariant !== "default" ? ` variant="${actionVariant}"` : "";
+
+  const propsStr = renderProps(node.props);
+
+  ["AlertDialog","AlertDialogTrigger","AlertDialogContent",
+   "AlertDialogHeader","AlertDialogTitle","AlertDialogDescription",
+   "AlertDialogFooter","AlertDialogCancel","AlertDialogAction"]
+    .forEach(n => addImport(imports, "@/components/ui/alert-dialog", n));
+  addImport(imports, "@/components/ui/button", "Button");
+
+  return [
+    `${p0}<AlertDialog${propsStr}>`,
+    `${p1}<AlertDialogTrigger asChild>`,
+    `${p2}<Button variant="outline">Open</Button>`,
+    `${p1}</AlertDialogTrigger>`,
+    `${p1}<AlertDialogContent>`,
+    `${p2}<AlertDialogHeader>`,
+    `${p3}<AlertDialogTitle>${title}</AlertDialogTitle>`,
+    `${p3}<AlertDialogDescription>${description}</AlertDialogDescription>`,
+    `${p2}</AlertDialogHeader>`,
+    `${p2}<AlertDialogFooter>`,
+    `${p3}<AlertDialogCancel${cancelProps}>${cancelLabel}</AlertDialogCancel>`,
+    `${p3}<AlertDialogAction${actionProps}>${actionLabel}</AlertDialogAction>`,
+    `${p2}</AlertDialogFooter>`,
+    `${p1}</AlertDialogContent>`,
+    `${p0}</AlertDialog>`,
+  ].join("\n");
+}
+
+// ─── Avatar helpers ───────────────────────────────────────────────────────────
+
+function renderAvatar(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const ip  = "  ".repeat(indent + 1);
+
+  const children = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+  const texts    = collectTexts(children);
+  const fallback = texts[0] ?? "??";
+
+  addImport(imports, "@/components/ui/avatar", "Avatar");
+  addImport(imports, "@/components/ui/avatar", "AvatarImage");
+  addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+
+  return `${pad}<Avatar>\n${ip}<AvatarImage src="" alt="" />\n${ip}<AvatarFallback>${fallback}</AvatarFallback>\n${pad}</Avatar>`;
+}
+
 // ─── JSX rendering ───────────────────────────────────────────────────────────
 
 function renderProps(props: ScannedNode["props"]): string {
@@ -200,6 +300,18 @@ function renderNode(
   }
 
   // Mapped shadcn/ui component — never apply internal Figma layout as className
+  const sn = node as ScannedNode;
+
+  // AlertDialog — compound structure that needs full nesting
+  if (sn.component === "AlertDialog") {
+    return renderAlertDialog(sn, imports, indent);
+  }
+
+  // Avatar — always needs AvatarImage + AvatarFallback children
+  if (sn.component === "Avatar") {
+    return renderAvatar(sn, imports, indent);
+  }
+
   const { component, importPath, props, children } = node;
   addImport(imports, importPath, component);
 
