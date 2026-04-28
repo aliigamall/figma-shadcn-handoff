@@ -750,7 +750,7 @@ ${darkLines}
         "Card": {
           component: "Card",
           importPath: "@/components/ui/card",
-          ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No."]
+          ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No.", "State"]
         },
         // ── Breadcrumb ────────────────────────────────────────────────────────────
         "Breadcrumb": {
@@ -1505,6 +1505,97 @@ ${listInner}
 ${p1}</BreadcrumbList>
 ${p0}</Breadcrumb>`;
   }
+  function renderCardHeader(slotChildren, imports, indent) {
+    if (!(slotChildren == null ? void 0 : slotChildren.length))
+      return "";
+    const p1 = "  ".repeat(indent);
+    const p2 = "  ".repeat(indent + 1);
+    addImport(imports, "@/components/ui/card", "CardHeader");
+    addImport(imports, "@/components/ui/card", "CardTitle");
+    addImport(imports, "@/components/ui/card", "CardDescription");
+    const texts = collectTexts(slotChildren);
+    const lines = [];
+    if (texts[0])
+      lines.push(`${p2}<CardTitle>${texts[0]}</CardTitle>`);
+    if (texts[1])
+      lines.push(`${p2}<CardDescription>${texts[1]}</CardDescription>`);
+    const nonText = slotChildren.filter((c) => !("isText" in c));
+    nonText.forEach((c) => {
+      const s = renderNode(c, imports, indent + 1);
+      if (s)
+        lines.push(s);
+    });
+    if (!lines.length)
+      return "";
+    return `${p1}<CardHeader>
+${lines.join("\n")}
+${p1}</CardHeader>`;
+  }
+  function renderCardContent(slotChildren, imports, indent) {
+    if (!(slotChildren == null ? void 0 : slotChildren.length))
+      return "";
+    const p1 = "  ".repeat(indent);
+    addImport(imports, "@/components/ui/card", "CardContent");
+    const inner = slotChildren.map((c) => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
+    return inner ? `${p1}<CardContent>
+${inner}
+${p1}</CardContent>` : "";
+  }
+  function renderCardFooter(slotChildren, imports, indent) {
+    if (!(slotChildren == null ? void 0 : slotChildren.length))
+      return "";
+    const p1 = "  ".repeat(indent);
+    addImport(imports, "@/components/ui/card", "CardFooter");
+    const inner = slotChildren.map((c) => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
+    return inner ? `${p1}<CardFooter>
+${inner}
+${p1}</CardFooter>` : "";
+  }
+  function renderCard(node, imports, indent) {
+    const p0 = "  ".repeat(indent);
+    addImport(imports, "@/components/ui/card", "Card");
+    const children = Array.isArray(node.children) ? node.children : [];
+    const layoutChildren = children.filter((c) => "isLayout" in c);
+    let slotFrames;
+    if (layoutChildren.length === 1 && layoutChildren[0].children.length > 0 && layoutChildren[0].children.every((c) => "isLayout" in c)) {
+      slotFrames = layoutChildren[0].children;
+    } else {
+      slotFrames = layoutChildren;
+    }
+    const slotContents = slotFrames.map((f) => {
+      var _a;
+      return (_a = f.children) != null ? _a : [];
+    });
+    const sections = [];
+    if (slotContents.length === 1) {
+      const s = renderCardContent(slotContents[0], imports, indent + 1);
+      if (s)
+        sections.push(s);
+    } else if (slotContents.length === 2) {
+      const h = renderCardHeader(slotContents[0], imports, indent + 1);
+      const c = renderCardContent(slotContents[1], imports, indent + 1);
+      if (h)
+        sections.push(h);
+      if (c)
+        sections.push(c);
+    } else if (slotContents.length >= 3) {
+      const h = renderCardHeader(slotContents[0], imports, indent + 1);
+      if (h)
+        sections.push(h);
+      for (let i = 1; i < slotContents.length - 1; i++) {
+        const c = renderCardContent(slotContents[i], imports, indent + 1);
+        if (c)
+          sections.push(c);
+      }
+      const f = renderCardFooter(slotContents[slotContents.length - 1], imports, indent + 1);
+      if (f)
+        sections.push(f);
+    }
+    const propsStr = renderProps(node.props);
+    return `${p0}<Card${propsStr}>
+${sections.join("\n")}
+${p0}</Card>`;
+  }
   function isButtonGroupContainer(node) {
     if (node.layout.direction !== "horizontal")
       return false;
@@ -1593,6 +1684,9 @@ ${childrenStr}
 ${pad}</div>`;
     }
     const sn = node;
+    if (sn.component === "Card") {
+      return renderCard(sn, imports, indent);
+    }
     if (sn.component === "Breadcrumb") {
       return renderBreadcrumb(sn, imports, indent);
     }

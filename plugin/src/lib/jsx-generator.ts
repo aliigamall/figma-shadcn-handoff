@@ -246,6 +246,96 @@ function renderBreadcrumb(node: ScannedNode, imports: ImportMap, indent: number)
   return `${p0}<Breadcrumb>\n${p1}<BreadcrumbList>\n${listInner}\n${p1}</BreadcrumbList>\n${p0}</Breadcrumb>`;
 }
 
+// ─── Card helpers ─────────────────────────────────────────────────────────────
+
+function renderCardHeader(slotChildren: ScannedTree[] | undefined, imports: ImportMap, indent: number): string {
+  if (!slotChildren?.length) return "";
+  const p1 = "  ".repeat(indent);
+  const p2 = "  ".repeat(indent + 1);
+
+  addImport(imports, "@/components/ui/card", "CardHeader");
+  addImport(imports, "@/components/ui/card", "CardTitle");
+  addImport(imports, "@/components/ui/card", "CardDescription");
+
+  const texts = collectTexts(slotChildren);
+  const lines: string[] = [];
+  if (texts[0]) lines.push(`${p2}<CardTitle>${texts[0]}</CardTitle>`);
+  if (texts[1]) lines.push(`${p2}<CardDescription>${texts[1]}</CardDescription>`);
+
+  // Non-text children rendered after title/description
+  const nonText = slotChildren.filter(c => !("isText" in c));
+  nonText.forEach(c => {
+    const s = renderNode(c, imports, indent + 1);
+    if (s) lines.push(s);
+  });
+
+  if (!lines.length) return "";
+  return `${p1}<CardHeader>\n${lines.join("\n")}\n${p1}</CardHeader>`;
+}
+
+function renderCardContent(slotChildren: ScannedTree[] | undefined, imports: ImportMap, indent: number): string {
+  if (!slotChildren?.length) return "";
+  const p1 = "  ".repeat(indent);
+  addImport(imports, "@/components/ui/card", "CardContent");
+  const inner = slotChildren.map(c => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
+  return inner ? `${p1}<CardContent>\n${inner}\n${p1}</CardContent>` : "";
+}
+
+function renderCardFooter(slotChildren: ScannedTree[] | undefined, imports: ImportMap, indent: number): string {
+  if (!slotChildren?.length) return "";
+  const p1 = "  ".repeat(indent);
+  addImport(imports, "@/components/ui/card", "CardFooter");
+  const inner = slotChildren.map(c => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
+  return inner ? `${p1}<CardFooter>\n${inner}\n${p1}</CardFooter>` : "";
+}
+
+function renderCard(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const p0 = "  ".repeat(indent);
+  addImport(imports, "@/components/ui/card", "Card");
+
+  const children = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+  const layoutChildren = children.filter(c => "isLayout" in c) as ScannedFrame[];
+
+  // Resolve slot frames:
+  // - Placed instance: direct children ARE the .Slot frames → [Slot1, Slot2, Slot3]
+  // - Component page: single wrapper frame whose children are .Slot frames → [Wrapper([Slot1,Slot2,Slot3])]
+  let slotFrames: ScannedFrame[];
+  if (
+    layoutChildren.length === 1 &&
+    layoutChildren[0].children.length > 0 &&
+    layoutChildren[0].children.every(c => "isLayout" in c)
+  ) {
+    slotFrames = layoutChildren[0].children as ScannedFrame[];
+  } else {
+    slotFrames = layoutChildren;
+  }
+
+  const slotContents = slotFrames.map(f => f.children ?? []);
+  const sections: string[] = [];
+
+  if (slotContents.length === 1) {
+    const s = renderCardContent(slotContents[0], imports, indent + 1);
+    if (s) sections.push(s);
+  } else if (slotContents.length === 2) {
+    const h = renderCardHeader(slotContents[0], imports, indent + 1);
+    const c = renderCardContent(slotContents[1], imports, indent + 1);
+    if (h) sections.push(h);
+    if (c) sections.push(c);
+  } else if (slotContents.length >= 3) {
+    const h = renderCardHeader(slotContents[0], imports, indent + 1);
+    if (h) sections.push(h);
+    for (let i = 1; i < slotContents.length - 1; i++) {
+      const c = renderCardContent(slotContents[i], imports, indent + 1);
+      if (c) sections.push(c);
+    }
+    const f = renderCardFooter(slotContents[slotContents.length - 1], imports, indent + 1);
+    if (f) sections.push(f);
+  }
+
+  const propsStr = renderProps(node.props);
+  return `${p0}<Card${propsStr}>\n${sections.join("\n")}\n${p0}</Card>`;
+}
+
 // ─── ButtonGroup helpers ──────────────────────────────────────────────────────
 
 function isButtonGroupContainer(node: ScannedFrame): boolean {
@@ -377,6 +467,11 @@ function renderNode(
 
   // Mapped shadcn/ui component — never apply internal Figma layout as className
   const sn = node as ScannedNode;
+
+  // Card — needs CardHeader/CardContent/CardFooter wrapper
+  if (sn.component === "Card") {
+    return renderCard(sn, imports, indent);
+  }
 
   // Breadcrumb — needs BreadcrumbList wrapper + Link/Page distinction
   if (sn.component === "Breadcrumb") {

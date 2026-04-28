@@ -334,7 +334,7 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
   "Card": {
     component:  "Card",
     importPath: "@/components/ui/card",
-    ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No."],
+    ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No.", "State"],
   },
 
   // ── Breadcrumb ────────────────────────────────────────────────────────────
