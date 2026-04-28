@@ -205,6 +205,47 @@ function renderAlertDialog(node: ScannedNode, imports: ImportMap, indent: number
   ].join("\n");
 }
 
+// ─── Breadcrumb helpers ───────────────────────────────────────────────────────
+
+function renderBreadcrumb(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const p0 = "  ".repeat(indent);
+  const p1 = "  ".repeat(indent + 1);
+  const p2 = "  ".repeat(indent + 2);
+  const p3 = "  ".repeat(indent + 3);
+
+  const children = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+
+  // Identify positions of BreadcrumbItem nodes so we can mark the last one
+  const itemIndices = children
+    .map((c, i) => ("component" in c && (c as ScannedNode).component === "BreadcrumbItem" ? i : -1))
+    .filter(i => i >= 0);
+  const lastItemIdx = itemIndices[itemIndices.length - 1] ?? -1;
+
+  ["Breadcrumb","BreadcrumbList","BreadcrumbItem","BreadcrumbLink","BreadcrumbSeparator","BreadcrumbPage"]
+    .forEach(n => addImport(imports, "@/components/ui/breadcrumb", n));
+
+  const listInner = children.map((c, idx) => {
+    if (!("component" in c)) return "";
+    const sn = c as ScannedNode;
+
+    if (sn.component === "BreadcrumbSeparator") {
+      return `${p2}<BreadcrumbSeparator />`;
+    }
+
+    if (sn.component === "BreadcrumbItem") {
+      const label = typeof sn.children === "string" ? sn.children : "Link";
+      if (idx === lastItemIdx) {
+        return `${p2}<BreadcrumbItem>\n${p3}<BreadcrumbPage>${label}</BreadcrumbPage>\n${p2}</BreadcrumbItem>`;
+      }
+      return `${p2}<BreadcrumbItem>\n${p3}<BreadcrumbLink href="/">${label}</BreadcrumbLink>\n${p2}</BreadcrumbItem>`;
+    }
+
+    return renderNode(c, imports, indent + 2);
+  }).filter(Boolean).join("\n");
+
+  return `${p0}<Breadcrumb>\n${p1}<BreadcrumbList>\n${listInner}\n${p1}</BreadcrumbList>\n${p0}</Breadcrumb>`;
+}
+
 // ─── Avatar helpers ───────────────────────────────────────────────────────────
 
 function renderAvatar(node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -306,6 +347,11 @@ function renderNode(
 
   // Mapped shadcn/ui component — never apply internal Figma layout as className
   const sn = node as ScannedNode;
+
+  // Breadcrumb — needs BreadcrumbList wrapper + Link/Page distinction
+  if (sn.component === "Breadcrumb") {
+    return renderBreadcrumb(sn, imports, indent);
+  }
 
   // AlertDialog — compound structure that needs full nesting
   if (sn.component === "AlertDialog") {

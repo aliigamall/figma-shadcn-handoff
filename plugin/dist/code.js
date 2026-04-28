@@ -737,6 +737,17 @@ ${darkLines}
           importPath: "@/components/ui/breadcrumb",
           ignore: ["Items"]
         },
+        ".Breadcrumb item": {
+          component: "BreadcrumbItem",
+          importPath: "@/components/ui/breadcrumb",
+          children: "\u2B91 Label",
+          ignore: ["Content", "State"]
+        },
+        ".Breadcrumb separator": {
+          component: "BreadcrumbSeparator",
+          importPath: "@/components/ui/breadcrumb",
+          ignore: ["Content"]
+        },
         // ── Pagination ────────────────────────────────────────────────────────────
         "Pagination": {
           component: "Pagination",
@@ -1437,6 +1448,42 @@ ${pad}</Accordion>`;
       `${p0}</AlertDialog>`
     ].join("\n");
   }
+  function renderBreadcrumb(node, imports, indent) {
+    var _a;
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    const children = Array.isArray(node.children) ? node.children : [];
+    const itemIndices = children.map((c, i) => "component" in c && c.component === "BreadcrumbItem" ? i : -1).filter((i) => i >= 0);
+    const lastItemIdx = (_a = itemIndices[itemIndices.length - 1]) != null ? _a : -1;
+    ["Breadcrumb", "BreadcrumbList", "BreadcrumbItem", "BreadcrumbLink", "BreadcrumbSeparator", "BreadcrumbPage"].forEach((n) => addImport(imports, "@/components/ui/breadcrumb", n));
+    const listInner = children.map((c, idx) => {
+      if (!("component" in c))
+        return "";
+      const sn = c;
+      if (sn.component === "BreadcrumbSeparator") {
+        return `${p2}<BreadcrumbSeparator />`;
+      }
+      if (sn.component === "BreadcrumbItem") {
+        const label = typeof sn.children === "string" ? sn.children : "Link";
+        if (idx === lastItemIdx) {
+          return `${p2}<BreadcrumbItem>
+${p3}<BreadcrumbPage>${label}</BreadcrumbPage>
+${p2}</BreadcrumbItem>`;
+        }
+        return `${p2}<BreadcrumbItem>
+${p3}<BreadcrumbLink href="/">${label}</BreadcrumbLink>
+${p2}</BreadcrumbItem>`;
+      }
+      return renderNode(c, imports, indent + 2);
+    }).filter(Boolean).join("\n");
+    return `${p0}<Breadcrumb>
+${p1}<BreadcrumbList>
+${listInner}
+${p1}</BreadcrumbList>
+${p0}</Breadcrumb>`;
+  }
   function renderAvatar(node, imports, indent) {
     var _a;
     const pad = "  ".repeat(indent);
@@ -1508,6 +1555,9 @@ ${childrenStr}
 ${pad}</div>`;
     }
     const sn = node;
+    if (sn.component === "Breadcrumb") {
+      return renderBreadcrumb(sn, imports, indent);
+    }
     if (sn.component === "AlertDialog") {
       return renderAlertDialog(sn, imports, indent);
     }

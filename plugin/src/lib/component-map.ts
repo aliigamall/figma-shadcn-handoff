@@ -321,6 +321,19 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["Items"],
   },
 
+  ".Breadcrumb item": {
+    component:  "BreadcrumbItem",
+    importPath: "@/components/ui/breadcrumb",
+    children:   "⮑ Label",
+    ignore:     ["Content", "State"],
+  },
+
+  ".Breadcrumb separator": {
+    component:  "BreadcrumbSeparator",
+    importPath: "@/components/ui/breadcrumb",
+    ignore:     ["Content"],
+  },
+
   // ── Pagination ────────────────────────────────────────────────────────────
   "Pagination": {
     component:  "Pagination",
