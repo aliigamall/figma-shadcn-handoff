@@ -524,7 +524,28 @@ ${darkLines}
             "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
             "Size": { shadcnProp: "size", values: SIZE_MAP }
           },
+          children: "Label",
           ignore: ["State", "Roundness", "Show right icon", "Show left icon", "\u2B91 Right icon", "\u2B91 Left icon"]
+        },
+        // ── Button Group ──────────────────────────────────────────────────────────
+        "Button Group": {
+          component: "Button",
+          importPath: "@/components/ui/button",
+          props: {
+            "Skin": { shadcnProp: "variant", values: { Outlined: "outline", Ghost: "ghost" } },
+            "Size": { shadcnProp: "size", values: SIZE_MAP }
+          },
+          children: "Label",
+          ignore: ["State", "Position"]
+        },
+        "Button Group Icon Button": {
+          component: "Button",
+          importPath: "@/components/ui/button",
+          props: {
+            "Skin": { shadcnProp: "variant", values: { Outlined: "outline", Ghost: "ghost" } },
+            "Size": { shadcnProp: "size", values: { Default: "icon", Small: "icon-sm", Large: "icon-lg" } }
+          },
+          ignore: ["State", "Position", "Icon"]
         },
         // ── Icon Button ───────────────────────────────────────────────────────────
         "Icon Button": {
@@ -1484,6 +1505,20 @@ ${listInner}
 ${p1}</BreadcrumbList>
 ${p0}</Breadcrumb>`;
   }
+  function isButtonGroupContainer(node) {
+    if (node.layout.direction !== "horizontal")
+      return false;
+    const mappedChildren = node.children.filter((c) => "component" in c);
+    return mappedChildren.length >= 2 && mappedChildren.every((c) => c.component === "Button") && node.children.every((c) => "component" in c);
+  }
+  function renderButtonGroup(node, imports, indent) {
+    const pad = "  ".repeat(indent);
+    addImport(imports, "@/components/ui/button-group", "ButtonGroup");
+    const buttonsJsx = node.children.map((c) => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
+    return `${pad}<ButtonGroup>
+${buttonsJsx}
+${pad}</ButtonGroup>`;
+  }
   function renderAvatar(node, imports, indent) {
     var _a;
     const pad = "  ".repeat(indent);
@@ -1542,6 +1577,9 @@ ${pad}</Avatar>`;
       }
       if (isAccordionContainer(node)) {
         return renderAccordion(node, imports, indent);
+      }
+      if (isButtonGroupContainer(node)) {
+        return renderButtonGroup(node, imports, indent);
       }
       const layoutCls = layoutClasses(node.layout);
       const visualCls = visualClasses(node.visual);

@@ -82,7 +82,30 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
       "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
       "Size":    { shadcnProp: "size",    values: SIZE_MAP },
     },
+    children: "Label",
     ignore: ["State", "Roundness", "Show right icon", "Show left icon", "⮑ Right icon", "⮑ Left icon"],
+  },
+
+  // ── Button Group ──────────────────────────────────────────────────────────
+  "Button Group": {
+    component:  "Button",
+    importPath: "@/components/ui/button",
+    props: {
+      "Skin": { shadcnProp: "variant", values: { Outlined: "outline", Ghost: "ghost" } },
+      "Size": { shadcnProp: "size",    values: SIZE_MAP },
+    },
+    children: "Label",
+    ignore: ["State", "Position"],
+  },
+
+  "Button Group Icon Button": {
+    component:  "Button",
+    importPath: "@/components/ui/button",
+    props: {
+      "Skin": { shadcnProp: "variant", values: { Outlined: "outline", Ghost: "ghost" } },
+      "Size": { shadcnProp: "size",    values: { Default: "icon", Small: "icon-sm", Large: "icon-lg" } },
+    },
+    ignore: ["State", "Position", "Icon"],
   },
 
   // ── Icon Button ───────────────────────────────────────────────────────────

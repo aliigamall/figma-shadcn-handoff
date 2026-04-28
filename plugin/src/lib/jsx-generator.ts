@@ -6,7 +6,7 @@
  *  - A deduplicated list of import statements
  */
 
-import type { ScannedNode, ScannedText, ScannedImage, ScannedIcon, ScannedInlineText, ScannedTree } from "./frame-scanner";
+import type { ScannedNode, ScannedFrame, ScannedText, ScannedImage, ScannedIcon, ScannedInlineText, ScannedTree } from "./frame-scanner";
 import { layoutClasses, visualClasses, textVisualClasses } from "./tailwind-layout";
 
 // ─── Import tracking ──────────────────────────────────────────────────────────
@@ -246,6 +246,31 @@ function renderBreadcrumb(node: ScannedNode, imports: ImportMap, indent: number)
   return `${p0}<Breadcrumb>\n${p1}<BreadcrumbList>\n${listInner}\n${p1}</BreadcrumbList>\n${p0}</Breadcrumb>`;
 }
 
+// ─── ButtonGroup helpers ──────────────────────────────────────────────────────
+
+function isButtonGroupContainer(node: ScannedFrame): boolean {
+  if (node.layout.direction !== "horizontal") return false;
+  const mappedChildren = node.children.filter(c => "component" in c);
+  return (
+    mappedChildren.length >= 2 &&
+    mappedChildren.every(c => (c as ScannedNode).component === "Button") &&
+    node.children.every(c => "component" in c)
+  );
+}
+
+function renderButtonGroup(node: ScannedFrame, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+
+  addImport(imports, "@/components/ui/button-group", "ButtonGroup");
+
+  const buttonsJsx = node.children
+    .map(c => renderNode(c, imports, indent + 1))
+    .filter(Boolean)
+    .join("\n");
+
+  return `${pad}<ButtonGroup>\n${buttonsJsx}\n${pad}</ButtonGroup>`;
+}
+
 // ─── Avatar helpers ───────────────────────────────────────────────────────────
 
 function renderAvatar(node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -329,6 +354,11 @@ function renderNode(
     // Vertical stack of AccordionTrigger/Content → emit full <Accordion> structure
     if (isAccordionContainer(node)) {
       return renderAccordion(node, imports, indent);
+    }
+
+    // Horizontal frame of all Button nodes → emit <ButtonGroup>
+    if (isButtonGroupContainer(node)) {
+      return renderButtonGroup(node, imports, indent);
     }
 
     const layoutCls = layoutClasses(node.layout);
