@@ -6,7 +6,7 @@
  *  - A deduplicated list of import statements
  */
 
-import type { ScannedNode, ScannedText, ScannedImage, ScannedIcon, ScannedTree } from "./frame-scanner";
+import type { ScannedNode, ScannedText, ScannedImage, ScannedIcon, ScannedInlineText, ScannedTree } from "./frame-scanner";
 import { layoutClasses, visualClasses, textVisualClasses } from "./tailwind-layout";
 
 // ─── Import tracking ──────────────────────────────────────────────────────────
@@ -246,6 +246,11 @@ function renderNode(
 ): string {
   const pad = "  ".repeat(indent);
 
+  // Inline text — no HTML tag, used inside mapped components alongside icons
+  if ("isInlineText" in node) {
+    return `${pad}${(node as ScannedInlineText).content}`;
+  }
+
   // Lucide icon
   if ("isIcon" in node) {
     const icon = node as ScannedIcon;
@@ -316,7 +321,7 @@ function renderNode(
   addImport(imports, importPath, component);
 
   const propsStr = renderProps(props);
-  const clsAttr = "";
+  const clsAttr  = "";
 
   // Text children
   if (typeof children === "string" && children) {

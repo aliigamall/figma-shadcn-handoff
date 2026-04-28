@@ -940,7 +940,7 @@ ${darkLines}
   }
   function scanNode(node) {
     return __async(this, null, function* () {
-      var _a;
+      var _a, _b;
       if (!node.visible)
         return null;
       if (node.type === "INSTANCE") {
@@ -991,14 +991,35 @@ ${darkLines}
             };
           }
           const textChildren = resolveChildren(node, def.children);
-          const childNodes = textChildren === null ? yield scanChildren(node) : [];
+          if (textChildren !== null) {
+            const iconNodes = [];
+            try {
+              for (const child of (_b = node.children) != null ? _b : []) {
+                const s = yield scanNode(child);
+                if (s && "isIcon" in s)
+                  iconNodes.push(s);
+              }
+            } catch (e) {
+            }
+            const children = iconNodes.length > 0 ? [...iconNodes, { isInlineText: true, id: `${node.id}-text`, content: textChildren }] : textChildren;
+            return {
+              id: node.id,
+              figmaName: compName,
+              component: def.component,
+              importPath: def.importPath,
+              props: resolveProps(node, def),
+              children,
+              layout: extractLayout(node)
+            };
+          }
+          const childNodes = yield scanChildren(node);
           return {
             id: node.id,
             figmaName: compName,
             component: def.component,
             importPath: def.importPath,
             props: resolveProps(node, def),
-            children: textChildren != null ? textChildren : childNodes,
+            children: childNodes,
             layout: extractLayout(node)
           };
         }
@@ -1446,6 +1467,9 @@ ${pad}</Avatar>`;
   }
   function renderNode(node, imports, indent) {
     const pad = "  ".repeat(indent);
+    if ("isInlineText" in node) {
+      return `${pad}${node.content}`;
+    }
     if ("isIcon" in node) {
       const icon = node;
       addImport(imports, "lucide-react", icon.lucideName);

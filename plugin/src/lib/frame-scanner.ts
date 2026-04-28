@@ -83,7 +83,14 @@ export interface ScannedIcon {
   height: number;
 }
 
-export type ScannedTree = ScannedNode | ScannedFrame | ScannedText | ScannedImage | ScannedIcon;
+/** Plain inline text with no HTML wrapper — used inside mapped components alongside icons */
+export interface ScannedInlineText {
+  isInlineText: true;
+  id: string;
+  content: string;
+}
+
+export type ScannedTree = ScannedNode | ScannedFrame | ScannedText | ScannedImage | ScannedIcon | ScannedInlineText;
 
 // ─── Visual helpers ───────────────────────────────────────────────────────────
 
@@ -217,6 +224,7 @@ function resolveChildren(
   return typeof val === "string" ? val : null;
 }
 
+
 /** Depth-first search for the first TEXT layer whose trimmed text isn't already used */
 function findFirstUnusedText(node: ChildrenMixin, used: Set<string>): string | null {
   for (const child of (node as SceneNode as ChildrenMixin).children) {
@@ -266,7 +274,6 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
           let text: string | null = slot.key ? resolveChildren(node, slot.key) : null;
           if (text) usedTexts.add(text);
 
-          // Fallback: traverse children tree for first unused TEXT layer
           if (!text && slot.scanChildren) {
             text = findFirstUnusedText(node, usedTexts);
             if (text) usedTexts.add(text);
@@ -296,17 +303,37 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
       }
 
       const textChildren = resolveChildren(node, def.children);
-      const childNodes = textChildren === null
-        ? await scanChildren(node)
-        : [];
 
+      if (textChildren !== null) {
+        const iconNodes: ScannedTree[] = [];
+        try {
+          for (const child of node.children ?? []) {
+            const s = await scanNode(child);
+            if (s && "isIcon" in s) iconNodes.push(s);
+          }
+        } catch { /* icon scan failed — proceed without icons */ }
+        const children: string | ScannedTree[] = iconNodes.length > 0
+          ? [...iconNodes, { isInlineText: true, id: `${node.id}-text`, content: textChildren } as ScannedInlineText]
+          : textChildren;
+        return {
+          id:         node.id,
+          figmaName:  compName,
+          component:  def.component,
+          importPath: def.importPath,
+          props:      resolveProps(node, def),
+          children,
+          layout:     extractLayout(node as unknown as FrameNode),
+        };
+      }
+
+      const childNodes = await scanChildren(node);
       return {
         id:         node.id,
         figmaName:  compName,
         component:  def.component,
         importPath: def.importPath,
         props:      resolveProps(node, def),
-        children:   textChildren ?? childNodes,
+        children:   childNodes,
         layout:     extractLayout(node as unknown as FrameNode),
       };
     }
