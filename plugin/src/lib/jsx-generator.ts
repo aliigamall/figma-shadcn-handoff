@@ -457,131 +457,37 @@ function renderBarChart(node: ScannedNode, imports: ImportMap, indent: number): 
 
   // ── Interactive variant ────────────────────────────────────────────────────
   if (chartType === "interactive") {
-    addImport(imports, DIRECTIVE_KEY, '"use client"');
-    addImport(imports, RAW_IMPORT_KEY, 'import * as React from "react"');
+    // Same as default but with a controlled activeChart state for toggling series
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+    addImport(imports, CSS_KEY, CHART_CSS_VARS);
     addImport(imports, "recharts", "BarChart");
     addImport(imports, "recharts", "Bar");
     addImport(imports, "recharts", "CartesianGrid");
     addImport(imports, "recharts", "XAxis");
-    addImport(imports, "@/components/ui/card", "Card");
-    addImport(imports, "@/components/ui/card", "CardContent");
-    addImport(imports, "@/components/ui/card", "CardDescription");
-    addImport(imports, "@/components/ui/card", "CardHeader");
-    addImport(imports, "@/components/ui/card", "CardTitle");
     addImport(imports, "@/components/ui/chart", "ChartContainer");
     addImport(imports, "@/components/ui/chart", "type ChartConfig");
     addImport(imports, "@/components/ui/chart", "ChartTooltip");
     addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
 
-    addImport(imports, CSS_KEY, CHART_CSS_VARS);
-
-    const iSeries = series.slice(0, 2).length > 0 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
-
-    // Date-based chart data: April–June (13 data points)
-    const DATES = [
-      "2024-04-01","2024-04-08","2024-04-15","2024-04-22","2024-04-29",
-      "2024-05-06","2024-05-13","2024-05-20","2024-05-27",
-      "2024-06-03","2024-06-10","2024-06-17","2024-06-24",
-    ];
+    const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
+    const DATES = ["2024-04-01","2024-04-08","2024-04-15","2024-04-22","2024-04-29","2024-05-06","2024-05-13","2024-05-20","2024-05-27","2024-06-03","2024-06-10","2024-06-17","2024-06-24"];
     const VALS2 = [222,97,167,242,373,301,245,409,59,261,327,292,342];
     const VALS3 = [150,180,120,260,290,340,180,220,100,310,250,190,280];
 
     const iDataLines = DATES.map((d, i) => {
       const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS2[i] : VALS3[i]}`).join(", ");
-      return `    { date: "${d}", ${vals} },`;
+      return `  { date: "${d}", ${vals} },`;
     });
-    const iChartDataStr = `const chartData = [\n${iDataLines.join("\n")}\n]`;
-
-    const iConfigLines = [
-      `  views: { label: "Page Views" },`,
-      ...iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`),
-    ];
-    const iChartConfigStr = `const chartConfig = {\n${iConfigLines.join("\n")}\n} satisfies ChartConfig`;
-
-    addImport(imports, PREAMBLE_KEY, iChartDataStr);
-    addImport(imports, PREAMBLE_KEY, iChartConfigStr);
+    addImport(imports, PREAMBLE_KEY, `const chartData = [\n${iDataLines.join("\n")}\n]`);
+    addImport(imports, PREAMBLE_KEY, `const chartConfig = {\n${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}\n} satisfies ChartConfig`);
 
     const keys = iSeries.map(s => `"${s.key}"`).join(" | ");
-    const firstKey = iSeries[0].key;
+    addImport(imports, PREAMBLE_KEY, `const [activeChart, setActiveChart] = useState<${keys}>("${iSeries[0].key}")`);
 
-    const totals = iSeries.map(s =>
-      `  const total${s.key.charAt(0).toUpperCase() + s.key.slice(1)} = React.useMemo(\n    () => chartData.reduce((acc, curr) => acc + curr.${s.key}, 0),\n    []\n  )`
-    ).join("\n");
-
-    const tabButtons = iSeries.map(s =>
-      `        <button\n          key="${s.key}"\n          data-active={activeChart === "${s.key}"}\n          className="relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-l sm:border-t-0 sm:px-8 sm:py-6"\n          onClick={() => setActiveChart("${s.key}")}\n        >\n          <span className="text-xs text-muted-foreground">\n            {chartConfig.${s.key}.label}\n          </span>\n          <span className="text-lg font-bold leading-none sm:text-3xl">\n            {total${s.key.charAt(0).toUpperCase() + s.key.slice(1)}.toLocaleString()}\n          </span>\n        </button>`
-    ).join("\n");
-
-    const component = `export function BarChartInteractive() {
-  const [activeChart, setActiveChart] =
-    React.useState<${keys}>("${firstKey}")
-
-${totals}
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-col items-stretch border-b p-0 sm:flex-row">
-        <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
-          <CardTitle>Bar Chart - Interactive</CardTitle>
-          <CardDescription>
-            Showing total visitors for the last 3 months
-          </CardDescription>
-        </div>
-        <div className="flex">
-${tabButtons}
-        </div>
-      </CardHeader>
-      <CardContent className="px-2 sm:p-6">
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
-        >
-          <BarChart
-            accessibilityLayer
-            data={chartData}
-            margin={{ left: 12, right: 12 }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={(value) => {
-                const date = new Date(value)
-                return date.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })
-              }}
-            />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  className="w-[150px]"
-                  nameKey="views"
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
-                  }}
-                />
-              }
-            />
-            <Bar dataKey={activeChart} fill={\`var(--color-\${activeChart})\`} />
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  )
-}`;
-
-    addImport(imports, PREAMBLE_KEY, component);
-    return `<BarChartInteractive />`;
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    return `${p0}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">\n${p1}<BarChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>\n${p2}<CartesianGrid vertical={false} />\n${p2}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />\n${p2}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" nameKey="views" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />\n${p2}<Bar dataKey={activeChart} fill={\`var(--color-\${activeChart})\`} />\n${p1}</BarChart>\n${p0}</ChartContainer>`;
   }
 
   // Install command
@@ -620,135 +526,58 @@ function renderAreaChart(node: ScannedNode, imports: ImportMap, indent: number):
 
   // ── Interactive ────────────────────────────────────────────────────────────
   if (chartType === "interactive") {
-    addImport(imports, DIRECTIVE_KEY, '"use client"');
-    addImport(imports, RAW_IMPORT_KEY, 'import * as React from "react"');
     addImport(imports, "recharts", "AreaChart");
     addImport(imports, "recharts", "Area");
     addImport(imports, "recharts", "CartesianGrid");
     addImport(imports, "recharts", "XAxis");
-    addImport(imports, "@/components/ui/card", "Card");
-    addImport(imports, "@/components/ui/card", "CardContent");
-    addImport(imports, "@/components/ui/card", "CardDescription");
-    addImport(imports, "@/components/ui/card", "CardHeader");
-    addImport(imports, "@/components/ui/card", "CardTitle");
     addImport(imports, "@/components/ui/chart", "ChartContainer");
     addImport(imports, "@/components/ui/chart", "type ChartConfig");
     addImport(imports, "@/components/ui/chart", "ChartTooltip");
     addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
 
     const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
-
-    const DATES = [
-      "2024-04-01","2024-04-08","2024-04-15","2024-04-22","2024-04-29",
-      "2024-05-06","2024-05-13","2024-05-20","2024-05-27",
-      "2024-06-03","2024-06-10","2024-06-17","2024-06-24",
-    ];
+    const DATES = ["2024-04-01","2024-04-08","2024-04-15","2024-04-22","2024-04-29","2024-05-06","2024-05-13","2024-05-20","2024-05-27","2024-06-03","2024-06-10","2024-06-17","2024-06-24"];
     const VALS_A = [222,97,167,242,373,301,245,409,59,261,327,292,342];
     const VALS_B = [150,180,120,260,290,340,180,220,100,310,250,190,280];
 
     const iDataLines = DATES.map((d, i) => {
       const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS_A[i] : VALS_B[i]}`).join(", ");
-      return `    { date: "${d}", ${vals} },`;
+      return `  { date: "${d}", ${vals} },`;
     });
-    const iChartDataStr = `const chartData = [\n${iDataLines.join("\n")}\n]`;
-
-    const iConfigLines = [
-      ...iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`),
-    ];
-    const iChartConfigStr = `const chartConfig = {\n${iConfigLines.join("\n")}\n} satisfies ChartConfig`;
-
-    addImport(imports, PREAMBLE_KEY, iChartDataStr);
-    addImport(imports, PREAMBLE_KEY, iChartConfigStr);
+    addImport(imports, PREAMBLE_KEY, `const chartData = [\n${iDataLines.join("\n")}\n]`);
+    addImport(imports, PREAMBLE_KEY, `const chartConfig = {\n${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}\n} satisfies ChartConfig`);
 
     const keys = iSeries.map(s => `"${s.key}"`).join(" | ");
-    const firstKey = iSeries[0].key;
+    addImport(imports, PREAMBLE_KEY, `const [activeChart, setActiveChart] = useState<${keys}>("${iSeries[0].key}")`);
 
-    const gradientDefs = iSeries.map(s =>
-      `        <linearGradient id="fill${s.key.charAt(0).toUpperCase() + s.key.slice(1)}" x1="0" y1="0" x2="0" y2="1">\n          <stop offset="5%" stopColor="var(--color-${s.key})" stopOpacity={0.8} />\n          <stop offset="95%" stopColor="var(--color-${s.key})" stopOpacity={0.1} />\n        </linearGradient>`
-    ).join("\n");
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
 
-    const areaElems = iSeries.map(s =>
-      `            <Area\n              dataKey="${s.key}"\n              type="natural"\n              fill="url(#fill${s.key.charAt(0).toUpperCase() + s.key.slice(1)})"\n              fillOpacity={0.4}\n              stroke="var(--color-${s.key})"\n              stackId="a"\n            />`
-    ).join("\n");
+    const gradientDefs = iSeries.map(s => {
+      const cap = s.key.charAt(0).toUpperCase() + s.key.slice(1);
+      return `${p3}<linearGradient id="fill${cap}" x1="0" y1="0" x2="0" y2="1">\n${p3}  <stop offset="5%" stopColor="var(--color-${s.key})" stopOpacity={0.8} />\n${p3}  <stop offset="95%" stopColor="var(--color-${s.key})" stopOpacity={0.1} />\n${p3}</linearGradient>`;
+    }).join("\n");
 
-    const component = `export function AreaChartInteractive() {
-  const [activeChart, setActiveChart] =
-    React.useState<${keys}>("${firstKey}")
+    const areaElems = iSeries.map(s => {
+      const cap = s.key.charAt(0).toUpperCase() + s.key.slice(1);
+      return `${p3}<Area dataKey="${s.key}" type="natural" fill="url(#fill${cap})" fillOpacity={0.4} stroke="var(--color-${s.key})" />`;
+    }).join("\n");
 
-  return (
-    <Card>
-      <CardHeader className="flex flex-col items-stretch border-b p-0 sm:flex-row">
-        <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
-          <CardTitle>Area Chart - Interactive</CardTitle>
-          <CardDescription>
-            Showing total visitors for the last 3 months
-          </CardDescription>
-        </div>
-        <div className="flex">
-${iSeries.map(s => `          <button
-            key="${s.key}"
-            data-active={activeChart === "${s.key}"}
-            className="relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-l sm:border-t-0 sm:px-8 sm:py-6"
-            onClick={() => setActiveChart("${s.key}")}
-          >
-            <span className="text-xs text-muted-foreground">
-              {chartConfig.${s.key}.label}
-            </span>
-          </button>`).join("\n")}
-        </div>
-      </CardHeader>
-      <CardContent className="px-2 sm:p-6">
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
-        >
-          <AreaChart
-            accessibilityLayer
-            data={chartData}
-            margin={{ left: 12, right: 12 }}
-          >
-            <defs>
-${gradientDefs}
-            </defs>
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={(value) => {
-                const date = new Date(value)
-                return date.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })
-              }}
-            />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  className="w-[150px]"
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
-                  }}
-                />
-              }
-            />
-${areaElems}
-          </AreaChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  )
-}`;
-
-    addImport(imports, PREAMBLE_KEY, component);
-    return `<AreaChartInteractive />`;
+    return [
+      `${p0}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">`,
+      `${p1}<AreaChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
+      `${p2}<defs>`,
+      gradientDefs,
+      `${p2}</defs>`,
+      `${p2}<CartesianGrid vertical={false} />`,
+      `${p2}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />`,
+      `${p2}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />`,
+      areaElems,
+      `${p1}</AreaChart>`,
+      `${p0}</ChartContainer>`,
+    ].join("\n");
   }
 
   // ── Standard variants (Default, Linear, Step, Stacked) ────────────────────
