@@ -18,15 +18,20 @@ function addImport(imports: ImportMap, path: string, name: string) {
   imports.get(path)!.add(name);
 }
 
-const PREAMBLE_KEY = "__preamble__";
-const INSTALL_KEY  = "__install__";
-const CSS_KEY      = "__css__";
+const PREAMBLE_KEY   = "__preamble__";
+const INSTALL_KEY    = "__install__";
+const CSS_KEY        = "__css__";
+const DIRECTIVE_KEY  = "__directive__";
+const RAW_IMPORT_KEY = "__raw_import__";
 
 function renderImports(imports: ImportMap): string {
-  return Array.from(imports.entries())
+  const directives  = imports.get(DIRECTIVE_KEY)  ? Array.from(imports.get(DIRECTIVE_KEY)!).join("\n")  : "";
+  const rawImports  = imports.get(RAW_IMPORT_KEY) ? Array.from(imports.get(RAW_IMPORT_KEY)!).join("\n") : "";
+  const namedImports = Array.from(imports.entries())
     .filter(([path]) => !path.startsWith("__"))
     .map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`)
     .join("\n");
+  return [directives, rawImports, namedImports].filter(Boolean).join("\n\n");
 }
 
 // ─── Table grid helpers ───────────────────────────────────────────────────────
@@ -450,16 +455,359 @@ function renderBarChart(node: ScannedNode, imports: ImportMap, indent: number): 
     ].join("\n");
   }
 
+  // ── Interactive variant ────────────────────────────────────────────────────
+  if (chartType === "interactive") {
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, RAW_IMPORT_KEY, 'import * as React from "react"');
+    addImport(imports, "recharts", "BarChart");
+    addImport(imports, "recharts", "Bar");
+    addImport(imports, "recharts", "CartesianGrid");
+    addImport(imports, "recharts", "XAxis");
+    addImport(imports, "@/components/ui/card", "Card");
+    addImport(imports, "@/components/ui/card", "CardContent");
+    addImport(imports, "@/components/ui/card", "CardDescription");
+    addImport(imports, "@/components/ui/card", "CardHeader");
+    addImport(imports, "@/components/ui/card", "CardTitle");
+    addImport(imports, "@/components/ui/chart", "ChartContainer");
+    addImport(imports, "@/components/ui/chart", "type ChartConfig");
+    addImport(imports, "@/components/ui/chart", "ChartTooltip");
+    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+
+    addImport(imports, CSS_KEY, CHART_CSS_VARS);
+
+    const iSeries = series.slice(0, 2).length > 0 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
+
+    // Date-based chart data: April–June (13 data points)
+    const DATES = [
+      "2024-04-01","2024-04-08","2024-04-15","2024-04-22","2024-04-29",
+      "2024-05-06","2024-05-13","2024-05-20","2024-05-27",
+      "2024-06-03","2024-06-10","2024-06-17","2024-06-24",
+    ];
+    const VALS2 = [222,97,167,242,373,301,245,409,59,261,327,292,342];
+    const VALS3 = [150,180,120,260,290,340,180,220,100,310,250,190,280];
+
+    const iDataLines = DATES.map((d, i) => {
+      const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS2[i] : VALS3[i]}`).join(", ");
+      return `    { date: "${d}", ${vals} },`;
+    });
+    const iChartDataStr = `const chartData = [\n${iDataLines.join("\n")}\n]`;
+
+    const iConfigLines = [
+      `  views: { label: "Page Views" },`,
+      ...iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`),
+    ];
+    const iChartConfigStr = `const chartConfig = {\n${iConfigLines.join("\n")}\n} satisfies ChartConfig`;
+
+    addImport(imports, PREAMBLE_KEY, iChartDataStr);
+    addImport(imports, PREAMBLE_KEY, iChartConfigStr);
+
+    const keys = iSeries.map(s => `"${s.key}"`).join(" | ");
+    const firstKey = iSeries[0].key;
+
+    const totals = iSeries.map(s =>
+      `  const total${s.key.charAt(0).toUpperCase() + s.key.slice(1)} = React.useMemo(\n    () => chartData.reduce((acc, curr) => acc + curr.${s.key}, 0),\n    []\n  )`
+    ).join("\n");
+
+    const tabButtons = iSeries.map(s =>
+      `        <button\n          key="${s.key}"\n          data-active={activeChart === "${s.key}"}\n          className="relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-l sm:border-t-0 sm:px-8 sm:py-6"\n          onClick={() => setActiveChart("${s.key}")}\n        >\n          <span className="text-xs text-muted-foreground">\n            {chartConfig.${s.key}.label}\n          </span>\n          <span className="text-lg font-bold leading-none sm:text-3xl">\n            {total${s.key.charAt(0).toUpperCase() + s.key.slice(1)}.toLocaleString()}\n          </span>\n        </button>`
+    ).join("\n");
+
+    const component = `export function BarChartInteractive() {
+  const [activeChart, setActiveChart] =
+    React.useState<${keys}>("${firstKey}")
+
+${totals}
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col items-stretch border-b p-0 sm:flex-row">
+        <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
+          <CardTitle>Bar Chart - Interactive</CardTitle>
+          <CardDescription>
+            Showing total visitors for the last 3 months
+          </CardDescription>
+        </div>
+        <div className="flex">
+${tabButtons}
+        </div>
+      </CardHeader>
+      <CardContent className="px-2 sm:p-6">
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-[250px] w-full"
+        >
+          <BarChart
+            accessibilityLayer
+            data={chartData}
+            margin={{ left: 12, right: 12 }}
+          >
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey="date"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={32}
+              tickFormatter={(value) => {
+                const date = new Date(value)
+                return date.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })
+              }}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  className="w-[150px]"
+                  nameKey="views"
+                  labelFormatter={(value) => {
+                    return new Date(value).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  }}
+                />
+              }
+            />
+            <Bar dataKey={activeChart} fill={\`var(--color-\${activeChart})\`} />
+          </BarChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  )
+}`;
+
+    addImport(imports, PREAMBLE_KEY, component);
+    return `<BarChartInteractive />`;
+  }
+
   // Install command
   addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
 
-  // CSS variables for globals.css
-  const cssVars = `:root {\n  --chart-1: oklch(0.646 0.222 41.116);\n  --chart-2: oklch(0.6 0.118 184.704);\n  --chart-3: oklch(0.398 0.07 227.392);\n  --chart-4: oklch(0.828 0.189 84.429);\n  --chart-5: oklch(0.769 0.188 70.08);\n}\n\n.dark {\n  --chart-1: oklch(0.488 0.243 264.376);\n  --chart-2: oklch(0.696 0.17 162.48);\n  --chart-3: oklch(0.769 0.188 70.08);\n  --chart-4: oklch(0.627 0.265 303.9);\n  --chart-5: oklch(0.645 0.246 16.439);\n}`;
-  addImport(imports, CSS_KEY, cssVars);
+  addImport(imports, CSS_KEY, CHART_CSS_VARS);
 
   // chartData and chartConfig go before the JSX
   addImport(imports, PREAMBLE_KEY, chartDataStr);
   addImport(imports, PREAMBLE_KEY, chartConfigStr);
+
+  return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">\n${chartInner}\n${p0}</ChartContainer>`;
+}
+
+// ─── Area chart renderer ──────────────────────────────────────────────────────
+
+const CHART_CSS_VARS = `:root {\n  --chart-1: oklch(0.646 0.222 41.116);\n  --chart-2: oklch(0.6 0.118 184.704);\n  --chart-3: oklch(0.398 0.07 227.392);\n  --chart-4: oklch(0.828 0.189 84.429);\n  --chart-5: oklch(0.769 0.188 70.08);\n}\n\n.dark {\n  --chart-1: oklch(0.488 0.243 264.376);\n  --chart-2: oklch(0.696 0.17 162.48);\n  --chart-3: oklch(0.769 0.188 70.08);\n  --chart-4: oklch(0.627 0.265 303.9);\n  --chart-5: oklch(0.645 0.246 16.439);\n}`;
+
+function renderAreaChart(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const typeProp  = node.props.find(p => p.shadcnProp === "type");
+  const chartType = typeProp?.value ?? "default";
+
+  const children    = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+  const allTexts    = collectTexts(children);
+  const legendLabels = allTexts.filter(t => !/^[\d.,]+%?$/.test(t.trim()));
+
+  const isMulti  = chartType === "stacked";
+  const rawLabels = legendLabels.length > 0
+    ? legendLabels.slice(0, isMulti ? 2 : 1)
+    : isMulti ? ["desktop", "mobile"] : ["desktop"];
+
+  const series = rawLabels.map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+
+  addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+  addImport(imports, CSS_KEY, CHART_CSS_VARS);
+
+  // ── Interactive ────────────────────────────────────────────────────────────
+  if (chartType === "interactive") {
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, RAW_IMPORT_KEY, 'import * as React from "react"');
+    addImport(imports, "recharts", "AreaChart");
+    addImport(imports, "recharts", "Area");
+    addImport(imports, "recharts", "CartesianGrid");
+    addImport(imports, "recharts", "XAxis");
+    addImport(imports, "@/components/ui/card", "Card");
+    addImport(imports, "@/components/ui/card", "CardContent");
+    addImport(imports, "@/components/ui/card", "CardDescription");
+    addImport(imports, "@/components/ui/card", "CardHeader");
+    addImport(imports, "@/components/ui/card", "CardTitle");
+    addImport(imports, "@/components/ui/chart", "ChartContainer");
+    addImport(imports, "@/components/ui/chart", "type ChartConfig");
+    addImport(imports, "@/components/ui/chart", "ChartTooltip");
+    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+
+    const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
+
+    const DATES = [
+      "2024-04-01","2024-04-08","2024-04-15","2024-04-22","2024-04-29",
+      "2024-05-06","2024-05-13","2024-05-20","2024-05-27",
+      "2024-06-03","2024-06-10","2024-06-17","2024-06-24",
+    ];
+    const VALS_A = [222,97,167,242,373,301,245,409,59,261,327,292,342];
+    const VALS_B = [150,180,120,260,290,340,180,220,100,310,250,190,280];
+
+    const iDataLines = DATES.map((d, i) => {
+      const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS_A[i] : VALS_B[i]}`).join(", ");
+      return `    { date: "${d}", ${vals} },`;
+    });
+    const iChartDataStr = `const chartData = [\n${iDataLines.join("\n")}\n]`;
+
+    const iConfigLines = [
+      ...iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`),
+    ];
+    const iChartConfigStr = `const chartConfig = {\n${iConfigLines.join("\n")}\n} satisfies ChartConfig`;
+
+    addImport(imports, PREAMBLE_KEY, iChartDataStr);
+    addImport(imports, PREAMBLE_KEY, iChartConfigStr);
+
+    const keys = iSeries.map(s => `"${s.key}"`).join(" | ");
+    const firstKey = iSeries[0].key;
+
+    const gradientDefs = iSeries.map(s =>
+      `        <linearGradient id="fill${s.key.charAt(0).toUpperCase() + s.key.slice(1)}" x1="0" y1="0" x2="0" y2="1">\n          <stop offset="5%" stopColor="var(--color-${s.key})" stopOpacity={0.8} />\n          <stop offset="95%" stopColor="var(--color-${s.key})" stopOpacity={0.1} />\n        </linearGradient>`
+    ).join("\n");
+
+    const areaElems = iSeries.map(s =>
+      `            <Area\n              dataKey="${s.key}"\n              type="natural"\n              fill="url(#fill${s.key.charAt(0).toUpperCase() + s.key.slice(1)})"\n              fillOpacity={0.4}\n              stroke="var(--color-${s.key})"\n              stackId="a"\n            />`
+    ).join("\n");
+
+    const component = `export function AreaChartInteractive() {
+  const [activeChart, setActiveChart] =
+    React.useState<${keys}>("${firstKey}")
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col items-stretch border-b p-0 sm:flex-row">
+        <div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
+          <CardTitle>Area Chart - Interactive</CardTitle>
+          <CardDescription>
+            Showing total visitors for the last 3 months
+          </CardDescription>
+        </div>
+        <div className="flex">
+${iSeries.map(s => `          <button
+            key="${s.key}"
+            data-active={activeChart === "${s.key}"}
+            className="relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-l sm:border-t-0 sm:px-8 sm:py-6"
+            onClick={() => setActiveChart("${s.key}")}
+          >
+            <span className="text-xs text-muted-foreground">
+              {chartConfig.${s.key}.label}
+            </span>
+          </button>`).join("\n")}
+        </div>
+      </CardHeader>
+      <CardContent className="px-2 sm:p-6">
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-[250px] w-full"
+        >
+          <AreaChart
+            accessibilityLayer
+            data={chartData}
+            margin={{ left: 12, right: 12 }}
+          >
+            <defs>
+${gradientDefs}
+            </defs>
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey="date"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={32}
+              tickFormatter={(value) => {
+                const date = new Date(value)
+                return date.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })
+              }}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  className="w-[150px]"
+                  labelFormatter={(value) => {
+                    return new Date(value).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  }}
+                />
+              }
+            />
+${areaElems}
+          </AreaChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  )
+}`;
+
+    addImport(imports, PREAMBLE_KEY, component);
+    return `<AreaChartInteractive />`;
+  }
+
+  // ── Standard variants (Default, Linear, Step, Stacked) ────────────────────
+  const dataLines = CHART_MONTHS.map((m, mi) => {
+    const vals = series.map(s => `${s.key}: ${CHART_VALUES[s.idx]?.[mi] ?? 100}`).join(", ");
+    return `  { month: "${m}", ${vals} },`;
+  });
+  const chartDataStr = `const chartData = [\n${dataLines.join("\n")}\n]`;
+
+  const configLines = series.map((s, i) =>
+    `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`
+  );
+  const chartConfigStr = `const chartConfig = {\n${configLines.join("\n")}\n} satisfies ChartConfig`;
+
+  addImport(imports, PREAMBLE_KEY, chartDataStr);
+  addImport(imports, PREAMBLE_KEY, chartConfigStr);
+
+  addImport(imports, "recharts", "AreaChart");
+  addImport(imports, "recharts", "Area");
+  addImport(imports, "recharts", "CartesianGrid");
+  addImport(imports, "recharts", "XAxis");
+  addImport(imports, "@/components/ui/chart", "ChartContainer");
+  addImport(imports, "@/components/ui/chart", "type ChartConfig");
+  addImport(imports, "@/components/ui/chart", "ChartTooltip");
+  addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+
+  const p0 = "  ".repeat(indent);
+  const p1 = "  ".repeat(indent + 1);
+  const p2 = "  ".repeat(indent + 2);
+
+  const curveType = chartType === "linear" ? "linear" : chartType === "step" ? "step" : "natural";
+
+  const gradientDefs = series.map(s => {
+    const capKey = s.key.charAt(0).toUpperCase() + s.key.slice(1);
+    return [
+      `${p2}  <linearGradient id="fill${capKey}" x1="0" y1="0" x2="0" y2="1">`,
+      `${p2}    <stop offset="5%" stopColor="var(--color-${s.key})" stopOpacity={0.8} />`,
+      `${p2}    <stop offset="95%" stopColor="var(--color-${s.key})" stopOpacity={0.1} />`,
+      `${p2}  </linearGradient>`,
+    ].join("\n");
+  }).join("\n");
+
+  const areaElems = series.map(s => {
+    const capKey = s.key.charAt(0).toUpperCase() + s.key.slice(1);
+    const stackProp = chartType === "stacked" ? ` stackId="a"` : "";
+    return `${p2}<Area type="${curveType}" dataKey="${s.key}" fill="url(#fill${capKey})" fillOpacity={0.4} stroke="var(--color-${s.key})"${stackProp} />`;
+  }).join("\n");
+
+  const chartInner = [
+    `${p1}<AreaChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
+    `${p2}<defs>`,
+    gradientDefs,
+    `${p2}</defs>`,
+    `${p2}<CartesianGrid vertical={false} />`,
+    `${p2}<XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />`,
+    `${p2}<ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />`,
+    areaElems,
+    `${p1}</AreaChart>`,
+  ].join("\n");
 
   return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">\n${chartInner}\n${p0}</ChartContainer>`;
 }
@@ -602,10 +950,9 @@ function renderNode(
   // Mapped shadcn/ui component — never apply internal Figma layout as className
   const sn = node as ScannedNode;
 
-  // Bar chart — generates a full ChartContainer template
-  if (sn.component === "__chart_bar__") {
-    return renderBarChart(sn, imports, indent);
-  }
+  // Chart components — generate full ChartContainer templates
+  if (sn.component === "__chart_bar__")  return renderBarChart(sn, imports, indent);
+  if (sn.component === "__chart_area__") return renderAreaChart(sn, imports, indent);
 
   // Card — needs CardHeader/CardContent/CardFooter wrapper
   if (sn.component === "Card") {
