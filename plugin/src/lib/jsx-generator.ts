@@ -18,10 +18,18 @@ function addImport(imports: ImportMap, path: string, name: string) {
   imports.get(path)!.add(name);
 }
 
+const PREAMBLE_KEY = "__preamble__";
+
 function renderImports(imports: ImportMap): string {
-  return Array.from(imports.entries())
+  const regularImports = Array.from(imports.entries())
+    .filter(([path]) => path !== PREAMBLE_KEY)
     .map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`)
     .join("\n");
+
+  const preambles = imports.get(PREAMBLE_KEY);
+  const preambleStr = preambles ? Array.from(preambles).join("\n\n") : "";
+
+  return [regularImports, preambleStr].filter(Boolean).join("\n\n");
 }
 
 // ─── Table grid helpers ───────────────────────────────────────────────────────
@@ -336,6 +344,124 @@ function renderCard(node: ScannedNode, imports: ImportMap, indent: number): stri
   return `${p0}<Card${propsStr}>\n${sections.join("\n")}\n${p0}</Card>`;
 }
 
+// ─── Chart detection helpers ─────────────────────────────────────────────────
+
+const CHART_COMPONENT_PREFIX = "__chart_";
+
+function findFirstChartNode(nodes: ScannedTree[]): ScannedNode | null {
+  for (const n of nodes) {
+    if ("component" in n && (n as ScannedNode).component.startsWith(CHART_COMPONENT_PREFIX)) {
+      return n as ScannedNode;
+    }
+    if ("isLayout" in n) {
+      const found = findFirstChartNode((n as ScannedFrame).children);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// ─── Bar Chart helpers ────────────────────────────────────────────────────────
+
+const CHART_MONTHS = ["January", "February", "March", "April", "May", "June"];
+const CHART_VALUES = [
+  [186, 305, 237, 73, 209, 214],
+  [80, 200, 120, 190, 130, 140],
+];
+
+function toJsKey(label: string): string {
+  const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/, "");
+  return key || "value";
+}
+
+function renderBarChart(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const typeProp = node.props.find(p => p.shadcnProp === "type");
+  const chartType = typeProp?.value ?? "default";
+
+  // Extract legend labels from scanned children — filter out axis numbers
+  const children = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+  const allTexts = collectTexts(children);
+  const legendLabels = allTexts.filter(t => !/^[\d.,]+%?$/.test(t.trim()));
+
+  const isMulti = chartType === "multiple" || chartType === "stacked";
+  const rawLabels = legendLabels.length > 0
+    ? legendLabels.slice(0, isMulti ? 2 : 1)
+    : isMulti ? ["desktop", "mobile"] : ["desktop"];
+
+  const series = rawLabels.map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+
+  // chartData
+  const dataLines = CHART_MONTHS.map((m, mi) => {
+    const vals = series.map(s => `${s.key}: ${CHART_VALUES[s.idx]?.[mi] ?? 100}`).join(", ");
+    return `  { month: "${m}", ${vals} },`;
+  });
+  const chartDataStr = `const chartData = [\n${dataLines.join("\n")}\n]`;
+
+  // chartConfig
+  const configLines = series.map((s, i) =>
+    `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`
+  );
+  const chartConfigStr = `const chartConfig = {\n${configLines.join("\n")}\n} satisfies ChartConfig`;
+
+  // Recharts imports
+  addImport(imports, "recharts", "BarChart");
+  addImport(imports, "recharts", "Bar");
+  addImport(imports, "recharts", "CartesianGrid");
+  addImport(imports, "@/components/ui/chart", "ChartContainer");
+  addImport(imports, "@/components/ui/chart", "type ChartConfig");
+  addImport(imports, "@/components/ui/chart", "ChartTooltip");
+  addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+
+  const p0 = "  ".repeat(indent);
+  const p1 = "  ".repeat(indent + 1);
+  const p2 = "  ".repeat(indent + 2);
+
+  const barElems = series.map((s, i) => {
+    if (chartType === "stacked") {
+      const isFirst = i === 0;                  // first in JSX = bottom of stack
+      const isLast  = i === series.length - 1; // last in JSX = top of stack
+      const radius  = isLast  ? `{[4, 4, 0, 0]}`
+                    : isFirst ? `{[0, 0, 4, 4]}`
+                    : `{0}`;
+      return `${p2}<Bar dataKey="${s.key}" fill="var(--color-${s.key})" radius=${radius} stackId="a" />`;
+    }
+    return `${p2}<Bar dataKey="${s.key}" fill="var(--color-${s.key})" radius={4} />`;
+  }).join("\n");
+
+  let chartInner: string;
+  if (chartType === "horizontal") {
+    addImport(imports, "recharts", "XAxis");
+    addImport(imports, "recharts", "YAxis");
+    chartInner = [
+      `${p1}<BarChart accessibilityLayer data={chartData} layout="vertical">`,
+      `${p2}<CartesianGrid horizontal={false} />`,
+      `${p2}<XAxis type="number" hide />`,
+      `${p2}<YAxis dataKey="month" type="category" tickLine={false} axisLine={false} />`,
+      `${p2}<ChartTooltip content={<ChartTooltipContent />} />`,
+      barElems,
+      `${p1}</BarChart>`,
+    ].join("\n");
+  } else {
+    addImport(imports, "recharts", "XAxis");
+    chartInner = [
+      `${p1}<BarChart accessibilityLayer data={chartData}>`,
+      `${p2}<CartesianGrid vertical={false} />`,
+      `${p2}<XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(v) => v.slice(0, 3)} />`,
+      `${p2}<ChartTooltip content={<ChartTooltipContent />} />`,
+      barElems,
+      `${p1}</BarChart>`,
+    ].join("\n");
+  }
+
+  // Hoist chartData and chartConfig into the preamble (above imports output)
+  const cssVarsComment = `// Add to globals.css if not present:\n// :root {\n//   --chart-1: oklch(0.646 0.222 41.116);\n//   --chart-2: oklch(0.6 0.118 184.704);\n//   --chart-3: oklch(0.398 0.07 227.392);\n//   --chart-4: oklch(0.828 0.189 84.429);\n//   --chart-5: oklch(0.769 0.188 70.08);\n// }`;
+  addImport(imports, PREAMBLE_KEY, cssVarsComment);
+  addImport(imports, PREAMBLE_KEY, chartDataStr);
+  addImport(imports, PREAMBLE_KEY, chartConfigStr);
+
+  return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">\n${chartInner}\n${p0}</ChartContainer>`;
+}
+
 // ─── ButtonGroup helpers ──────────────────────────────────────────────────────
 
 function isButtonGroupContainer(node: ScannedFrame): boolean {
@@ -451,6 +577,12 @@ function renderNode(
       return renderButtonGroup(node, imports, indent);
     }
 
+    // Frame wrapping a chart (axis labels, legend, gridlines) → render just the chart
+    const chartDescendant = findFirstChartNode(node.children);
+    if (chartDescendant) {
+      return renderNode(chartDescendant, imports, indent);
+    }
+
     const layoutCls = layoutClasses(node.layout);
     const visualCls = visualClasses(node.visual);
     const cls = [layoutCls, visualCls].filter(Boolean).join(" ");
@@ -467,6 +599,11 @@ function renderNode(
 
   // Mapped shadcn/ui component — never apply internal Figma layout as className
   const sn = node as ScannedNode;
+
+  // Bar chart — generates a full ChartContainer template
+  if (sn.component === "__chart_bar__") {
+    return renderBarChart(sn, imports, indent);
+  }
 
   // Card — needs CardHeader/CardContent/CardFooter wrapper
   if (sn.component === "Card") {

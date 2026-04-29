@@ -822,6 +822,23 @@ ${darkLines}
           component: "AccordionContent",
           importPath: "@/components/ui/accordion"
         },
+        // ── Charts ────────────────────────────────────────────────────────────────
+        "Bar chart": {
+          component: "__chart_bar__",
+          importPath: "@/components/ui/chart",
+          props: {
+            "Type": {
+              shadcnProp: "type",
+              values: {
+                Default: "default",
+                Horizontal: "horizontal",
+                Multiple: "multiple",
+                Stacked: "stacked",
+                Interactive: "interactive"
+              }
+            }
+          }
+        },
         // ── Table ─────────────────────────────────────────────────────────────────
         "Basic Table Header": {
           component: "TableHead",
@@ -1302,7 +1319,10 @@ ${darkLines}
     imports.get(path).add(name);
   }
   function renderImports(imports) {
-    return Array.from(imports.entries()).map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`).join("\n");
+    const regularImports = Array.from(imports.entries()).filter(([path]) => path !== PREAMBLE_KEY).map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`).join("\n");
+    const preambles = imports.get(PREAMBLE_KEY);
+    const preambleStr = preambles ? Array.from(preambles).join("\n\n") : "";
+    return [regularImports, preambleStr].filter(Boolean).join("\n\n");
   }
   function isTableCellNode(node) {
     return "component" in node && TABLE_CELL_COMPONENTS.has(node.component);
@@ -1596,6 +1616,107 @@ ${p1}</CardFooter>` : "";
 ${sections.join("\n")}
 ${p0}</Card>`;
   }
+  function findFirstChartNode(nodes) {
+    for (const n of nodes) {
+      if ("component" in n && n.component.startsWith(CHART_COMPONENT_PREFIX)) {
+        return n;
+      }
+      if ("isLayout" in n) {
+        const found = findFirstChartNode(n.children);
+        if (found)
+          return found;
+      }
+    }
+    return null;
+  }
+  function toJsKey(label) {
+    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/, "");
+    return key || "value";
+  }
+  function renderBarChart(node, imports, indent) {
+    var _a;
+    const typeProp = node.props.find((p) => p.shadcnProp === "type");
+    const chartType = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "default";
+    const children = Array.isArray(node.children) ? node.children : [];
+    const allTexts = collectTexts(children);
+    const legendLabels = allTexts.filter((t) => !/^[\d.,]+%?$/.test(t.trim()));
+    const isMulti = chartType === "multiple" || chartType === "stacked";
+    const rawLabels = legendLabels.length > 0 ? legendLabels.slice(0, isMulti ? 2 : 1) : isMulti ? ["desktop", "mobile"] : ["desktop"];
+    const series = rawLabels.map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+    const dataLines = CHART_MONTHS.map((m, mi) => {
+      const vals = series.map((s) => {
+        var _a2, _b;
+        return `${s.key}: ${(_b = (_a2 = CHART_VALUES[s.idx]) == null ? void 0 : _a2[mi]) != null ? _b : 100}`;
+      }).join(", ");
+      return `  { month: "${m}", ${vals} },`;
+    });
+    const chartDataStr = `const chartData = [
+${dataLines.join("\n")}
+]`;
+    const configLines = series.map(
+      (s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`
+    );
+    const chartConfigStr = `const chartConfig = {
+${configLines.join("\n")}
+} satisfies ChartConfig`;
+    addImport(imports, "recharts", "BarChart");
+    addImport(imports, "recharts", "Bar");
+    addImport(imports, "recharts", "CartesianGrid");
+    addImport(imports, "@/components/ui/chart", "ChartContainer");
+    addImport(imports, "@/components/ui/chart", "type ChartConfig");
+    addImport(imports, "@/components/ui/chart", "ChartTooltip");
+    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const barElems = series.map((s, i) => {
+      if (chartType === "stacked") {
+        const isFirst = i === 0;
+        const isLast = i === series.length - 1;
+        const radius = isLast ? `{[4, 4, 0, 0]}` : isFirst ? `{[0, 0, 4, 4]}` : `{0}`;
+        return `${p2}<Bar dataKey="${s.key}" fill="var(--color-${s.key})" radius=${radius} stackId="a" />`;
+      }
+      return `${p2}<Bar dataKey="${s.key}" fill="var(--color-${s.key})" radius={4} />`;
+    }).join("\n");
+    let chartInner;
+    if (chartType === "horizontal") {
+      addImport(imports, "recharts", "XAxis");
+      addImport(imports, "recharts", "YAxis");
+      chartInner = [
+        `${p1}<BarChart accessibilityLayer data={chartData} layout="vertical">`,
+        `${p2}<CartesianGrid horizontal={false} />`,
+        `${p2}<XAxis type="number" hide />`,
+        `${p2}<YAxis dataKey="month" type="category" tickLine={false} axisLine={false} />`,
+        `${p2}<ChartTooltip content={<ChartTooltipContent />} />`,
+        barElems,
+        `${p1}</BarChart>`
+      ].join("\n");
+    } else {
+      addImport(imports, "recharts", "XAxis");
+      chartInner = [
+        `${p1}<BarChart accessibilityLayer data={chartData}>`,
+        `${p2}<CartesianGrid vertical={false} />`,
+        `${p2}<XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(v) => v.slice(0, 3)} />`,
+        `${p2}<ChartTooltip content={<ChartTooltipContent />} />`,
+        barElems,
+        `${p1}</BarChart>`
+      ].join("\n");
+    }
+    const cssVarsComment = `// Add to globals.css if not present:
+// :root {
+//   --chart-1: oklch(0.646 0.222 41.116);
+//   --chart-2: oklch(0.6 0.118 184.704);
+//   --chart-3: oklch(0.398 0.07 227.392);
+//   --chart-4: oklch(0.828 0.189 84.429);
+//   --chart-5: oklch(0.769 0.188 70.08);
+// }`;
+    addImport(imports, PREAMBLE_KEY, cssVarsComment);
+    addImport(imports, PREAMBLE_KEY, chartDataStr);
+    addImport(imports, PREAMBLE_KEY, chartConfigStr);
+    return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+${chartInner}
+${p0}</ChartContainer>`;
+  }
   function isButtonGroupContainer(node) {
     if (node.layout.direction !== "horizontal")
       return false;
@@ -1672,6 +1793,10 @@ ${pad}</Avatar>`;
       if (isButtonGroupContainer(node)) {
         return renderButtonGroup(node, imports, indent);
       }
+      const chartDescendant = findFirstChartNode(node.children);
+      if (chartDescendant) {
+        return renderNode(chartDescendant, imports, indent);
+      }
       const layoutCls = layoutClasses(node.layout);
       const visualCls = visualClasses(node.visual);
       const cls = [layoutCls, visualCls].filter(Boolean).join(" ");
@@ -1684,6 +1809,9 @@ ${childrenStr}
 ${pad}</div>`;
     }
     const sn = node;
+    if (sn.component === "__chart_bar__") {
+      return renderBarChart(sn, imports, indent);
+    }
     if (sn.component === "Card") {
       return renderCard(sn, imports, indent);
     }
@@ -1723,12 +1851,19 @@ ${pad}</${component}>`;
       components
     };
   }
-  var TABLE_CELL_COMPONENTS;
+  var PREAMBLE_KEY, TABLE_CELL_COMPONENTS, CHART_COMPONENT_PREFIX, CHART_MONTHS, CHART_VALUES;
   var init_jsx_generator = __esm({
     "src/lib/jsx-generator.ts"() {
       "use strict";
       init_tailwind_layout();
+      PREAMBLE_KEY = "__preamble__";
       TABLE_CELL_COMPONENTS = /* @__PURE__ */ new Set(["TableHead", "TableCell"]);
+      CHART_COMPONENT_PREFIX = "__chart_";
+      CHART_MONTHS = ["January", "February", "March", "April", "May", "June"];
+      CHART_VALUES = [
+        [186, 305, 237, 73, 209, 214],
+        [80, 200, 120, 190, 130, 140]
+      ];
     }
   });
 

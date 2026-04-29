@@ -417,6 +417,24 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     importPath: "@/components/ui/accordion",
   },
 
+  // ── Charts ────────────────────────────────────────────────────────────────
+  "Bar chart": {
+    component:  "__chart_bar__",
+    importPath: "@/components/ui/chart",
+    props: {
+      "Type": {
+        shadcnProp: "type",
+        values: {
+          Default:     "default",
+          Horizontal:  "horizontal",
+          Multiple:    "multiple",
+          Stacked:     "stacked",
+          Interactive: "interactive",
+        },
+      },
+    },
+  },
+
   // ── Table ─────────────────────────────────────────────────────────────────
   "Basic Table Header": {
     component:  "TableHead",
