@@ -19,17 +19,14 @@ function addImport(imports: ImportMap, path: string, name: string) {
 }
 
 const PREAMBLE_KEY = "__preamble__";
+const INSTALL_KEY  = "__install__";
+const CSS_KEY      = "__css__";
 
 function renderImports(imports: ImportMap): string {
-  const regularImports = Array.from(imports.entries())
-    .filter(([path]) => path !== PREAMBLE_KEY)
+  return Array.from(imports.entries())
+    .filter(([path]) => !path.startsWith("__"))
     .map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`)
     .join("\n");
-
-  const preambles = imports.get(PREAMBLE_KEY);
-  const preambleStr = preambles ? Array.from(preambles).join("\n\n") : "";
-
-  return [regularImports, preambleStr].filter(Boolean).join("\n\n");
 }
 
 // ─── Table grid helpers ───────────────────────────────────────────────────────
@@ -453,9 +450,14 @@ function renderBarChart(node: ScannedNode, imports: ImportMap, indent: number): 
     ].join("\n");
   }
 
-  // Hoist chartData and chartConfig into the preamble (above imports output)
-  const cssVarsComment = `// Add to globals.css if not present:\n// :root {\n//   --chart-1: oklch(0.646 0.222 41.116);\n//   --chart-2: oklch(0.6 0.118 184.704);\n//   --chart-3: oklch(0.398 0.07 227.392);\n//   --chart-4: oklch(0.828 0.189 84.429);\n//   --chart-5: oklch(0.769 0.188 70.08);\n// }`;
-  addImport(imports, PREAMBLE_KEY, cssVarsComment);
+  // Install command
+  addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+
+  // CSS variables for globals.css
+  const cssVars = `:root {\n  --chart-1: oklch(0.646 0.222 41.116);\n  --chart-2: oklch(0.6 0.118 184.704);\n  --chart-3: oklch(0.398 0.07 227.392);\n  --chart-4: oklch(0.828 0.189 84.429);\n  --chart-5: oklch(0.769 0.188 70.08);\n}\n\n.dark {\n  --chart-1: oklch(0.488 0.243 264.376);\n  --chart-2: oklch(0.696 0.17 162.48);\n  --chart-3: oklch(0.769 0.188 70.08);\n  --chart-4: oklch(0.627 0.265 303.9);\n  --chart-5: oklch(0.645 0.246 16.439);\n}`;
+  addImport(imports, CSS_KEY, cssVars);
+
+  // chartData and chartConfig go before the JSX
   addImport(imports, PREAMBLE_KEY, chartDataStr);
   addImport(imports, PREAMBLE_KEY, chartConfigStr);
 
@@ -651,22 +653,31 @@ function renderNode(
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface GeneratedJSX {
+  install: string;
   imports: string;
+  css: string;
   jsx: string;
-  /** All unique shadcn/ui components found */
   components: string[];
 }
 
 export function generateJSX(tree: ScannedTree): GeneratedJSX {
   const imports: ImportMap = new Map();
-  const jsx = renderNode(tree, imports, 0);
-  const components = Array.from(
-    new Set(Array.from(imports.values()).flatMap(s => Array.from(s)))
-  );
+  const rawJsx = renderNode(tree, imports, 0);
 
-  return {
-    imports: renderImports(imports),
-    jsx,
-    components,
-  };
+  const preambleStr = imports.get(PREAMBLE_KEY)
+    ? Array.from(imports.get(PREAMBLE_KEY)!).join("\n\n") : "";
+  const install = imports.get(INSTALL_KEY)
+    ? Array.from(imports.get(INSTALL_KEY)!).join("\n") : "";
+  const css = imports.get(CSS_KEY)
+    ? Array.from(imports.get(CSS_KEY)!).join("\n\n") : "";
+
+  const jsx = [preambleStr, rawJsx].filter(Boolean).join("\n\n");
+
+  const components = Array.from(new Set(
+    Array.from(imports.entries())
+      .filter(([p]) => !p.startsWith("__"))
+      .flatMap(([, names]) => Array.from(names))
+  ));
+
+  return { install, imports: renderImports(imports), css, jsx, components };
 }

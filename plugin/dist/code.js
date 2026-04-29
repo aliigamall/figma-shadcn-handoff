@@ -1319,10 +1319,7 @@ ${darkLines}
     imports.get(path).add(name);
   }
   function renderImports(imports) {
-    const regularImports = Array.from(imports.entries()).filter(([path]) => path !== PREAMBLE_KEY).map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`).join("\n");
-    const preambles = imports.get(PREAMBLE_KEY);
-    const preambleStr = preambles ? Array.from(preambles).join("\n\n") : "";
-    return [regularImports, preambleStr].filter(Boolean).join("\n\n");
+    return Array.from(imports.entries()).filter(([path]) => !path.startsWith("__")).map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`).join("\n");
   }
   function isTableCellNode(node) {
     return "component" in node && TABLE_CELL_COMPONENTS.has(node.component);
@@ -1702,15 +1699,23 @@ ${configLines.join("\n")}
         `${p1}</BarChart>`
       ].join("\n");
     }
-    const cssVarsComment = `// Add to globals.css if not present:
-// :root {
-//   --chart-1: oklch(0.646 0.222 41.116);
-//   --chart-2: oklch(0.6 0.118 184.704);
-//   --chart-3: oklch(0.398 0.07 227.392);
-//   --chart-4: oklch(0.828 0.189 84.429);
-//   --chart-5: oklch(0.769 0.188 70.08);
-// }`;
-    addImport(imports, PREAMBLE_KEY, cssVarsComment);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+    const cssVars = `:root {
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+.dark {
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+}`;
+    addImport(imports, CSS_KEY, cssVars);
     addImport(imports, PREAMBLE_KEY, chartDataStr);
     addImport(imports, PREAMBLE_KEY, chartConfigStr);
     return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">
@@ -1841,22 +1846,24 @@ ${pad}</${component}>`;
   }
   function generateJSX(tree) {
     const imports = /* @__PURE__ */ new Map();
-    const jsx = renderNode(tree, imports, 0);
-    const components = Array.from(
-      new Set(Array.from(imports.values()).flatMap((s) => Array.from(s)))
-    );
-    return {
-      imports: renderImports(imports),
-      jsx,
-      components
-    };
+    const rawJsx = renderNode(tree, imports, 0);
+    const preambleStr = imports.get(PREAMBLE_KEY) ? Array.from(imports.get(PREAMBLE_KEY)).join("\n\n") : "";
+    const install = imports.get(INSTALL_KEY) ? Array.from(imports.get(INSTALL_KEY)).join("\n") : "";
+    const css = imports.get(CSS_KEY) ? Array.from(imports.get(CSS_KEY)).join("\n\n") : "";
+    const jsx = [preambleStr, rawJsx].filter(Boolean).join("\n\n");
+    const components = Array.from(new Set(
+      Array.from(imports.entries()).filter(([p]) => !p.startsWith("__")).flatMap(([, names]) => Array.from(names))
+    ));
+    return { install, imports: renderImports(imports), css, jsx, components };
   }
-  var PREAMBLE_KEY, TABLE_CELL_COMPONENTS, CHART_COMPONENT_PREFIX, CHART_MONTHS, CHART_VALUES;
+  var PREAMBLE_KEY, INSTALL_KEY, CSS_KEY, TABLE_CELL_COMPONENTS, CHART_COMPONENT_PREFIX, CHART_MONTHS, CHART_VALUES;
   var init_jsx_generator = __esm({
     "src/lib/jsx-generator.ts"() {
       "use strict";
       init_tailwind_layout();
       PREAMBLE_KEY = "__preamble__";
+      INSTALL_KEY = "__install__";
+      CSS_KEY = "__css__";
       TABLE_CELL_COMPONENTS = /* @__PURE__ */ new Set(["TableHead", "TableCell"]);
       CHART_COMPONENT_PREFIX = "__chart_";
       CHART_MONTHS = ["January", "February", "March", "April", "May", "June"];

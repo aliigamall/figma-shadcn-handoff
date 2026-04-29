@@ -181,17 +181,48 @@ const frameworkSelect  = document.getElementById("framework-select") as HTMLSele
 const unmappedHint     = document.getElementById("unmapped-hint") as HTMLDivElement;
 const outputTailwind   = document.getElementById("output-tailwind") as HTMLTextAreaElement;
 const btnCopyTailwind  = document.getElementById("btn-copy-tailwind") as HTMLButtonElement;
+const sectionInstall   = document.getElementById("section-install") as HTMLDivElement;
+const sectionImports   = document.getElementById("section-imports") as HTMLDivElement;
+const sectionCss       = document.getElementById("section-css") as HTMLDivElement;
+const codeInstall      = document.getElementById("code-install") as HTMLTextAreaElement;
+const codeImports      = document.getElementById("code-imports") as HTMLTextAreaElement;
+const codeCss          = document.getElementById("code-css") as HTMLTextAreaElement;
+const jsxSectionLabel  = document.getElementById("jsx-section-label") as HTMLSpanElement;
+const btnCopyInstall   = document.getElementById("btn-copy-install") as HTMLButtonElement;
+const btnCopyImports   = document.getElementById("btn-copy-imports") as HTMLButtonElement;
+const btnCopyCssInspect = document.getElementById("btn-copy-css-inspect") as HTMLButtonElement;
 
-// Stores the last received outputs for both frameworks
-let _cachedJsx  = "";
+interface JsxParts { install: string; imports: string; css: string; jsx: string; }
+let _cachedJsxParts: JsxParts = { install: "", imports: "", css: "", jsx: "" };
 let _cachedHtml = "";
 
 function applyFrameworkOutput() {
   const isHtml = frameworkSelect.value === "html";
-  outputJsx.value = isHtml ? _cachedHtml : _cachedJsx;
+  if (isHtml) {
+    sectionInstall.classList.add("hidden");
+    sectionImports.classList.add("hidden");
+    sectionCss.classList.add("hidden");
+    jsxSectionLabel.textContent = "HTML";
+    outputJsx.value = _cachedHtml;
+  } else {
+    sectionInstall.classList.toggle("hidden", !_cachedJsxParts.install);
+    codeInstall.value = _cachedJsxParts.install;
+    sectionImports.classList.toggle("hidden", !_cachedJsxParts.imports);
+    codeImports.value = _cachedJsxParts.imports;
+    // Auto-size imports textarea based on lines
+    const importLines = (_cachedJsxParts.imports.match(/\n/g) ?? []).length + 1;
+    codeImports.style.height = Math.min(Math.max(importLines * 16 + 20, 36), 100) + "px";
+    sectionCss.classList.toggle("hidden", !_cachedJsxParts.css);
+    codeCss.value = _cachedJsxParts.css;
+    jsxSectionLabel.textContent = "JSX";
+    outputJsx.value = _cachedJsxParts.jsx;
+  }
 }
 
 frameworkSelect.addEventListener("change", applyFrameworkOutput);
+btnCopyInstall.addEventListener("click", () => copyToClipboard(codeInstall.value, btnCopyInstall));
+btnCopyImports.addEventListener("click", () => copyToClipboard(codeImports.value, btnCopyImports));
+btnCopyCssInspect.addEventListener("click", () => copyToClipboard(codeCss.value, btnCopyCssInspect));
 
 // ── Tokens tab ─────────────────────────────────────────────────────────────
 
@@ -219,6 +250,9 @@ function showEmpty(): void {
   inspectEmpty.classList.remove("hidden");
   jsxSection.classList.add("hidden");
   unmappedHint.classList.add("hidden");
+  sectionInstall.classList.add("hidden");
+  sectionImports.classList.add("hidden");
+  sectionCss.classList.add("hidden");
   outputTailwind.value = "";
   btnCopyTailwind.disabled = true;
 }
@@ -324,19 +358,18 @@ window.onmessage = (event: MessageEvent) => {
       jsxSection.classList.remove("hidden");
       unmappedHint.classList.add("hidden");
 
-      // Cache JSX output
-      const imports = msg.jsxResult.imports ?? msg.jsxResult.importLine ?? "";
-      const jsx = msg.jsxResult.jsx ?? "";
-      _cachedJsx = imports ? `${imports}\n\n${jsx}` : jsx;
-
-      // Cache HTML output
+      _cachedJsxParts = {
+        install: msg.jsxResult.install ?? "",
+        imports: msg.jsxResult.imports ?? msg.jsxResult.importLine ?? "",
+        css:     msg.jsxResult.css ?? "",
+        jsx:     msg.jsxResult.jsx ?? "",
+      };
       _cachedHtml = msg.htmlResult ?? "";
 
-      // Show whichever the user has selected
       applyFrameworkOutput();
     } else {
       jsxSection.classList.add("hidden");
-      _cachedJsx = "";
+      _cachedJsxParts = { install: "", imports: "", css: "", jsx: "" };
       _cachedHtml = "";
       unmappedHint.classList.toggle("hidden", !msg.unmappedComponent);
     }
