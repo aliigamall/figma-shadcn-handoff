@@ -376,6 +376,16 @@ function toJsKey(label: string): string {
   return key || "value";
 }
 
+const FALLBACK_SERIES = ["desktop", "mobile"];
+
+function extractSeries(legendLabels: string[], count: number) {
+  const result: string[] = [];
+  for (let i = 0; i < count; i++) {
+    result.push(legendLabels[i] ?? FALLBACK_SERIES[i] ?? `series${i + 1}`);
+  }
+  return result;
+}
+
 function renderBarChart(node: ScannedNode, imports: ImportMap, indent: number): string {
   const typeProp = node.props.find(p => p.shadcnProp === "type");
   const chartType = typeProp?.value ?? "default";
@@ -385,12 +395,8 @@ function renderBarChart(node: ScannedNode, imports: ImportMap, indent: number): 
   const allTexts = collectTexts(children);
   const legendLabels = allTexts.filter(t => !/^[\d.,]+%?$/.test(t.trim()));
 
-  const isMulti = chartType === "multiple" || chartType === "stacked";
-  const rawLabels = legendLabels.length > 0
-    ? legendLabels.slice(0, isMulti ? 2 : 1)
-    : isMulti ? ["desktop", "mobile"] : ["desktop"];
-
-  const series = rawLabels.map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+  const seriesCount = (chartType === "multiple" || chartType === "stacked") ? 2 : 1;
+  const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
 
   // chartData
   const dataLines = CHART_MONTHS.map((m, mi) => {
@@ -514,12 +520,9 @@ function renderAreaChart(node: ScannedNode, imports: ImportMap, indent: number):
   const allTexts    = collectTexts(children);
   const legendLabels = allTexts.filter(t => !/^[\d.,]+%?$/.test(t.trim()));
 
-  const isMulti  = chartType === "stacked";
-  const rawLabels = legendLabels.length > 0
-    ? legendLabels.slice(0, isMulti ? 2 : 1)
-    : isMulti ? ["desktop", "mobile"] : ["desktop"];
+  const seriesCount = chartType === "stacked" ? 2 : 1;
 
-  const series = rawLabels.map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+  const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
 
   addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
   addImport(imports, CSS_KEY, CHART_CSS_VARS);
@@ -639,6 +642,98 @@ function renderAreaChart(node: ScannedNode, imports: ImportMap, indent: number):
   ].join("\n");
 
   return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">\n${chartInner}\n${p0}</ChartContainer>`;
+}
+
+// ─── Line chart renderer ──────────────────────────────────────────────────────
+
+function renderLineChart(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const typeProp  = node.props.find(p => p.shadcnProp === "type");
+  const chartType = typeProp?.value ?? "default";
+
+  const children     = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+  const allTexts     = collectTexts(children);
+  const legendLabels = allTexts.filter(t => !/^[\d.,]+%?$/.test(t.trim()));
+
+  const seriesCount = chartType === "stacked" ? 2 : 1;
+
+  const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+
+  addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+  addImport(imports, CSS_KEY, CHART_CSS_VARS);
+  addImport(imports, "recharts", "LineChart");
+  addImport(imports, "recharts", "Line");
+  addImport(imports, "recharts", "CartesianGrid");
+  addImport(imports, "recharts", "XAxis");
+  addImport(imports, "@/components/ui/chart", "ChartContainer");
+  addImport(imports, "@/components/ui/chart", "type ChartConfig");
+  addImport(imports, "@/components/ui/chart", "ChartTooltip");
+  addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+
+  // ── Interactive ────────────────────────────────────────────────────────────
+  if (chartType === "interactive") {
+    const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
+    const DATES = ["2024-04-01","2024-04-08","2024-04-15","2024-04-22","2024-04-29","2024-05-06","2024-05-13","2024-05-20","2024-05-27","2024-06-03","2024-06-10","2024-06-17","2024-06-24"];
+    const VALS_A = [222,97,167,242,373,301,245,409,59,261,327,292,342];
+    const VALS_B = [150,180,120,260,290,340,180,220,100,310,250,190,280];
+
+    const iDataLines = DATES.map((d, i) => {
+      const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS_A[i] : VALS_B[i]}`).join(", ");
+      return `  { date: "${d}", ${vals} },`;
+    });
+    addImport(imports, PREAMBLE_KEY, `const chartData = [\n${iDataLines.join("\n")}\n]`);
+    addImport(imports, PREAMBLE_KEY, `const chartConfig = {\n${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}\n} satisfies ChartConfig`);
+
+    const keys = iSeries.map(s => `"${s.key}"`).join(" | ");
+    addImport(imports, PREAMBLE_KEY, `const [activeLine, setActiveLine] = useState<${keys}>("${iSeries[0].key}")`);
+
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+
+    const lineElems = iSeries.map(s =>
+      `${p2}<Line dataKey="${s.key}" type="natural" stroke="var(--color-${s.key})" strokeWidth={2} dot={false} strokeOpacity={activeLine === "${s.key}" ? 1 : 0.3} />`
+    ).join("\n");
+
+    return [
+      `${p0}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">`,
+      `${p1}<LineChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
+      `${p2}<CartesianGrid vertical={false} />`,
+      `${p2}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />`,
+      `${p2}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />`,
+      lineElems,
+      `${p1}</LineChart>`,
+      `${p0}</ChartContainer>`,
+    ].join("\n");
+  }
+
+  // ── Standard variants (Default, Linear, Step, Stacked) ────────────────────
+  const dataLines = CHART_MONTHS.map((m, mi) => {
+    const vals = series.map(s => `${s.key}: ${CHART_VALUES[s.idx]?.[mi] ?? 100}`).join(", ");
+    return `  { month: "${m}", ${vals} },`;
+  });
+  addImport(imports, PREAMBLE_KEY, `const chartData = [\n${dataLines.join("\n")}\n]`);
+  addImport(imports, PREAMBLE_KEY, `const chartConfig = {\n${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}\n} satisfies ChartConfig`);
+
+  const p0 = "  ".repeat(indent);
+  const p1 = "  ".repeat(indent + 1);
+  const p2 = "  ".repeat(indent + 2);
+
+  const curveType = chartType === "linear" ? "linear" : chartType === "step" ? "step" : "natural";
+
+  const lineElems = series.map(s =>
+    `${p2}<Line dataKey="${s.key}" type="${curveType}" stroke="var(--color-${s.key})" strokeWidth={2} dot={false} />`
+  ).join("\n");
+
+  return [
+    `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">`,
+    `${p1}<LineChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
+    `${p2}<CartesianGrid vertical={false} />`,
+    `${p2}<XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />`,
+    `${p2}<ChartTooltip cursor={false} content={<ChartTooltipContent />} />`,
+    lineElems,
+    `${p1}</LineChart>`,
+    `${p0}</ChartContainer>`,
+  ].join("\n");
 }
 
 // ─── ButtonGroup helpers ──────────────────────────────────────────────────────
@@ -782,6 +877,7 @@ function renderNode(
   // Chart components — generate full ChartContainer templates
   if (sn.component === "__chart_bar__")  return renderBarChart(sn, imports, indent);
   if (sn.component === "__chart_area__") return renderAreaChart(sn, imports, indent);
+  if (sn.component === "__chart_line__") return renderLineChart(sn, imports, indent);
 
   // Card — needs CardHeader/CardContent/CardFooter wrapper
   if (sn.component === "Card") {

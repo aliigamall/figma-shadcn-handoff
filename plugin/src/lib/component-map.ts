@@ -418,6 +418,23 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
   },
 
   // ── Charts ────────────────────────────────────────────────────────────────
+  "Line chart": {
+    component:  "__chart_line__",
+    importPath: "@/components/ui/chart",
+    props: {
+      "Type": {
+        shadcnProp: "type",
+        values: {
+          Default:     "default",
+          Linear:      "linear",
+          Step:        "step",
+          Stacked:     "stacked",
+          Interactive: "interactive",
+        },
+      },
+    },
+  },
+
   "Area chart": {
     component:  "__chart_area__",
     importPath: "@/components/ui/chart",
