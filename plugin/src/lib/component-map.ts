@@ -513,6 +513,18 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore:     ["Parity", "State", "Alignment"],
   },
 
+  "Table Header": {
+    component:  "__data_table_header__",
+    importPath: "@/components/ui/table",
+    ignore:     ["Content", "Alignment", "State"],
+  },
+
+  "Table Cell": {
+    component:  "__data_table_cell__",
+    importPath: "@/components/ui/table",
+    ignore:     ["Content", "Alignment", "State", "Parity"],
+  },
+
   // ── Toggle Icon Button ────────────────────────────────────────────────────
   "Toggle Icon Button": {
     component:  "Toggle",

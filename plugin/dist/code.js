@@ -910,6 +910,16 @@ ${darkLines}
           importPath: "@/components/ui/table",
           ignore: ["Parity", "State", "Alignment"]
         },
+        "Table Header": {
+          component: "__data_table_header__",
+          importPath: "@/components/ui/table",
+          ignore: ["Content", "Alignment", "State"]
+        },
+        "Table Cell": {
+          component: "__data_table_cell__",
+          importPath: "@/components/ui/table",
+          ignore: ["Content", "Alignment", "State", "Parity"]
+        },
         // ── Toggle Icon Button ────────────────────────────────────────────────────
         "Toggle Icon Button": {
           component: "Toggle",
@@ -1387,6 +1397,12 @@ ${darkLines}
   function isTableCellNode(node) {
     return "component" in node && TABLE_CELL_COMPONENTS.has(node.component);
   }
+  function isDataTableCellNode(node) {
+    return "component" in node && DATA_TABLE_CELL_COMPONENTS.has(node.component);
+  }
+  function isDataTableGrid(node) {
+    return node.layout.direction === "grid" && node.layout.columns > 0 && node.children.some(isDataTableCellNode);
+  }
   function isTableGrid(node) {
     return node.layout.direction === "grid" && node.layout.columns > 0 && node.children.some(isTableCellNode);
   }
@@ -1427,6 +1443,257 @@ ${pad}  </TableBody>`);
     return `${pad}<Table>
 ${parts.join("\n")}
 ${pad}</Table>`;
+  }
+  function renderDataTable(_node, imports, _indent) {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add table");
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, RAW_IMPORT_KEY, 'import * as React from "react"');
+    addImport(imports, "@tanstack/react-table", "flexRender");
+    addImport(imports, "@tanstack/react-table", "getCoreRowModel");
+    addImport(imports, "@tanstack/react-table", "getFilteredRowModel");
+    addImport(imports, "@tanstack/react-table", "getPaginationRowModel");
+    addImport(imports, "@tanstack/react-table", "getSortedRowModel");
+    addImport(imports, "@tanstack/react-table", "useReactTable");
+    addImport(imports, "@tanstack/react-table", "type ColumnDef");
+    addImport(imports, "@tanstack/react-table", "type ColumnFiltersState");
+    addImport(imports, "@tanstack/react-table", "type SortingState");
+    addImport(imports, "@tanstack/react-table", "type VisibilityState");
+    addImport(imports, "lucide-react", "ArrowUpDown");
+    addImport(imports, "lucide-react", "ChevronDown");
+    addImport(imports, "lucide-react", "MoreHorizontal");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/checkbox", "Checkbox");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenu");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuCheckboxItem");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuContent");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuGroup");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuItem");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuLabel");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuTrigger");
+    addImport(imports, "@/components/ui/input", "Input");
+    addImport(imports, "@/components/ui/table", "Table");
+    addImport(imports, "@/components/ui/table", "TableBody");
+    addImport(imports, "@/components/ui/table", "TableCell");
+    addImport(imports, "@/components/ui/table", "TableHead");
+    addImport(imports, "@/components/ui/table", "TableHeader");
+    addImport(imports, "@/components/ui/table", "TableRow");
+    const template = `// Sample payment data
+const data: Payment[] = [
+  { id: "m5gr84i9", amount: 316, status: "success",    email: "ken99@example.com" },
+  { id: "3u1reuv4", amount: 242, status: "success",    email: "abe45@example.com" },
+  { id: "derv1ws0", amount: 837, status: "processing", email: "monserrat44@example.com" },
+  { id: "5kma53ae", amount: 874, status: "success",    email: "silas22@example.com" },
+  { id: "bhqecj4p", amount: 721, status: "failed",     email: "carmella@example.com" },
+  { id: "p9xk21hf", amount: 150, status: "pending",    email: "john.doe@example.com" },
+  { id: "q8wm47js", amount: 499, status: "success",    email: "jane.smith@example.com" },
+  { id: "r7vn63kt", amount: 299, status: "processing", email: "alex.johnson@example.com" },
+  { id: "s6up89lu", amount: 125, status: "failed",     email: "sarah.williams@example.com" },
+  { id: "t5to15mv", amount: 650, status: "pending",    email: "mike.brown@example.com" },
+]
+
+export type Payment = {
+  id: string
+  amount: number
+  status: "pending" | "processing" | "success" | "failed"
+  email: string
+}
+
+const columns: ColumnDef<Payment>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("status") as string
+      return (
+        <div className={\`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize \${
+          status === "success"    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+          : status === "processing" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+          : status === "failed"   ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+        }\`}>
+          {status}
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: "email",
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Email <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+  },
+  {
+    accessorKey: "amount",
+    header: ({ column }) => (
+      <div className="text-right">
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Amount <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    ),
+    cell: ({ row }) => {
+      const amount = parseFloat(row.getValue("amount"))
+      const formatted = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
+      return <div className="text-right font-medium">{formatted}</div>
+    },
+  },
+  {
+    id: "actions",
+    enableHiding: false,
+    cell: ({ row }) => {
+      const payment = row.original
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(payment.id)}>
+                Copy payment ID
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuGroup>
+              <DropdownMenuItem>View customer</DropdownMenuItem>
+              <DropdownMenuItem>View payment details</DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
+  },
+]
+
+export default function DataTableDemo() {
+  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState({})
+
+  const table = useReactTable({
+    data,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: { sorting, columnFilters, columnVisibility, rowSelection },
+  })
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="w-full">
+        <div className="flex items-center gap-4 py-4">
+          <Input
+            placeholder="Filter emails..."
+            value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+            onChange={(e) => table.getColumn("email")?.setFilterValue(e.target.value)}
+            className="max-w-sm"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="ml-auto">
+                Columns <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                {table.getAllColumns().filter((col) => col.getCanHide()).map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    className="capitalize"
+                    checked={col.getIsVisible()}
+                    onCheckedChange={(value) => col.toggleVisibility(!!value)}
+                  >
+                    {col.id}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="overflow-hidden rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">No results.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex items-center justify-end gap-2 py-4">
+          <div className="flex-1 text-sm text-muted-foreground">
+            {table.getFilteredSelectedRowModel().rows.length} of{" "}
+            {table.getFilteredRowModel().rows.length} row(s) selected.
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}`;
+    addImport(imports, PREAMBLE_KEY, template);
+    return "";
   }
   function isAccordionTrigger(node) {
     return "component" in node && node.component === "AccordionTrigger";
@@ -2189,6 +2456,9 @@ ${pad}</Avatar>`;
       if (node.children.length === 1 && "isImage" in node.children[0]) {
         return renderNode(node.children[0], imports, indent);
       }
+      if (isDataTableGrid(node)) {
+        return renderDataTable(node, imports, indent);
+      }
       if (isTableGrid(node)) {
         return renderTableGrid(node, imports, indent);
       }
@@ -2232,6 +2502,9 @@ ${pad}</div>`;
     if (sn.component === "Avatar") {
       return renderAvatar(sn, imports, indent);
     }
+    if (sn.component === "__data_table_header__" || sn.component === "__data_table_cell__") {
+      return renderDataTable(sn, imports, indent);
+    }
     if (sn.component === "__command__") {
       return renderCommand(sn, imports, indent);
     }
@@ -2268,7 +2541,7 @@ ${pad}</${component}>`;
     ));
     return { install, imports: renderImports(imports), css, jsx, components };
   }
-  var PREAMBLE_KEY, INSTALL_KEY, CSS_KEY, DIRECTIVE_KEY, RAW_IMPORT_KEY, TABLE_CELL_COMPONENTS, CHART_COMPONENT_PREFIX, CHART_MONTHS, CHART_VALUES, FALLBACK_SERIES, CHART_CSS_VARS;
+  var PREAMBLE_KEY, INSTALL_KEY, CSS_KEY, DIRECTIVE_KEY, RAW_IMPORT_KEY, TABLE_CELL_COMPONENTS, DATA_TABLE_CELL_COMPONENTS, CHART_COMPONENT_PREFIX, CHART_MONTHS, CHART_VALUES, FALLBACK_SERIES, CHART_CSS_VARS;
   var init_jsx_generator = __esm({
     "src/lib/jsx-generator.ts"() {
       "use strict";
@@ -2279,6 +2552,7 @@ ${pad}</${component}>`;
       DIRECTIVE_KEY = "__directive__";
       RAW_IMPORT_KEY = "__raw_import__";
       TABLE_CELL_COMPONENTS = /* @__PURE__ */ new Set(["TableHead", "TableCell"]);
+      DATA_TABLE_CELL_COMPONENTS = /* @__PURE__ */ new Set(["__data_table_header__", "__data_table_cell__"]);
       CHART_COMPONENT_PREFIX = "__chart_";
       CHART_MONTHS = ["January", "February", "March", "April", "May", "June"];
       CHART_VALUES = [
