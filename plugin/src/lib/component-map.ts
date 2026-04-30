@@ -341,6 +341,24 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     importPath: "@/components/ui/command",
   },
 
+  // ── Date Picker ───────────────────────────────────────────────────────────
+  "Date Picker": {
+    component:  "__date_picker__",
+    importPath: "@/components/ui/date-picker",
+    ignore:     ["State"],
+  },
+
+  "Calendar": {
+    component:  "__calendar__",
+    importPath: "@/components/ui/calendar",
+    props: {
+      "Months": {
+        shadcnProp: "months",
+        values: { "1 month": "1", "2 month": "2", "3 month": "3" },
+      },
+    },
+  },
+
   // ── Label ─────────────────────────────────────────────────────────────────
   "Label": {
     component:  "Label",
