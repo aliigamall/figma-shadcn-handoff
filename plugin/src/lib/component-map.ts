@@ -335,6 +335,12 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["Spacing"],
   },
 
+  // ── Command ───────────────────────────────────────────────────────────────
+  "Command": {
+    component:  "__command__",
+    importPath: "@/components/ui/command",
+  },
+
   // ── Label ─────────────────────────────────────────────────────────────────
   "Label": {
     component:  "Label",

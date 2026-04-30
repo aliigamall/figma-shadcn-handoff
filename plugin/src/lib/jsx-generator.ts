@@ -736,6 +736,51 @@ function renderLineChart(node: ScannedNode, imports: ImportMap, indent: number):
   ].join("\n");
 }
 
+// ─── Command renderer ─────────────────────────────────────────────────────────
+
+function renderCommand(_node: ScannedNode, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+  const p2  = "  ".repeat(indent + 2);
+  const p3  = "  ".repeat(indent + 3);
+
+  addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add command");
+  addImport(imports, "lucide-react",              "Calendar");
+  addImport(imports, "lucide-react",              "Smile");
+  addImport(imports, "lucide-react",              "Calculator");
+  addImport(imports, "lucide-react",              "User");
+  addImport(imports, "lucide-react",              "CreditCard");
+  addImport(imports, "lucide-react",              "Settings");
+  addImport(imports, "@/components/ui/command",   "Command");
+  addImport(imports, "@/components/ui/command",   "CommandEmpty");
+  addImport(imports, "@/components/ui/command",   "CommandGroup");
+  addImport(imports, "@/components/ui/command",   "CommandInput");
+  addImport(imports, "@/components/ui/command",   "CommandItem");
+  addImport(imports, "@/components/ui/command",   "CommandList");
+  addImport(imports, "@/components/ui/command",   "CommandSeparator");
+  addImport(imports, "@/components/ui/command",   "CommandShortcut");
+
+  return [
+    `${pad}<Command className="max-w-sm rounded-lg border">`,
+    `${p1}<CommandInput placeholder="Type a command or search..." />`,
+    `${p1}<CommandList>`,
+    `${p2}<CommandEmpty>No results found.</CommandEmpty>`,
+    `${p2}<CommandGroup heading="Suggestions">`,
+    `${p3}<CommandItem><Calendar /><span>Calendar</span></CommandItem>`,
+    `${p3}<CommandItem><Smile /><span>Search Emoji</span></CommandItem>`,
+    `${p3}<CommandItem disabled><Calculator /><span>Calculator</span></CommandItem>`,
+    `${p2}</CommandGroup>`,
+    `${p2}<CommandSeparator />`,
+    `${p2}<CommandGroup heading="Settings">`,
+    `${p3}<CommandItem><User /><span>Profile</span><CommandShortcut>⌘P</CommandShortcut></CommandItem>`,
+    `${p3}<CommandItem><CreditCard /><span>Billing</span><CommandShortcut>⌘B</CommandShortcut></CommandItem>`,
+    `${p3}<CommandItem><Settings /><span>Settings</span><CommandShortcut>⌘S</CommandShortcut></CommandItem>`,
+    `${p2}</CommandGroup>`,
+    `${p1}</CommandList>`,
+    `${pad}</Command>`,
+  ].join("\n");
+}
+
 // ─── Checkbox helpers ─────────────────────────────────────────────────────────
 
 function renderCheckbox(node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -974,6 +1019,11 @@ function renderNode(
   // Avatar — always needs AvatarImage + AvatarFallback children
   if (sn.component === "Avatar") {
     return renderAvatar(sn, imports, indent);
+  }
+
+  // Command — fixed compound structure
+  if (sn.component === "__command__") {
+    return renderCommand(sn, imports, indent);
   }
 
   // Checkbox — needs Field + FieldLabel wrapper

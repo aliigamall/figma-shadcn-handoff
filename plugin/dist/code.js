@@ -752,6 +752,11 @@ ${darkLines}
           },
           ignore: ["Spacing"]
         },
+        // ── Command ───────────────────────────────────────────────────────────────
+        "Command": {
+          component: "__command__",
+          importPath: "@/components/ui/command"
+        },
         // ── Label ─────────────────────────────────────────────────────────────────
         "Label": {
           component: "Label",
@@ -2019,6 +2024,46 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
       `${p0}</ChartContainer>`
     ].join("\n");
   }
+  function renderCommand(_node, imports, indent) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add command");
+    addImport(imports, "lucide-react", "Calendar");
+    addImport(imports, "lucide-react", "Smile");
+    addImport(imports, "lucide-react", "Calculator");
+    addImport(imports, "lucide-react", "User");
+    addImport(imports, "lucide-react", "CreditCard");
+    addImport(imports, "lucide-react", "Settings");
+    addImport(imports, "@/components/ui/command", "Command");
+    addImport(imports, "@/components/ui/command", "CommandEmpty");
+    addImport(imports, "@/components/ui/command", "CommandGroup");
+    addImport(imports, "@/components/ui/command", "CommandInput");
+    addImport(imports, "@/components/ui/command", "CommandItem");
+    addImport(imports, "@/components/ui/command", "CommandList");
+    addImport(imports, "@/components/ui/command", "CommandSeparator");
+    addImport(imports, "@/components/ui/command", "CommandShortcut");
+    return [
+      `${pad}<Command className="max-w-sm rounded-lg border">`,
+      `${p1}<CommandInput placeholder="Type a command or search..." />`,
+      `${p1}<CommandList>`,
+      `${p2}<CommandEmpty>No results found.</CommandEmpty>`,
+      `${p2}<CommandGroup heading="Suggestions">`,
+      `${p3}<CommandItem><Calendar /><span>Calendar</span></CommandItem>`,
+      `${p3}<CommandItem><Smile /><span>Search Emoji</span></CommandItem>`,
+      `${p3}<CommandItem disabled><Calculator /><span>Calculator</span></CommandItem>`,
+      `${p2}</CommandGroup>`,
+      `${p2}<CommandSeparator />`,
+      `${p2}<CommandGroup heading="Settings">`,
+      `${p3}<CommandItem><User /><span>Profile</span><CommandShortcut>\u2318P</CommandShortcut></CommandItem>`,
+      `${p3}<CommandItem><CreditCard /><span>Billing</span><CommandShortcut>\u2318B</CommandShortcut></CommandItem>`,
+      `${p3}<CommandItem><Settings /><span>Settings</span><CommandShortcut>\u2318S</CommandShortcut></CommandItem>`,
+      `${p2}</CommandGroup>`,
+      `${p1}</CommandList>`,
+      `${pad}</Command>`
+    ].join("\n");
+  }
   function renderCheckbox(node, imports, indent) {
     var _a;
     const pad = "  ".repeat(indent);
@@ -2186,6 +2231,9 @@ ${pad}</div>`;
     }
     if (sn.component === "Avatar") {
       return renderAvatar(sn, imports, indent);
+    }
+    if (sn.component === "__command__") {
+      return renderCommand(sn, imports, indent);
     }
     if (sn.component === "Checkbox") {
       return renderCheckbox(sn, imports, indent);
