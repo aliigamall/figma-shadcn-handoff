@@ -229,8 +229,33 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     importPath: "@/components/ui/checkbox",
     props: {
       "Checked?": { shadcnProp: "checked", values: CHECKED_MAP },
+      "State": {
+        shadcnProp: "disabled",
+        values: { Disabled: "true", Focus: null, Error: null, "Error Focus": null },
+      },
     },
-    ignore: ["State"],
+  },
+
+  "Checkbox Group": {
+    component:  "__checkbox_group__",
+    importPath: "@/components/ui/checkbox",
+    props: {
+      "Layout": {
+        shadcnProp: "layout",
+        values: { Inline: "inline", Stacked: "stacked" },
+      },
+    },
+    ignore: ["Checked?"],
+  },
+
+  "Rich Checkbox Group": {
+    component:  "RichCheckboxGroup",
+    importPath: "@/components/ui/rich-checkbox-group",
+    props: {
+      "Checked":  { shadcnProp: "checked",  values: { True: "true", False: null } },
+      "Flipped":  { shadcnProp: "flipped",  values: { True: "true", False: null } },
+    },
+    children: "Line 1",
   },
 
   // ── Switch ────────────────────────────────────────────────────────────────

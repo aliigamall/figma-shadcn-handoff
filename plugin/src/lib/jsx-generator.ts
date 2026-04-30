@@ -736,6 +736,83 @@ function renderLineChart(node: ScannedNode, imports: ImportMap, indent: number):
   ].join("\n");
 }
 
+// ─── Checkbox helpers ─────────────────────────────────────────────────────────
+
+function renderCheckbox(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const ip  = "  ".repeat(indent + 1);
+
+  addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
+  addImport(imports, "@/components/ui/checkbox", "Checkbox");
+  addImport(imports, "@/components/ui/field",    "Field");
+  addImport(imports, "@/components/ui/field",    "FieldLabel");
+
+  const children = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+  const label    = collectTexts(children)[0] ?? "Label";
+  const id       = toJsKey(label) + "-checkbox";
+
+  const disabled = node.props.find(p => p.shadcnProp === "disabled" && p.value === "true");
+  const checked  = node.props.find(p => p.shadcnProp === "checked");
+  const checkedAttr = checked?.value === "true"        ? " defaultChecked"
+                    : checked?.value === "indeterminate" ? ` checked="indeterminate"`
+                    : "";
+  const disabledAttr = disabled ? " disabled" : "";
+
+  return [
+    `${pad}<Field orientation="horizontal">`,
+    `${ip}<Checkbox id="${id}" name="${id}"${checkedAttr}${disabledAttr} />`,
+    `${ip}<FieldLabel htmlFor="${id}">${label}</FieldLabel>`,
+    `${pad}</Field>`,
+  ].join("\n");
+}
+
+function renderCheckboxGroup(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+  const p2  = "  ".repeat(indent + 2);
+
+  addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
+  addImport(imports, "@/components/ui/checkbox", "Checkbox");
+  addImport(imports, "@/components/ui/field",    "Field");
+  addImport(imports, "@/components/ui/field",    "FieldGroup");
+  addImport(imports, "@/components/ui/field",    "FieldLabel");
+  addImport(imports, "@/components/ui/field",    "FieldLegend");
+  addImport(imports, "@/components/ui/field",    "FieldSet");
+
+  // Collect child checkbox nodes (scanned as ScannedNode with component "Checkbox")
+  const childCheckboxes = (Array.isArray(node.children) ? node.children as ScannedTree[] : [])
+    .filter(c => "component" in c && (c as ScannedNode).component === "Checkbox") as ScannedNode[];
+
+  const items = childCheckboxes.length > 0
+    ? childCheckboxes
+    : [null, null, null]; // placeholder rows if no children scanned
+
+  const fieldItems = items.map((child, i) => {
+    const childTexts = child
+      ? collectTexts(Array.isArray(child.children) ? child.children as ScannedTree[] : [])
+      : [];
+    const label = childTexts[0] ?? `Option ${i + 1}`;
+    const id    = toJsKey(label) + "-checkbox";
+    const checked = child?.props.find(p => p.shadcnProp === "checked");
+    const checkedAttr = checked?.value === "true" ? " defaultChecked" : "";
+    return [
+      `${p2}<Field orientation="horizontal">`,
+      `${p2}  <Checkbox id="${id}" name="${id}"${checkedAttr} />`,
+      `${p2}  <FieldLabel htmlFor="${id}" className="font-normal">${label}</FieldLabel>`,
+      `${p2}</Field>`,
+    ].join("\n");
+  }).join("\n");
+
+  return [
+    `${pad}<FieldSet>`,
+    `${p1}<FieldLegend variant="label">Group label</FieldLegend>`,
+    `${p1}<FieldGroup className="gap-3">`,
+    fieldItems,
+    `${p1}</FieldGroup>`,
+    `${pad}</FieldSet>`,
+  ].join("\n");
+}
+
 // ─── ButtonGroup helpers ──────────────────────────────────────────────────────
 
 function isButtonGroupContainer(node: ScannedFrame): boolean {
@@ -897,6 +974,16 @@ function renderNode(
   // Avatar — always needs AvatarImage + AvatarFallback children
   if (sn.component === "Avatar") {
     return renderAvatar(sn, imports, indent);
+  }
+
+  // Checkbox — needs Field + FieldLabel wrapper
+  if (sn.component === "Checkbox") {
+    return renderCheckbox(sn, imports, indent);
+  }
+
+  // Checkbox Group — needs FieldSet + FieldGroup structure
+  if (sn.component === "__checkbox_group__") {
+    return renderCheckboxGroup(sn, imports, indent);
   }
 
   const { component, importPath, props, children } = node;
