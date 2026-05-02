@@ -871,6 +871,11 @@ ${darkLines}
           importPath: "@/components/ui/pagination",
           ignore: ["Type", "State"]
         },
+        // ── Hover Card ────────────────────────────────────────────────────────────
+        "Hover Card": {
+          component: "__hover_card__",
+          importPath: "@/components/ui/hover-card"
+        },
         // ── Drawer ────────────────────────────────────────────────────────────────
         "Drawer": {
           component: "__drawer__",
@@ -2581,6 +2586,49 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
       `${pad}</Empty>`
     ].join("\n");
   }
+  function renderHoverCard(node, imports, indent) {
+    var _a;
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add hover-card avatar");
+    addImport(imports, "@/components/ui/hover-card", "HoverCard");
+    addImport(imports, "@/components/ui/hover-card", "HoverCardContent");
+    addImport(imports, "@/components/ui/hover-card", "HoverCardTrigger");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/avatar", "Avatar");
+    addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+    addImport(imports, "@/components/ui/avatar", "AvatarImage");
+    addImport(imports, "lucide-react", "CalendarDays");
+    const children = Array.isArray(node.children) ? node.children : [];
+    const texts = collectTexts(children);
+    const trigger = (_a = texts[0]) != null ? _a : "@nextjs";
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    const p4 = "  ".repeat(indent + 4);
+    return [
+      `${pad}<HoverCard>`,
+      `${p1}<HoverCardTrigger asChild>`,
+      `${p2}<Button variant="link">${trigger}</Button>`,
+      `${p1}</HoverCardTrigger>`,
+      `${p1}<HoverCardContent className="w-80">`,
+      `${p2}<div className="flex justify-between space-x-4">`,
+      `${p3}<Avatar>`,
+      `${p4}<AvatarImage src="https://github.com/vercel.png" />`,
+      `${p4}<AvatarFallback>VC</AvatarFallback>`,
+      `${p3}</Avatar>`,
+      `${p3}<div className="space-y-1">`,
+      `${p4}<h4 className="text-sm font-semibold">${trigger}</h4>`,
+      `${p4}<p className="text-sm">The React Framework \u2013 created and maintained by @vercel.</p>`,
+      `${p4}<div className="flex items-center pt-2">`,
+      `${p4}  <CalendarDays className="mr-2 h-4 w-4 opacity-70" />`,
+      `${p4}  <span className="text-xs text-muted-foreground">Joined December 2021</span>`,
+      `${p4}</div>`,
+      `${p3}</div>`,
+      `${p2}</div>`,
+      `${p1}</HoverCardContent>`,
+      `${pad}</HoverCard>`
+    ].join("\n");
+  }
   function renderDrawer(_node, imports, indent) {
     addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add drawer");
     addImport(imports, "@/components/ui/button", "Button");
@@ -2971,6 +3019,8 @@ ${pad}</div>`;
       return renderField(sn, imports, indent, "horizontal");
     if (sn.component === "__empty__")
       return renderEmpty(sn, imports, indent);
+    if (sn.component === "__hover_card__")
+      return renderHoverCard(sn, imports, indent);
     if (sn.component === "__drawer__")
       return renderDrawer(sn, imports, indent);
     if (sn.component === "__dialog__")

@@ -468,6 +468,12 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["Type", "State"],
   },
 
+  // ── Hover Card ────────────────────────────────────────────────────────────
+  "Hover Card": {
+    component:  "__hover_card__",
+    importPath: "@/components/ui/hover-card",
+  },
+
   // ── Drawer ────────────────────────────────────────────────────────────────
   "Drawer": {
     component:  "__drawer__",
