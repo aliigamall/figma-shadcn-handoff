@@ -819,6 +819,11 @@ ${darkLines}
           importPath: "@/components/ui/pagination",
           ignore: ["Type", "State"]
         },
+        // ── Drawer ────────────────────────────────────────────────────────────────
+        "Drawer": {
+          component: "__drawer__",
+          importPath: "@/components/ui/drawer"
+        },
         // ── Dialog ────────────────────────────────────────────────────────────────
         "Dialog": {
           component: "__dialog__",
@@ -2416,6 +2421,60 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
     const months = parseInt((_a = monthsProp == null ? void 0 : monthsProp.value) != null ? _a : "1", 10);
     return months >= 2 ? renderDatePickerRange(imports, indent, months) : renderDatePickerSingle(imports, indent);
   }
+  function renderDrawer(_node, imports, indent) {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add drawer");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/drawer", "Drawer");
+    addImport(imports, "@/components/ui/drawer", "DrawerClose");
+    addImport(imports, "@/components/ui/drawer", "DrawerContent");
+    addImport(imports, "@/components/ui/drawer", "DrawerDescription");
+    addImport(imports, "@/components/ui/drawer", "DrawerFooter");
+    addImport(imports, "@/components/ui/drawer", "DrawerHeader");
+    addImport(imports, "@/components/ui/drawer", "DrawerTitle");
+    addImport(imports, "@/components/ui/drawer", "DrawerTrigger");
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    addImport(
+      imports,
+      PREAMBLE_KEY,
+      `const DRAWER_SIDES = ["top", "right", "bottom", "left"] as const`
+    );
+    return [
+      `${pad}<div className="flex flex-wrap gap-2">`,
+      `${p1}{DRAWER_SIDES.map((side) => (`,
+      `${p2}<Drawer`,
+      `${p2}  key={side}`,
+      `${p2}  direction={side === "bottom" ? undefined : (side as "top" | "right" | "left")}`,
+      `${p2}>`,
+      `${p3}<DrawerTrigger asChild>`,
+      `${p3}  <Button variant="outline" className="capitalize">{side}</Button>`,
+      `${p3}</DrawerTrigger>`,
+      `${p3}<DrawerContent className="data-[vaul-drawer-direction=bottom]:max-h-[50vh] data-[vaul-drawer-direction=top]:max-h-[50vh]">`,
+      `${p3}  <DrawerHeader>`,
+      `${p3}    <DrawerTitle>Move Goal</DrawerTitle>`,
+      `${p3}    <DrawerDescription>Set your daily activity goal.</DrawerDescription>`,
+      `${p3}  </DrawerHeader>`,
+      `${p3}  <div className="no-scrollbar overflow-y-auto px-4">`,
+      `${p3}    {Array.from({ length: 5 }).map((_, i) => (`,
+      `${p3}      <p key={i} className="mb-4 leading-normal">`,
+      `${p3}        Lorem ipsum dolor sit amet, consectetur adipiscing elit.`,
+      `${p3}      </p>`,
+      `${p3}    ))}`,
+      `${p3}  </div>`,
+      `${p3}  <DrawerFooter>`,
+      `${p3}    <Button>Submit</Button>`,
+      `${p3}    <DrawerClose asChild>`,
+      `${p3}      <Button variant="outline">Cancel</Button>`,
+      `${p3}    </DrawerClose>`,
+      `${p3}  </DrawerFooter>`,
+      `${p3}</DrawerContent>`,
+      `${p2}</Drawer>`,
+      `${p1}  ))}`,
+      `${pad}</div>`
+    ].join("\n");
+  }
   function dialogImports(imports) {
     addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add dialog");
     addImport(imports, "@/components/ui/button", "Button");
@@ -2746,6 +2805,8 @@ ${pad}</div>`;
       return renderDatePickerSingle(imports, indent);
     if (sn.component === "__calendar__")
       return renderDatePicker(sn, imports, indent);
+    if (sn.component === "__drawer__")
+      return renderDrawer(sn, imports, indent);
     if (sn.component === "__dialog__")
       return renderDialog(sn, imports, indent);
     if (sn.component === "__dialog_header__")

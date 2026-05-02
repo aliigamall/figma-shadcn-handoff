@@ -413,6 +413,12 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["Type", "State"],
   },
 
+  // ── Drawer ────────────────────────────────────────────────────────────────
+  "Drawer": {
+    component:  "__drawer__",
+    importPath: "@/components/ui/drawer",
+  },
+
   // ── Dialog ────────────────────────────────────────────────────────────────
   "Dialog": {
     component:  "__dialog__",
