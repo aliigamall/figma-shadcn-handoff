@@ -1095,6 +1095,89 @@ function renderDatePicker(node: ScannedNode, imports: ImportMap, indent: number)
     : renderDatePickerSingle(imports, indent);
 }
 
+// ─── Field renderer ──────────────────────────────────────────────────────────
+
+function renderField(node: ScannedNode, imports: ImportMap, indent: number, orientation: "vertical" | "horizontal"): string {
+  const typeProp = node.props.find(p => p.shadcnProp === "type");
+  const type     = typeProp?.value ?? "text";
+
+  addImport(imports, INSTALL_KEY,            "pnpm dlx shadcn@latest add field");
+  addImport(imports, "@/components/ui/field", "Field");
+  addImport(imports, "@/components/ui/field", "FieldLabel");
+
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+
+  const orientAttr = orientation === "horizontal" ? ` orientation="horizontal"` : "";
+  const fieldId    = `field-${type}`;
+
+  let inner = "";
+
+  if (type === "text") {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input");
+    addImport(imports, "@/components/ui/input", "Input");
+    inner = [
+      `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
+      `${p1}<Input id="${fieldId}" placeholder="Enter a value" />`,
+    ].join("\n");
+  } else if (type === "select") {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add select");
+    addImport(imports, "@/components/ui/select", "Select");
+    addImport(imports, "@/components/ui/select", "SelectContent");
+    addImport(imports, "@/components/ui/select", "SelectItem");
+    addImport(imports, "@/components/ui/select", "SelectTrigger");
+    addImport(imports, "@/components/ui/select", "SelectValue");
+    inner = [
+      `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
+      `${p1}<Select>`,
+      `${p1}  <SelectTrigger id="${fieldId}"><SelectValue placeholder="Select an item" /></SelectTrigger>`,
+      `${p1}  <SelectContent>`,
+      `${p1}    <SelectItem value="option1">Option 1</SelectItem>`,
+      `${p1}    <SelectItem value="option2">Option 2</SelectItem>`,
+      `${p1}  </SelectContent>`,
+      `${p1}</Select>`,
+    ].join("\n");
+  } else if (type === "textarea") {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add textarea");
+    addImport(imports, "@/components/ui/textarea", "Textarea");
+    inner = [
+      `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
+      `${p1}<Textarea id="${fieldId}" placeholder="Type your message here" />`,
+    ].join("\n");
+  } else if (type === "radio") {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add radio-group");
+    addImport(imports, "@/components/ui/radio-group", "RadioGroup");
+    addImport(imports, "@/components/ui/radio-group", "RadioGroupItem");
+    addImport(imports, "@/components/ui/label",       "Label");
+    inner = [
+      `${p1}<FieldLabel>Label</FieldLabel>`,
+      `${p1}<RadioGroup defaultValue="option1">`,
+      `${p1}  <div className="flex items-center gap-2"><RadioGroupItem id="r1" value="option1" /><Label htmlFor="r1">Option 1</Label></div>`,
+      `${p1}  <div className="flex items-center gap-2"><RadioGroupItem id="r2" value="option2" /><Label htmlFor="r2">Option 2</Label></div>`,
+      `${p1}</RadioGroup>`,
+    ].join("\n");
+  } else if (type === "checkbox") {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
+    addImport(imports, "@/components/ui/checkbox", "Checkbox");
+    // Checkbox fields are always horizontal
+    inner = [
+      `${p1}<Checkbox id="${fieldId}" />`,
+      `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
+    ].join("\n");
+    const checkboxOrient = ` orientation="horizontal"`;
+    return [`${pad}<Field${checkboxOrient}>`, inner, `${pad}</Field>`].join("\n");
+  } else if (type === "slider") {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add slider");
+    addImport(imports, "@/components/ui/slider", "Slider");
+    inner = [
+      `${p1}<FieldLabel>Label</FieldLabel>`,
+      `${p1}<Slider defaultValue={[50]} max={100} step={1} />`,
+    ].join("\n");
+  }
+
+  return [`${pad}<Field${orientAttr}>`, inner, `${pad}</Field>`].join("\n");
+}
+
 // ─── Empty renderer ──────────────────────────────────────────────────────────
 
 function renderEmpty(node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -1619,6 +1702,10 @@ function renderNode(
   // Date picker / calendar
   if (sn.component === "__date_picker__")   return renderDatePickerSingle(imports, indent);
   if (sn.component === "__calendar__")      return renderDatePicker(sn, imports, indent);
+
+  // Field
+  if (sn.component === "__field_vertical__")   return renderField(sn, imports, indent, "vertical");
+  if (sn.component === "__field_horizontal__") return renderField(sn, imports, indent, "horizontal");
 
   // Empty state
   if (sn.component === "__empty__")         return renderEmpty(sn, imports, indent);

@@ -377,6 +377,43 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     children: "⮑ title",
   },
 
+  // ── Field ─────────────────────────────────────────────────────────────────
+  "Vertical Field": {
+    component:  "__field_vertical__",
+    importPath: "@/components/ui/field",
+    props: {
+      "Type": {
+        shadcnProp: "type",
+        values: {
+          Select:       "select",
+          "Text Value": "text",
+          Radio:        "radio",
+          Textarea:     "textarea",
+          Checkbox:     "checkbox",
+          Slider:       "slider",
+        },
+      },
+    },
+  },
+
+  "Horizontal Field": {
+    component:  "__field_horizontal__",
+    importPath: "@/components/ui/field",
+    props: {
+      "Type": {
+        shadcnProp: "type",
+        values: {
+          Select:       "select",
+          "Text Value": "text",
+          Radio:        "radio",
+          Textarea:     "textarea",
+          Checkbox:     "checkbox",
+          Slider:       "slider",
+        },
+      },
+    },
+  },
+
   // ── Label ─────────────────────────────────────────────────────────────────
   "Label": {
     component:  "Label",
