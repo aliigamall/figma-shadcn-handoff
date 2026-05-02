@@ -1533,6 +1533,108 @@ function renderEmpty(node: ScannedNode, imports: ImportMap, indent: number): str
   ].join("\n");
 }
 
+// ─── Navigation Menu renderer ────────────────────────────────────────────────
+
+/**
+ * Figma structure:
+ *   Navigation Menu → contains Button instances (the trigger labels)
+ *   .Navigation Menu Content → sibling component, contains Menu Item instances
+ *
+ * Each Button child → NavigationMenuItem with NavigationMenuTrigger.
+ * Each Menu Item in content → li with NavigationMenuLink.
+ */
+function renderNavigationMenuContent(items: ScannedNode[], imports: ImportMap, indent: number): string {
+  const p0 = "  ".repeat(indent);
+  const p1 = "  ".repeat(indent + 1);
+  const p2 = "  ".repeat(indent + 2);
+  const p3 = "  ".repeat(indent + 3);
+  const p4 = "  ".repeat(indent + 4);
+
+  addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuContent");
+  addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuLink");
+
+  const lines: string[] = [
+    `${p0}<NavigationMenuContent>`,
+    `${p1}<ul className="grid gap-2 p-4 w-[400px]">`,
+  ];
+
+  items.forEach(item => {
+    const texts     = findAllTexts(item.children as ScannedTree[]);
+    const title     = texts[0] ?? "Item";
+    const desc      = texts[1] ?? null;
+    const isDestruct = item.props.find(p => p.shadcnProp === "type")?.value === "destructive";
+    lines.push(
+      `${p2}<li>`,
+      `${p3}<NavigationMenuLink asChild>`,
+      `${p4}<a href="#">`,
+      `${p4}  <div className="flex flex-col gap-1 text-sm">`,
+      `${p4}    <div className="font-medium leading-none${isDestruct ? " text-destructive" : ""}">${title}</div>`,
+      ...(desc ? [`${p4}    <div className="line-clamp-2 text-muted-foreground">${desc}</div>`] : []),
+      `${p4}  </div>`,
+      `${p4}</a>`,
+      `${p3}</NavigationMenuLink>`,
+      `${p2}</li>`,
+    );
+  });
+
+  lines.push(`${p1}</ul>`, `${p0}</NavigationMenuContent>`);
+  return lines.join("\n");
+}
+
+function renderNavigationMenu(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+  const p2  = "  ".repeat(indent + 2);
+  const p3  = "  ".repeat(indent + 3);
+
+  addImport(imports, INSTALL_KEY,                       "pnpm dlx shadcn@latest add navigation-menu");
+  addImport(imports, DIRECTIVE_KEY,                     '"use client"');
+  addImport(imports, "@/components/ui/navigation-menu", "NavigationMenu");
+  addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuList");
+  addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuItem");
+  addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuLink");
+  addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuTrigger");
+  addImport(imports, "@/components/ui/navigation-menu", "navigationMenuTriggerStyle");
+
+  const children = Array.isArray(node.children) ? (node.children as ScannedTree[]) : [];
+
+  // Button children are the trigger items; extract their label text
+  const buttonChildren = children.filter(
+    c => "component" in c && (c as ScannedNode).component === "Button"
+  ) as ScannedNode[];
+
+  const triggerLabels = buttonChildren.length > 0
+    ? buttonChildren.map(btn => (typeof btn.children === "string" ? btn.children : findFirstText(btn.children as ScannedTree[])) ?? "Menu")
+    : findAllTexts(children).slice(0, 3);  // fallback: any text found
+
+  const lines: string[] = [`${pad}<NavigationMenu>`, `${p1}<NavigationMenuList>`];
+
+  if (triggerLabels.length === 0) {
+    // No children detected — static placeholder
+    lines.push(
+      `${p2}<NavigationMenuItem>`,
+      `${p3}<NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>`,
+      `${p3}  <a href="#">Home</a>`,
+      `${p3}</NavigationMenuLink>`,
+      `${p2}</NavigationMenuItem>`,
+    );
+  } else {
+    triggerLabels.forEach(label => {
+      lines.push(
+        `${p2}<NavigationMenuItem>`,
+        `${p3}<NavigationMenuTrigger>${label}</NavigationMenuTrigger>`,
+        `${p3}<NavigationMenuContent>`,
+        `${p3}  {/* Add your menu items here */}`,
+        `${p3}</NavigationMenuContent>`,
+        `${p2}</NavigationMenuItem>`,
+      );
+    });
+  }
+
+  lines.push(`${p1}</NavigationMenuList>`, `${pad}</NavigationMenu>`);
+  return lines.join("\n");
+}
+
 // ─── Icon Button renderer ─────────────────────────────────────────────────────
 
 function renderIconButton(node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -2122,6 +2224,35 @@ function renderNode(
 
   // Empty state
   if (sn.component === "__empty__")         return renderEmpty(sn, imports, indent);
+
+  // Navigation Menu — sub-components are consumed by renderNavigationMenu, suppress generic render
+  if (sn.component === "__navigation_menu__")         return renderNavigationMenu(sn, imports, indent);
+  if (sn.component === "__navigation_menu_content__") {
+    const pad = "  ".repeat(indent);
+    const p1  = "  ".repeat(indent + 1);
+    const p2  = "  ".repeat(indent + 2);
+    const p3  = "  ".repeat(indent + 3);
+    addImport(imports, INSTALL_KEY,                       "pnpm dlx shadcn@latest add navigation-menu");
+    addImport(imports, DIRECTIVE_KEY,                     '"use client"');
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenu");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuList");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuItem");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuTrigger");
+    const items = (Array.isArray(sn.children) ? sn.children as ScannedTree[] : [])
+      .filter(c => "component" in c && (c as ScannedNode).component === "__menu_item__") as ScannedNode[];
+    const content = renderNavigationMenuContent(items, imports, indent + 3);
+    return [
+      `${pad}<NavigationMenu>`,
+      `${p1}<NavigationMenuList>`,
+      `${p2}<NavigationMenuItem>`,
+      `${p3}<NavigationMenuTrigger>Menu</NavigationMenuTrigger>`,
+      content,
+      `${p2}</NavigationMenuItem>`,
+      `${p1}</NavigationMenuList>`,
+      `${pad}</NavigationMenu>`,
+    ].join("\n");
+  }
+  if (sn.component === "__menu_item__") return "";
 
   // Loading Button → <Button variant="outline" disabled> with <Spinner>
   if (sn.component === "__loading_button__") {

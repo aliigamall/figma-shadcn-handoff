@@ -323,6 +323,30 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     },
   },
 
+  // ── Navigation Menu ───────────────────────────────────────────────────────
+  "Navigation Menu": {
+    component:  "__navigation_menu__",
+    importPath: "@/components/ui/navigation-menu",
+    props: {},
+    ignore: ["State"],
+  },
+
+  ".Navigation Menu Content": {
+    component:  "__navigation_menu_content__",
+    importPath: "@/components/ui/navigation-menu",
+    props: {},
+  },
+
+  "Menu Item": {
+    component:  "__menu_item__",
+    importPath: "@/components/ui/navigation-menu",
+    props: {
+      "Size": { shadcnProp: "size", values: { Regular: null, Large: "lg" } },
+      "Type": { shadcnProp: "type", values: { Default: null, Destructive: "destructive" } },
+    },
+    ignore: ["State"],
+  },
+
   // ── Link Button ───────────────────────────────────────────────────────────
   "Link Button": {
     component:  "LinkButton",
