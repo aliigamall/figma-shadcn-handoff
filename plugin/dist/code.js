@@ -611,25 +611,15 @@ ${darkLines}
           },
           ignore: ["State", "Position", "Icon"]
         },
-        // ── Link Button ───────────────────────────────────────────────────────────
-        "Link Button": {
-          component: "Button",
-          importPath: "@/components/ui/button",
-          props: {
-            "Size": { shadcnProp: "size", values: SIZE_MAP }
-          },
-          children: "Label",
-          ignore: ["State", "Roundness", "Show icon left", "Show icon right", "\u2B91 Icon left", "\u2B91 Icon right"]
-        },
         // ── Loading Button ────────────────────────────────────────────────────────
         "Loading Button": {
-          component: "Button",
+          component: "__loading_button__",
           importPath: "@/components/ui/button",
           props: {
-            "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
-            "Size": { shadcnProp: "size", values: SIZE_MAP }
+            "Size": { shadcnProp: "size", values: { Default: null, Large: "lg", Small: "sm", Mini: "xs" } }
           },
-          ignore: ["State", "Roundness"]
+          ignore: ["Roundness", "State"],
+          children: "Label"
         },
         // ── Badge ─────────────────────────────────────────────────────────────────
         "Badge": {
@@ -813,6 +803,16 @@ ${darkLines}
               values: { "1 month": "1", "2 month": "2", "3 month": "3" }
             }
           }
+        },
+        // ── Link Button ───────────────────────────────────────────────────────────
+        "Link Button": {
+          component: "LinkButton",
+          importPath: "@/components/ui/button",
+          props: {
+            "Size": { shadcnProp: "size", values: { Default: null, Large: "lg", Small: "sm", Mini: "xs" } }
+          },
+          ignore: ["Roundness", "State"],
+          children: "Label"
         },
         // ── Input OTP ─────────────────────────────────────────────────────────────
         "Input OTP": {
@@ -3364,6 +3364,7 @@ ${pad}</Avatar>`;
     }).filter(Boolean).join(" ");
   }
   function renderNode(node, imports, indent) {
+    var _a, _b;
     const pad = "  ".repeat(indent);
     if ("isInlineText" in node) {
       return `${pad}${node.content}`;
@@ -3463,6 +3464,26 @@ ${pad}</div>`;
       return renderItem(sn, imports, indent);
     if (sn.component === "__empty__")
       return renderEmpty(sn, imports, indent);
+    if (sn.component === "__loading_button__") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button spinner");
+      addImport(imports, "@/components/ui/button", "Button");
+      addImport(imports, "@/components/ui/spinner", "Spinner");
+      const size = (_a = sn.props.find((p) => p.shadcnProp === "size")) == null ? void 0 : _a.value;
+      const sizeAttr = size ? ` size="${size}"` : "";
+      const label = typeof sn.children === "string" ? sn.children : "Loading";
+      return `${pad}<Button variant="outline"${sizeAttr} disabled>
+${pad}  <Spinner data-icon="inline-start" />
+${pad}  ${label}
+${pad}</Button>`;
+    }
+    if (sn.component === "LinkButton") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button");
+      addImport(imports, "@/components/ui/button", "Button");
+      const size = (_b = sn.props.find((p) => p.shadcnProp === "size")) == null ? void 0 : _b.value;
+      const sizeAttr = size ? ` size="${size}"` : "";
+      const label = typeof sn.children === "string" ? sn.children : "Link";
+      return `${pad}<Button variant="link"${sizeAttr}>${label}</Button>`;
+    }
     if (sn.component === "__icon_button__")
       return renderIconButton(sn, imports, indent);
     if (sn.component === "__hover_card__")

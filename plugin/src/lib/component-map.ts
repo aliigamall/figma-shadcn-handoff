@@ -108,26 +108,15 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["State", "Position", "Icon"],
   },
 
-  // ── Link Button ───────────────────────────────────────────────────────────
-  "Link Button": {
-    component:  "Button",
-    importPath: "@/components/ui/button",
-    props: {
-      "Size": { shadcnProp: "size", values: SIZE_MAP },
-    },
-    children: "Label",
-    ignore: ["State", "Roundness", "Show icon left", "Show icon right", "⮑ Icon left", "⮑ Icon right"],
-  },
-
   // ── Loading Button ────────────────────────────────────────────────────────
   "Loading Button": {
-    component:  "Button",
+    component:  "__loading_button__",
     importPath: "@/components/ui/button",
     props: {
-      "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
-      "Size":    { shadcnProp: "size",    values: SIZE_MAP },
+      "Size": { shadcnProp: "size", values: { Default: null, Large: "lg", Small: "sm", Mini: "xs" } },
     },
-    ignore: ["State", "Roundness"],
+    ignore: ["Roundness", "State"],
+    children: "Label",
   },
 
   // ── Badge ─────────────────────────────────────────────────────────────────
@@ -332,6 +321,17 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
         values: { "1 month": "1", "2 month": "2", "3 month": "3" },
       },
     },
+  },
+
+  // ── Link Button ───────────────────────────────────────────────────────────
+  "Link Button": {
+    component:  "LinkButton",
+    importPath: "@/components/ui/button",
+    props: {
+      "Size": { shadcnProp: "size", values: { Default: null, Large: "lg", Small: "sm", Mini: "xs" } },
+    },
+    ignore: ["Roundness", "State"],
+    children: "Label",
   },
 
   // ── Input OTP ─────────────────────────────────────────────────────────────

@@ -2123,6 +2123,27 @@ function renderNode(
   // Empty state
   if (sn.component === "__empty__")         return renderEmpty(sn, imports, indent);
 
+  // Loading Button → <Button variant="outline" disabled> with <Spinner>
+  if (sn.component === "__loading_button__") {
+    addImport(imports, INSTALL_KEY,               "pnpm dlx shadcn@latest add button spinner");
+    addImport(imports, "@/components/ui/button",  "Button");
+    addImport(imports, "@/components/ui/spinner", "Spinner");
+    const size     = sn.props.find(p => p.shadcnProp === "size")?.value;
+    const sizeAttr = size ? ` size="${size}"` : "";
+    const label    = typeof sn.children === "string" ? sn.children : "Loading";
+    return `${pad}<Button variant="outline"${sizeAttr} disabled>\n${pad}  <Spinner data-icon="inline-start" />\n${pad}  ${label}\n${pad}</Button>`;
+  }
+
+  // Link Button → <Button variant="link">
+  if (sn.component === "LinkButton") {
+    addImport(imports, INSTALL_KEY,              "pnpm dlx shadcn@latest add button");
+    addImport(imports, "@/components/ui/button", "Button");
+    const size    = sn.props.find(p => p.shadcnProp === "size")?.value;
+    const sizeAttr = size ? ` size="${size}"` : "";
+    const label   = typeof sn.children === "string" ? sn.children : "Link";
+    return `${pad}<Button variant="link"${sizeAttr}>${label}</Button>`;
+  }
+
   // Icon Button
   if (sn.component === "__icon_button__")   return renderIconButton(sn, imports, indent);
 
