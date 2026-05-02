@@ -1095,6 +1095,132 @@ function renderDatePicker(node: ScannedNode, imports: ImportMap, indent: number)
     : renderDatePickerSingle(imports, indent);
 }
 
+// ─── Dialog renderers ────────────────────────────────────────────────────────
+
+function dialogImports(imports: ImportMap) {
+  addImport(imports, INSTALL_KEY,                  "pnpm dlx shadcn@latest add dialog");
+  addImport(imports, "@/components/ui/button",     "Button");
+  addImport(imports, "@/components/ui/dialog",     "Dialog");
+  addImport(imports, "@/components/ui/dialog",     "DialogClose");
+  addImport(imports, "@/components/ui/dialog",     "DialogContent");
+  addImport(imports, "@/components/ui/dialog",     "DialogDescription");
+  addImport(imports, "@/components/ui/dialog",     "DialogFooter");
+  addImport(imports, "@/components/ui/dialog",     "DialogHeader");
+  addImport(imports, "@/components/ui/dialog",     "DialogTitle");
+  addImport(imports, "@/components/ui/dialog",     "DialogTrigger");
+}
+
+function renderDialog(_node: ScannedNode, imports: ImportMap, indent: number): string {
+  dialogImports(imports);
+  addImport(imports, "@/components/ui/field",  "Field");
+  addImport(imports, "@/components/ui/field",  "FieldGroup");
+  addImport(imports, "@/components/ui/input",  "Input");
+  addImport(imports, "@/components/ui/label",  "Label");
+
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+  const p2  = "  ".repeat(indent + 2);
+  const p3  = "  ".repeat(indent + 3);
+
+  return [
+    `${pad}<Dialog>`,
+    `${p1}<form>`,
+    `${p2}<DialogTrigger asChild>`,
+    `${p3}<Button variant="outline">Open Dialog</Button>`,
+    `${p2}</DialogTrigger>`,
+    `${p2}<DialogContent className="sm:max-w-sm">`,
+    `${p3}<DialogHeader>`,
+    `${p3}  <DialogTitle>Edit profile</DialogTitle>`,
+    `${p3}  <DialogDescription>Make changes to your profile here. Click save when you're done.</DialogDescription>`,
+    `${p3}</DialogHeader>`,
+    `${p3}<FieldGroup>`,
+    `${p3}  <Field>`,
+    `${p3}    <Label htmlFor="name">Name</Label>`,
+    `${p3}    <Input id="name" name="name" defaultValue="Pedro Duarte" />`,
+    `${p3}  </Field>`,
+    `${p3}  <Field>`,
+    `${p3}    <Label htmlFor="username">Username</Label>`,
+    `${p3}    <Input id="username" name="username" defaultValue="@peduarte" />`,
+    `${p3}  </Field>`,
+    `${p3}</FieldGroup>`,
+    `${p3}<DialogFooter>`,
+    `${p3}  <DialogClose asChild>`,
+    `${p3}    <Button variant="outline">Cancel</Button>`,
+    `${p3}  </DialogClose>`,
+    `${p3}  <Button type="submit">Save changes</Button>`,
+    `${p3}</DialogFooter>`,
+    `${p2}</DialogContent>`,
+    `${p1}</form>`,
+    `${pad}</Dialog>`,
+  ].join("\n");
+}
+
+function renderDialogHeader(node: ScannedNode, imports: ImportMap, indent: number): string {
+  dialogImports(imports);
+  const typeProp = node.props.find(p => p.shadcnProp === "type");
+  const type     = typeProp?.value ?? "header";
+
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+
+  if (type === "close-only" || type === "icon-close") {
+    addImport(imports, "lucide-react", "X");
+    return [
+      `${pad}<DialogHeader>`,
+      `${p1}<DialogTitle>Dialog Title</DialogTitle>`,
+      `${p1}<DialogClose asChild>`,
+      `${p1}  <Button variant="ghost" size="icon" className="absolute right-4 top-4"><X className="h-4 w-4" /></Button>`,
+      `${p1}</DialogClose>`,
+      `${pad}</DialogHeader>`,
+    ].join("\n");
+  }
+
+  return [
+    `${pad}<DialogHeader>`,
+    `${p1}<DialogTitle>Dialog Title</DialogTitle>`,
+    `${p1}<DialogDescription>Dialog description goes here.</DialogDescription>`,
+    `${pad}</DialogHeader>`,
+  ].join("\n");
+}
+
+function renderDialogFooter(node: ScannedNode, imports: ImportMap, indent: number): string {
+  dialogImports(imports);
+  const typeProp = node.props.find(p => p.shadcnProp === "type");
+  const type     = typeProp?.value ?? "2-buttons-right";
+
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+
+  if (type === "1-full-width") {
+    return [
+      `${pad}<DialogFooter>`,
+      `${p1}<Button type="submit" className="w-full">Save changes</Button>`,
+      `${pad}</DialogFooter>`,
+    ].join("\n");
+  }
+
+  if (type === "2-full-width") {
+    return [
+      `${pad}<DialogFooter className="flex-col gap-2 sm:flex-col">`,
+      `${p1}<Button type="submit" className="w-full">Save changes</Button>`,
+      `${p1}<DialogClose asChild>`,
+      `${p1}  <Button variant="outline" className="w-full">Cancel</Button>`,
+      `${p1}</DialogClose>`,
+      `${pad}</DialogFooter>`,
+    ].join("\n");
+  }
+
+  // default: 2-buttons-right
+  return [
+    `${pad}<DialogFooter>`,
+    `${p1}<DialogClose asChild>`,
+    `${p1}  <Button variant="outline">Cancel</Button>`,
+    `${p1}</DialogClose>`,
+    `${p1}<Button type="submit">Save changes</Button>`,
+    `${pad}</DialogFooter>`,
+  ].join("\n");
+}
+
 // ─── Command renderer ─────────────────────────────────────────────────────────
 
 function renderCommand(_node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -1391,8 +1517,13 @@ function renderNode(
   }
 
   // Date picker / calendar
-  if (sn.component === "__date_picker__") return renderDatePickerSingle(imports, indent);
-  if (sn.component === "__calendar__")    return renderDatePicker(sn, imports, indent);
+  if (sn.component === "__date_picker__")   return renderDatePickerSingle(imports, indent);
+  if (sn.component === "__calendar__")      return renderDatePicker(sn, imports, indent);
+
+  // Dialog
+  if (sn.component === "__dialog__")        return renderDialog(sn, imports, indent);
+  if (sn.component === "__dialog_header__") return renderDialogHeader(sn, imports, indent);
+  if (sn.component === "__dialog_footer__") return renderDialogFooter(sn, imports, indent);
 
   // Command — fixed compound structure
   if (sn.component === "__command__") {

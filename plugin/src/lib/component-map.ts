@@ -415,9 +415,35 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
 
   // ── Dialog ────────────────────────────────────────────────────────────────
   "Dialog": {
-    component:  "Dialog",
+    component:  "__dialog__",
     importPath: "@/components/ui/dialog",
-    ignore: ["Type"],
+    ignore:     ["Type"],
+  },
+
+  "Dialog Header": {
+    component:  "__dialog_header__",
+    importPath: "@/components/ui/dialog",
+    props: {
+      "Type": {
+        shadcnProp: "type",
+        values: { "Header": "header", "Close Only": "close-only", "Icon Button Close": "icon-close" },
+      },
+    },
+  },
+
+  "Dialog Footer": {
+    component:  "__dialog_footer__",
+    importPath: "@/components/ui/dialog",
+    props: {
+      "Type": {
+        shadcnProp: "type",
+        values: {
+          "2 Buttons Right":        "2-buttons-right",
+          "2 Full-width Buttons":   "2-full-width",
+          "Single Full-width Button": "1-full-width",
+        },
+      },
+    },
   },
 
   // ── Toggle Button ─────────────────────────────────────────────────────────
