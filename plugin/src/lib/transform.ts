@@ -1,8 +1,21 @@
 import type { RgbaValue, FigmaVariableValue } from "./types";
 
+/** Sanitize a segment so it contains only characters valid in a CSS custom property name */
+function sanitizeSegment(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")   // spaces → hyphens
+    .replace(/,/g, "-")      // commas → hyphens (European decimals like "0,5" → "0-5")
+    .replace(/[()]/g, "")    // strip parentheses
+    .replace(/[^a-z0-9\-_]/g, "-") // any remaining invalid chars → hyphens
+    .replace(/-+/g, "-")     // collapse consecutive hyphens
+    .replace(/^-|-$/g, "");  // trim leading/trailing hyphens
+}
+
 export function toCssVarName(collection: string, path: string): string {
   const col = collection.toLowerCase().trim();
-  const parts = path.split("/").map((p) => p.trim().toLowerCase().replace(/\s+/g, "-"));
+  const parts = path.split("/").map(sanitizeSegment);
 
   if (col === "semantic colors") {
     const [group, ...rest] = parts;
@@ -16,11 +29,11 @@ export function toCssVarName(collection: string, path: string): string {
 
   if (col === "raw colors" || col === "brand colors") return `--color-${parts.join("-")}`;
   if (col === "border radii") return `--radius-${parts.join("-")}`;
-  if (col === "spacing") return `--spacing-${parts.join("-")}`;
+  if (col === "spacing" || col.startsWith("spacing ")) return `--spacing-${parts.join("-")}`;
   if (col === "typography") return `--typography-${parts.join("-")}`;
   if (col === "shadows") return `--shadow-${parts.join("-")}`;
 
-  const slug = col.replace(/\s+/g, "-");
+  const slug = sanitizeSegment(col);
   return `--${slug}-${parts.join("-")}`;
 }
 
@@ -41,7 +54,7 @@ export function toCssValue(
     }
     return rgbaToHex(value as RgbaValue);
   }
-  if (typeof value === "number") return String(value);
+  if (typeof value === "number") return value === 0 ? "0" : `${value}px`;
   if (typeof value === "string") return value;
   return String(value);
 }

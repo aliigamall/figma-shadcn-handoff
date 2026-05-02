@@ -62,9 +62,12 @@
   });
 
   // src/lib/transform.ts
+  function sanitizeSegment(s) {
+    return s.trim().toLowerCase().replace(/\s+/g, "-").replace(/,/g, "-").replace(/[()]/g, "").replace(/[^a-z0-9\-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  }
   function toCssVarName(collection, path) {
     const col = collection.toLowerCase().trim();
-    const parts = path.split("/").map((p) => p.trim().toLowerCase().replace(/\s+/g, "-"));
+    const parts = path.split("/").map(sanitizeSegment);
     if (col === "semantic colors") {
       const [group, ...rest] = parts;
       if (group === "general")
@@ -80,13 +83,13 @@
       return `--color-${parts.join("-")}`;
     if (col === "border radii")
       return `--radius-${parts.join("-")}`;
-    if (col === "spacing")
+    if (col === "spacing" || col.startsWith("spacing "))
       return `--spacing-${parts.join("-")}`;
     if (col === "typography")
       return `--typography-${parts.join("-")}`;
     if (col === "shadows")
       return `--shadow-${parts.join("-")}`;
-    const slug = col.replace(/\s+/g, "-");
+    const slug = sanitizeSegment(col);
     return `--${slug}-${parts.join("-")}`;
   }
   function rgbaToHex(color) {
@@ -103,7 +106,7 @@
       return rgbaToHex(value);
     }
     if (typeof value === "number")
-      return String(value);
+      return value === 0 ? "0" : `${value}px`;
     if (typeof value === "string")
       return value;
     return String(value);
@@ -115,25 +118,86 @@
   });
 
   // src/lib/generate.ts
+  function isThemeVar(cssVar) {
+    return THEME_PREFIXES.some((p) => cssVar.startsWith(p));
+  }
+  function isColorValue(value) {
+    if (value.startsWith("#"))
+      return true;
+    if (value.startsWith("var(--color-"))
+      return true;
+    if (value.startsWith("var(--alpha-"))
+      return true;
+    if (value.startsWith("var(--chart-"))
+      return true;
+    if (/^(rgb|hsl|oklch|oklab|hwb|lch|lab|color-mix|color)\s*\(/i.test(value))
+      return true;
+    return false;
+  }
   function generateCss(tokens) {
-    const themeLines = tokens.map((t) => `  ${t.cssVar}: ${t.light};`).join("\n");
+    const themeTokens = tokens.filter((t) => isThemeVar(t.cssVar));
+    const semanticTokens = tokens.filter((t) => !isThemeVar(t.cssVar));
     const darkTokens = tokens.filter((t) => t.dark !== void 0);
-    let css = `@theme {
-${themeLines}
-}`;
+    const parts = [FILE_HEADER];
+    if (themeTokens.length > 0) {
+      const lines = themeTokens.map((t) => `  ${t.cssVar}: ${t.light};`).join("\n");
+      parts.push(`@theme {
+${lines}
+}`);
+    }
+    const inlineLines = semanticTokens.filter((t) => isColorValue(t.light)).map((t) => `  --color-${t.cssVar.slice(2)}: var(${t.cssVar});`);
+    if (inlineLines.length > 0) {
+      parts.push(`@theme inline {
+${inlineLines.join("\n")}
+}`);
+    }
+    if (semanticTokens.length > 0) {
+      const lines = semanticTokens.map((t) => `  ${t.cssVar}: ${t.light};`).join("\n");
+      parts.push(`:root {
+${lines}
+}`);
+    }
     if (darkTokens.length > 0) {
       const darkLines = darkTokens.map((t) => `  ${t.cssVar}: ${t.dark};`).join("\n");
-      css += `
-
-[data-theme="dark"] {
+      parts.push(`[data-theme="dark"] {
 ${darkLines}
-}`;
+}`);
     }
-    return css;
+    parts.push(LAYER_BASE);
+    return parts.join("\n\n");
   }
+  var THEME_PREFIXES, FILE_HEADER, LAYER_BASE;
   var init_generate = __esm({
     "src/lib/generate.ts"() {
       "use strict";
+      THEME_PREFIXES = [
+        "--color-",
+        "--alpha-",
+        "--radius-",
+        "--spacing-",
+        "--typography-",
+        "--shadow-",
+        "--border-radii-",
+        "--chart-colors-"
+      ];
+      FILE_HEADER = `@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));`;
+      LAYER_BASE = `@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in srgb, var(--ring) 50%, transparent);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+  html {
+    font-family: var(--font-sans, sans-serif);
+  }
+}`;
     }
   });
 
