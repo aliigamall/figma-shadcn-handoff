@@ -413,6 +413,17 @@ function collectTexts(nodes: ScannedTree[]): string[] {
   return out;
 }
 
+/** Recursively find the first ScannedIcon and return its Lucide name */
+function findIconChild(children: string | ScannedTree[]): string | null {
+  if (typeof children === "string") return null;
+  for (const c of children as ScannedTree[]) {
+    if ("isIcon"   in c) return (c as ScannedIcon).lucideName;
+    if ("isLayout" in c) { const r = findIconChild((c as ScannedFrame).children); if (r) return r; }
+    if ("component" in c) { const r = findIconChild((c as ScannedNode).children as ScannedTree[]); if (r) return r; }
+  }
+  return null;
+}
+
 /** Recursively collect Button ScannedNodes */
 function collectButtons(nodes: ScannedTree[]): ScannedNode[] {
   const out: ScannedNode[] = [];
@@ -1220,6 +1231,40 @@ function renderEmpty(node: ScannedNode, imports: ImportMap, indent: number): str
   ].join("\n");
 }
 
+// ─── Icon Button renderer ─────────────────────────────────────────────────────
+
+function renderIconButton(node: ScannedNode, imports: ImportMap, indent: number): string {
+  addImport(imports, INSTALL_KEY,              "pnpm dlx shadcn@latest add button");
+  addImport(imports, "@/components/ui/button", "Button");
+
+  const pad = "  ".repeat(indent);
+
+  const variantProp  = node.props.find(p => p.shadcnProp === "variant");
+  const sizeProp     = node.props.find(p => p.shadcnProp === "size");
+  const roundProp    = node.props.find(p => p.shadcnProp === "roundness");
+  const disabledProp = node.props.find(p => p.shadcnProp === "disabled");
+
+  const variant  = variantProp?.value  ?? "default";
+  const sizeVal  = sizeProp?.value     ?? "default";
+  const round    = roundProp?.value    === "full";
+  const disabled = disabledProp?.value === "true";
+
+  const variantAttr  = variant !== "default" ? ` variant="${variant}"` : "";
+  const disabledAttr = disabled ? " disabled" : "";
+
+  const sizeClassMap: Record<string, string> = { large: "size-12", small: "size-8", mini: "size-6" };
+  const sizeClass  = sizeClassMap[sizeVal] ?? "";
+  const roundClass = round ? "rounded-full" : "";
+  const classes    = [sizeClass, roundClass].filter(Boolean).join(" ");
+  const classAttr  = classes ? ` className="${classes}"` : "";
+
+  // Read the actual icon from scanned children; fall back to Plus
+  const iconName = findIconChild(node.children as ScannedTree[]) ?? "Plus";
+  addImport(imports, "lucide-react", iconName);
+
+  return `${pad}<Button size="icon"${variantAttr}${classAttr}${disabledAttr}><${iconName} className="size-4" /></Button>`;
+}
+
 // ─── Hover Card renderer ──────────────────────────────────────────────────────
 
 function renderHoverCard(node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -1758,6 +1803,9 @@ function renderNode(
 
   // Empty state
   if (sn.component === "__empty__")         return renderEmpty(sn, imports, indent);
+
+  // Icon Button
+  if (sn.component === "__icon_button__")   return renderIconButton(sn, imports, indent);
 
   // Hover Card
   if (sn.component === "__hover_card__")    return renderHoverCard(sn, imports, indent);

@@ -108,17 +108,6 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["State", "Position", "Icon"],
   },
 
-  // ── Icon Button ───────────────────────────────────────────────────────────
-  "Icon Button": {
-    component:  "Button",
-    importPath: "@/components/ui/button",
-    props: {
-      "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
-      "Size":    { shadcnProp: "size",    values: SIZE_MAP },
-    },
-    ignore: ["State", "Roundness", "Icon"],
-  },
-
   // ── Link Button ───────────────────────────────────────────────────────────
   "Link Button": {
     component:  "Button",
@@ -466,6 +455,27 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     component:  "Pagination",
     importPath: "@/components/ui/pagination",
     ignore: ["Type", "State"],
+  },
+
+  // ── Icon Button ───────────────────────────────────────────────────────────
+  "Icon Button": {
+    component:  "__icon_button__",
+    importPath: "@/components/ui/button",
+    props: {
+      "Variant": {
+        shadcnProp: "variant",
+        values: { Primary: "default", Secondary: "secondary", Outline: "outline", Ghost: "ghost", Destructive: "destructive" },
+      },
+      "Size": {
+        shadcnProp: "size",
+        values: { Default: "default", Large: "large", Small: "small", Mini: "mini" },
+      },
+      "Roundness": {
+        shadcnProp: "roundness",
+        values: { Default: null, Round: "full" },
+      },
+    },
+    ignore: ["State"],
   },
 
   // ── Hover Card ────────────────────────────────────────────────────────────

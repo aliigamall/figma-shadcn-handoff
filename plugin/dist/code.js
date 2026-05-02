@@ -547,16 +547,6 @@ ${darkLines}
           },
           ignore: ["State", "Position", "Icon"]
         },
-        // ── Icon Button ───────────────────────────────────────────────────────────
-        "Icon Button": {
-          component: "Button",
-          importPath: "@/components/ui/button",
-          props: {
-            "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
-            "Size": { shadcnProp: "size", values: SIZE_MAP }
-          },
-          ignore: ["State", "Roundness", "Icon"]
-        },
         // ── Link Button ───────────────────────────────────────────────────────────
         "Link Button": {
           component: "Button",
@@ -870,6 +860,26 @@ ${darkLines}
           component: "Pagination",
           importPath: "@/components/ui/pagination",
           ignore: ["Type", "State"]
+        },
+        // ── Icon Button ───────────────────────────────────────────────────────────
+        "Icon Button": {
+          component: "__icon_button__",
+          importPath: "@/components/ui/button",
+          props: {
+            "Variant": {
+              shadcnProp: "variant",
+              values: { Primary: "default", Secondary: "secondary", Outline: "outline", Ghost: "ghost", Destructive: "destructive" }
+            },
+            "Size": {
+              shadcnProp: "size",
+              values: { Default: "default", Large: "large", Small: "small", Mini: "mini" }
+            },
+            "Roundness": {
+              shadcnProp: "roundness",
+              values: { Default: null, Round: "full" }
+            }
+          },
+          ignore: ["State"]
         },
         // ── Hover Card ────────────────────────────────────────────────────────────
         "Hover Card": {
@@ -1849,6 +1859,25 @@ ${pad}</Accordion>`;
     }
     return out;
   }
+  function findIconChild(children) {
+    if (typeof children === "string")
+      return null;
+    for (const c of children) {
+      if ("isIcon" in c)
+        return c.lucideName;
+      if ("isLayout" in c) {
+        const r = findIconChild(c.children);
+        if (r)
+          return r;
+      }
+      if ("component" in c) {
+        const r = findIconChild(c.children);
+        if (r)
+          return r;
+      }
+    }
+    return null;
+  }
   function collectButtons(nodes) {
     const out = [];
     for (const n of nodes) {
@@ -2586,6 +2615,30 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
       `${pad}</Empty>`
     ].join("\n");
   }
+  function renderIconButton(node, imports, indent) {
+    var _a, _b, _c, _d;
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button");
+    addImport(imports, "@/components/ui/button", "Button");
+    const pad = "  ".repeat(indent);
+    const variantProp = node.props.find((p) => p.shadcnProp === "variant");
+    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
+    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
+    const disabledProp = node.props.find((p) => p.shadcnProp === "disabled");
+    const variant = (_a = variantProp == null ? void 0 : variantProp.value) != null ? _a : "default";
+    const sizeVal = (_b = sizeProp == null ? void 0 : sizeProp.value) != null ? _b : "default";
+    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
+    const disabled = (disabledProp == null ? void 0 : disabledProp.value) === "true";
+    const variantAttr = variant !== "default" ? ` variant="${variant}"` : "";
+    const disabledAttr = disabled ? " disabled" : "";
+    const sizeClassMap = { large: "size-12", small: "size-8", mini: "size-6" };
+    const sizeClass = (_c = sizeClassMap[sizeVal]) != null ? _c : "";
+    const roundClass = round ? "rounded-full" : "";
+    const classes = [sizeClass, roundClass].filter(Boolean).join(" ");
+    const classAttr = classes ? ` className="${classes}"` : "";
+    const iconName = (_d = findIconChild(node.children)) != null ? _d : "Plus";
+    addImport(imports, "lucide-react", iconName);
+    return `${pad}<Button size="icon"${variantAttr}${classAttr}${disabledAttr}><${iconName} className="size-4" /></Button>`;
+  }
   function renderHoverCard(node, imports, indent) {
     var _a;
     addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add hover-card avatar");
@@ -3019,6 +3072,8 @@ ${pad}</div>`;
       return renderField(sn, imports, indent, "horizontal");
     if (sn.component === "__empty__")
       return renderEmpty(sn, imports, indent);
+    if (sn.component === "__icon_button__")
+      return renderIconButton(sn, imports, indent);
     if (sn.component === "__hover_card__")
       return renderHoverCard(sn, imports, indent);
     if (sn.component === "__drawer__")
@@ -4095,6 +4150,7 @@ ${pad}</${tag}>${interactiveSuffix}`;
       function buildDraftEntry(componentName, defs) {
         var _a, _b;
         const props = {};
+        const options = {};
         const defaults = {};
         const booleans = {};
         let children;
@@ -4115,6 +4171,8 @@ ${pad}</${tag}>${interactiveSuffix}`;
             } else {
               const propName = key.toLowerCase();
               props[key] = propName;
+              if (opts.length > 0)
+                options[key] = opts;
               const defaultOpt = (_b = opts.find((v) => v.toLowerCase() === "default")) != null ? _b : opts[0];
               if (defaultOpt)
                 defaults[propName] = defaultOpt.toLowerCase();
@@ -4123,9 +4181,9 @@ ${pad}</${tag}>${interactiveSuffix}`;
             children = key;
           }
         }
-        return __spreadValues(__spreadValues(__spreadValues(__spreadValues({
+        return __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({
           import: `@/components/ui/${componentName.toLowerCase().replace(/\s+/g, "-")}`
-        }, Object.keys(props).length > 0 && { props }), Object.keys(defaults).length > 0 && { defaults }), Object.keys(booleans).length > 0 && { booleans }), children && { children });
+        }, Object.keys(props).length > 0 && { props }), Object.keys(options).length > 0 && { options }), Object.keys(defaults).length > 0 && { defaults }), Object.keys(booleans).length > 0 && { booleans }), children && { children });
       }
       function buildPropertyList(defs, currentValues) {
         return Object.entries(defs).map(([rawKey, def]) => {

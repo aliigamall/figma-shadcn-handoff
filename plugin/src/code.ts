@@ -114,6 +114,7 @@ function buildDraftEntry(
   defs: Record<string, ComponentPropertyDefinition>
 ): Record<string, unknown> {
   const props: Record<string, string> = {};
+  const options: Record<string, string[]> = {};
   const defaults: Record<string, string> = {};
   const booleans: Record<string, Record<string, string>> = {};
   let children: string | undefined;
@@ -137,6 +138,7 @@ function buildDraftEntry(
       } else {
         const propName = key.toLowerCase();
         props[key] = propName;
+        if (opts.length > 0) options[key] = opts;
         // Use "Default" option (or first) as the default to omit
         const defaultOpt =
           opts.find((v) => v.toLowerCase() === "default") ?? opts[0];
@@ -151,6 +153,7 @@ function buildDraftEntry(
   return {
     import: `@/components/ui/${componentName.toLowerCase().replace(/\s+/g, "-")}`,
     ...(Object.keys(props).length > 0 && { props }),
+    ...(Object.keys(options).length > 0 && { options }),
     ...(Object.keys(defaults).length > 0 && { defaults }),
     ...(Object.keys(booleans).length > 0 && { booleans }),
     ...(children && { children }),
