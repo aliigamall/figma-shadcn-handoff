@@ -30,6 +30,8 @@ export interface Layout {
 export interface ScannedNode {
   id: string;
   figmaName: string;
+  /** Figma layer name (e.g. "Decoration left"), distinct from component name */
+  layerName: string;
   component: string;
   importPath: string;
   props: ScannedProp[];
@@ -283,6 +285,7 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
             slotChildren.push({
               id:         `${node.id}-slot-${slot.component}`,
               figmaName:  slot.component,
+              layerName:  slot.component,
               component:  slot.component,
               importPath: slot.importPath,
               props:      [],
@@ -294,6 +297,7 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
         return {
           id:         node.id,
           figmaName:  compName,
+          layerName:  node.name,
           component:  def.component,
           importPath: def.importPath,
           props:      resolveProps(node, def),
@@ -318,6 +322,7 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
         return {
           id:         node.id,
           figmaName:  compName,
+          layerName:  node.name,
           component:  def.component,
           importPath: def.importPath,
           props:      resolveProps(node, def),

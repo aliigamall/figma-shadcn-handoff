@@ -674,19 +674,6 @@ ${darkLines}
           importPath: "@/components/ui/avatar",
           ignore: ["Size", "Type"]
         },
-        // ── Input ─────────────────────────────────────────────────────────────────
-        "Input": {
-          component: "Input",
-          importPath: "@/components/ui/input",
-          props: {
-            "State": {
-              shadcnProp: "disabled",
-              values: { Disabled: "true", Empty: null, Placeholder: null, Value: null, Focus: null, Error: null, "Error Focus": null }
-            }
-          },
-          children: "Value",
-          ignore: ["Size", "Roundness", "Show decoration left", "Show decoration right", "Show cursor", "Show prepend text", "Show append text"]
-        },
         // ── Textarea ──────────────────────────────────────────────────────────────
         "Textarea": {
           component: "Textarea",
@@ -825,6 +812,25 @@ ${darkLines}
               shadcnProp: "months",
               values: { "1 month": "1", "2 month": "2", "3 month": "3" }
             }
+          }
+        },
+        // ── Input ─────────────────────────────────────────────────────────────────
+        "Input": {
+          component: "__input__",
+          importPath: "@/components/ui/input",
+          props: {
+            "Roundness": { shadcnProp: "roundness", values: { Default: null, Round: "full" } },
+            "Size": { shadcnProp: "size", values: { Regular: null, Large: "large", Small: "small", Mini: "mini" } },
+            "State": { shadcnProp: "state", values: { Empty: null, Placeholder: "placeholder", Value: "value", Focus: null, Error: "error", "Error Focus": "error", Disabled: "disabled" } }
+          }
+          // No children key — scan all children to detect Input Decoration instances and text nodes
+        },
+        ".Input Decoration": {
+          component: "__input_decoration__",
+          importPath: "@/components/ui/input-group",
+          props: {
+            "Type": { shadcnProp: "type", values: { "Icon": "icon", "Icon muted": "icon-muted" } },
+            "Size": { shadcnProp: "size", values: { Default: null, Large: "large" } }
           }
         },
         // ── Empty ─────────────────────────────────────────────────────────────────
@@ -1267,6 +1273,7 @@ ${darkLines}
                 slotChildren.push({
                   id: `${node.id}-slot-${slot.component}`,
                   figmaName: slot.component,
+                  layerName: slot.component,
                   component: slot.component,
                   importPath: slot.importPath,
                   props: [],
@@ -1278,6 +1285,7 @@ ${darkLines}
             return {
               id: node.id,
               figmaName: compName,
+              layerName: node.name,
               component: def.component,
               importPath: def.importPath,
               props: resolveProps(node, def),
@@ -1300,6 +1308,7 @@ ${darkLines}
             return {
               id: node.id,
               figmaName: compName,
+              layerName: node.name,
               component: def.component,
               importPath: def.importPath,
               props: resolveProps(node, def),
@@ -2571,6 +2580,104 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
     const months = parseInt((_a = monthsProp == null ? void 0 : monthsProp.value) != null ? _a : "1", 10);
     return months >= 2 ? renderDatePickerRange(imports, indent, months) : renderDatePickerSingle(imports, indent);
   }
+  function findFirstText(children) {
+    if (typeof children === "string")
+      return children || null;
+    for (const c of children) {
+      if ("isText" in c)
+        return c.content || null;
+      if ("isInlineText" in c)
+        return c.content || null;
+      if ("isLayout" in c) {
+        const found = findFirstText(c.children);
+        if (found)
+          return found;
+      } else if ("component" in c) {
+        const found = findFirstText(c.children);
+        if (found)
+          return found;
+      }
+    }
+    return null;
+  }
+  function findDecorationNodes(children) {
+    if (typeof children === "string")
+      return [];
+    const result = [];
+    for (const c of children) {
+      if ("component" in c && c.component === "__input_decoration__") {
+        result.push(c);
+      } else if ("isLayout" in c) {
+        result.push(...findDecorationNodes(c.children));
+      } else if ("component" in c) {
+        result.push(...findDecorationNodes(c.children));
+      }
+    }
+    return result;
+  }
+  function renderInputAddon(dec, imports, indent, align) {
+    var _a, _b;
+    addImport(imports, "@/components/ui/input-group", "InputGroupAddon");
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const alignAttr = align ? ` align="${align}"` : "";
+    const muted = ((_a = dec.props.find((p) => p.shadcnProp === "type")) == null ? void 0 : _a.value) === "icon-muted";
+    const iconCls = `size-4${muted ? " text-muted-foreground" : ""}`;
+    const iconName = (_b = findIconChild(dec.children)) != null ? _b : "Search";
+    addImport(imports, "lucide-react", iconName);
+    return [
+      `${pad}<InputGroupAddon${alignAttr}>`,
+      `${p1}<${iconName} className="${iconCls}" />`,
+      `${pad}</InputGroupAddon>`
+    ].join("\n");
+  }
+  function renderInput(node, imports, indent) {
+    var _a, _b, _c;
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
+    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
+    const stateProp = node.props.find((p) => p.shadcnProp === "state");
+    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
+    const sizeVal = (_a = sizeProp == null ? void 0 : sizeProp.value) != null ? _a : "";
+    const state = (_b = stateProp == null ? void 0 : stateProp.value) != null ? _b : "";
+    const sizeClassMap = { large: "h-12", small: "h-8", mini: "h-6 text-xs" };
+    const errorClass = state === "error" ? "border-destructive" : "";
+    const classes = [(_c = sizeClassMap[sizeVal]) != null ? _c : "", round ? "rounded-full" : "", errorClass].filter(Boolean).join(" ");
+    const classAttr = classes ? ` className="${classes}"` : "";
+    const disAttr = state === "disabled" ? " disabled" : "";
+    const rawText = findFirstText(node.children);
+    let valueAttr = "";
+    if (state === "value" && rawText) {
+      valueAttr = ` defaultValue="${rawText}"`;
+    } else if (state === "placeholder" && rawText) {
+      valueAttr = ` placeholder="${rawText}"`;
+    } else if (state === "placeholder") {
+      valueAttr = ` placeholder="Enter a value"`;
+    }
+    const decorations = findDecorationNodes(node.children);
+    if (decorations.length > 0) {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input input-group");
+      addImport(imports, "@/components/ui/input-group", "InputGroup");
+      addImport(imports, "@/components/ui/input-group", "InputGroupInput");
+      const addonLines = decorations.map((dec) => {
+        const isRight = /right/i.test(dec.layerName);
+        return renderInputAddon(dec, imports, indent + 1, isRight ? "inline-end" : null);
+      });
+      return [
+        `${pad}<InputGroup>`,
+        `${p1}<InputGroupInput${valueAttr}${classAttr}${disAttr} />`,
+        ...addonLines,
+        `${pad}</InputGroup>`
+      ].join("\n");
+    }
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input");
+    addImport(imports, "@/components/ui/input", "Input");
+    return `${pad}<Input${valueAttr}${classAttr}${disAttr} />`;
+  }
+  function renderInputDecoration(node, imports, indent) {
+    return renderInputAddon(node, imports, indent, "inline-end");
+  }
   function renderField(node, imports, indent, orientation) {
     var _a;
     const typeProp = node.props.find((p) => p.shadcnProp === "type");
@@ -3130,6 +3237,10 @@ ${pad}</div>`;
       return renderDatePickerSingle(imports, indent);
     if (sn.component === "__calendar__")
       return renderDatePicker(sn, imports, indent);
+    if (sn.component === "__input__")
+      return renderInput(sn, imports, indent);
+    if (sn.component === "__input_decoration__")
+      return renderInputDecoration(sn, imports, indent);
     if (sn.component === "__field_vertical__")
       return renderField(sn, imports, indent, "vertical");
     if (sn.component === "__field_horizontal__")

@@ -1106,6 +1106,121 @@ function renderDatePicker(node: ScannedNode, imports: ImportMap, indent: number)
     : renderDatePickerSingle(imports, indent);
 }
 
+// ─── Input renderer ──────────────────────────────────────────────────────────
+
+/** Return the first text string found anywhere in a children tree */
+function findFirstText(children: string | ScannedTree[]): string | null {
+  if (typeof children === "string") return children || null;
+  for (const c of children as ScannedTree[]) {
+    if ("isText" in c) return (c as ScannedText).content || null;
+    if ("isInlineText" in c) return (c as ScannedInlineText).content || null;
+    if ("isLayout" in c) {
+      const found = findFirstText((c as ScannedFrame).children);
+      if (found) return found;
+    } else if ("component" in c) {
+      const found = findFirstText((c as ScannedNode).children as ScannedTree[]);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** Find all __input_decoration__ ScannedNodes anywhere in the children tree */
+function findDecorationNodes(children: string | ScannedTree[]): ScannedNode[] {
+  if (typeof children === "string") return [];
+  const result: ScannedNode[] = [];
+  for (const c of children as ScannedTree[]) {
+    if ("component" in c && (c as ScannedNode).component === "__input_decoration__") {
+      result.push(c as ScannedNode);
+    } else if ("isLayout" in c) {
+      result.push(...findDecorationNodes((c as ScannedFrame).children));
+    } else if ("component" in c) {
+      result.push(...findDecorationNodes((c as ScannedNode).children as ScannedTree[]));
+    }
+  }
+  return result;
+}
+
+function renderInputAddon(dec: ScannedNode, imports: ImportMap, indent: number, align: string | null): string {
+  addImport(imports, "@/components/ui/input-group", "InputGroupAddon");
+
+  const pad       = "  ".repeat(indent);
+  const p1        = "  ".repeat(indent + 1);
+  const alignAttr = align ? ` align="${align}"` : "";
+  const muted     = dec.props.find(p => p.shadcnProp === "type")?.value === "icon-muted";
+  const iconCls   = `size-4${muted ? " text-muted-foreground" : ""}`;
+
+  const iconName = findIconChild(dec.children as ScannedTree[]) ?? "Search";
+  addImport(imports, "lucide-react", iconName);
+
+  return [
+    `${pad}<InputGroupAddon${alignAttr}>`,
+    `${p1}<${iconName} className="${iconCls}" />`,
+    `${pad}</InputGroupAddon>`,
+  ].join("\n");
+}
+
+function renderInput(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+
+  const roundProp = node.props.find(p => p.shadcnProp === "roundness");
+  const sizeProp  = node.props.find(p => p.shadcnProp === "size");
+  const stateProp = node.props.find(p => p.shadcnProp === "state");
+
+  const round    = roundProp?.value === "full";
+  const sizeVal  = sizeProp?.value ?? "";
+  const state    = stateProp?.value ?? "";   // "placeholder" | "value" | "disabled" | "error" | ""
+
+  const sizeClassMap: Record<string, string> = { large: "h-12", small: "h-8", mini: "h-6 text-xs" };
+  const errorClass = state === "error" ? "border-destructive" : "";
+  const classes    = [sizeClassMap[sizeVal] ?? "", round ? "rounded-full" : "", errorClass].filter(Boolean).join(" ");
+  const classAttr  = classes ? ` className="${classes}"` : "";
+  const disAttr    = state === "disabled" ? " disabled" : "";
+
+  // Extract text from the scanned children tree (Figma "Value" text property)
+  const rawText = findFirstText(node.children as ScannedTree[]);
+
+  // Build value/placeholder attribute based on state
+  let valueAttr = "";
+  if (state === "value" && rawText) {
+    valueAttr = ` defaultValue="${rawText}"`;
+  } else if (state === "placeholder" && rawText) {
+    valueAttr = ` placeholder="${rawText}"`;
+  } else if (state === "placeholder") {
+    valueAttr = ` placeholder="Enter a value"`;
+  }
+
+  const decorations = findDecorationNodes(node.children as ScannedTree[]);
+
+  if (decorations.length > 0) {
+    addImport(imports, INSTALL_KEY,                   "pnpm dlx shadcn@latest add input input-group");
+    addImport(imports, "@/components/ui/input-group",  "InputGroup");
+    addImport(imports, "@/components/ui/input-group",  "InputGroupInput");
+
+    const addonLines = decorations.map(dec => {
+      const isRight = /right/i.test(dec.layerName);
+      return renderInputAddon(dec, imports, indent + 1, isRight ? "inline-end" : null);
+    });
+
+    return [
+      `${pad}<InputGroup>`,
+      `${p1}<InputGroupInput${valueAttr}${classAttr}${disAttr} />`,
+      ...addonLines,
+      `${pad}</InputGroup>`,
+    ].join("\n");
+  }
+
+  addImport(imports, INSTALL_KEY,             "pnpm dlx shadcn@latest add input");
+  addImport(imports, "@/components/ui/input", "Input");
+  return `${pad}<Input${valueAttr}${classAttr}${disAttr} />`;
+}
+
+function renderInputDecoration(node: ScannedNode, imports: ImportMap, indent: number): string {
+  // Standalone decoration — render as a single addon (right side by default)
+  return renderInputAddon(node, imports, indent, "inline-end");
+}
+
 // ─── Field renderer ──────────────────────────────────────────────────────────
 
 function renderField(node: ScannedNode, imports: ImportMap, indent: number, orientation: "vertical" | "horizontal"): string {
@@ -1796,6 +1911,10 @@ function renderNode(
   // Date picker / calendar
   if (sn.component === "__date_picker__")   return renderDatePickerSingle(imports, indent);
   if (sn.component === "__calendar__")      return renderDatePicker(sn, imports, indent);
+
+  // Input
+  if (sn.component === "__input__")            return renderInput(sn, imports, indent);
+  if (sn.component === "__input_decoration__") return renderInputDecoration(sn, imports, indent);
 
   // Field
   if (sn.component === "__field_vertical__")   return renderField(sn, imports, indent, "vertical");

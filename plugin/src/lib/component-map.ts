@@ -178,20 +178,6 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     ignore: ["Size", "Type"],
   },
 
-  // ── Input ─────────────────────────────────────────────────────────────────
-  "Input": {
-    component:  "Input",
-    importPath: "@/components/ui/input",
-    props: {
-      "State": {
-        shadcnProp: "disabled",
-        values: { Disabled: "true", Empty: null, Placeholder: null, Value: null, Focus: null, Error: null, "Error Focus": null },
-      },
-    },
-    children: "Value",
-    ignore: ["Size", "Roundness", "Show decoration left", "Show decoration right", "Show cursor", "Show prepend text", "Show append text"],
-  },
-
   // ── Textarea ──────────────────────────────────────────────────────────────
   "Textarea": {
     component:  "Textarea",
@@ -345,6 +331,27 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
         shadcnProp: "months",
         values: { "1 month": "1", "2 month": "2", "3 month": "3" },
       },
+    },
+  },
+
+  // ── Input ─────────────────────────────────────────────────────────────────
+  "Input": {
+    component:  "__input__",
+    importPath: "@/components/ui/input",
+    props: {
+      "Roundness": { shadcnProp: "roundness", values: { Default: null, Round: "full" } },
+      "Size":      { shadcnProp: "size",      values: { Regular: null, Large: "large", Small: "small", Mini: "mini" } },
+      "State":     { shadcnProp: "state",     values: { Empty: null, Placeholder: "placeholder", Value: "value", Focus: null, Error: "error", "Error Focus": "error", Disabled: "disabled" } },
+    },
+    // No children key — scan all children to detect Input Decoration instances and text nodes
+  },
+
+  ".Input Decoration": {
+    component:  "__input_decoration__",
+    importPath: "@/components/ui/input-group",
+    props: {
+      "Type": { shadcnProp: "type", values: { "Icon": "icon", "Icon muted": "icon-muted" } },
+      "Size": { shadcnProp: "size", values: { Default: null, Large: "large" } },
     },
   },
 
