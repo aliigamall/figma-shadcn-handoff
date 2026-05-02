@@ -334,6 +334,17 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     },
   },
 
+  // ── Input OTP ─────────────────────────────────────────────────────────────
+  "Input OTP": {
+    component:  "__input_otp__",
+    importPath: "@/components/ui/input-otp",
+    props: {
+      "Position": { shadcnProp: "position", values: { Left: "left", Middle: "middle", Right: "right" } },
+      "Size":     { shadcnProp: "size",     values: { Default: null, Large: "large", Small: "small", Mini: "mini" } },
+      "State":    { shadcnProp: "state",    values: { Empty: null, Placeholder: null, Value: null, Focus: null, Error: "error", "Error Focus": "error", Disabled: "disabled" } },
+    },
+  },
+
   // ── Input ─────────────────────────────────────────────────────────────────
   "Input": {
     component:  "__input__",

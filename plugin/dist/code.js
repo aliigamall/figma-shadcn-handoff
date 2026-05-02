@@ -814,6 +814,16 @@ ${darkLines}
             }
           }
         },
+        // ── Input OTP ─────────────────────────────────────────────────────────────
+        "Input OTP": {
+          component: "__input_otp__",
+          importPath: "@/components/ui/input-otp",
+          props: {
+            "Position": { shadcnProp: "position", values: { Left: "left", Middle: "middle", Right: "right" } },
+            "Size": { shadcnProp: "size", values: { Default: null, Large: "large", Small: "small", Mini: "mini" } },
+            "State": { shadcnProp: "state", values: { Empty: null, Placeholder: null, Value: null, Focus: null, Error: "error", "Error Focus": "error", Disabled: "disabled" } }
+          }
+        },
         // ── Input ─────────────────────────────────────────────────────────────────
         "Input": {
           component: "__input__",
@@ -2590,6 +2600,28 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
     const months = parseInt((_a = monthsProp == null ? void 0 : monthsProp.value) != null ? _a : "1", 10);
     return months >= 2 ? renderDatePickerRange(imports, indent, months) : renderDatePickerSingle(imports, indent);
   }
+  function renderInputOTPGroup(slots, imports, indent) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input-otp");
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, "@/components/ui/input-otp", "InputOTP");
+    addImport(imports, "@/components/ui/input-otp", "InputOTPGroup");
+    addImport(imports, "@/components/ui/input-otp", "InputOTPSlot");
+    const count = slots.length || 6;
+    const slotLines = Array.from({ length: count }, (_, i) => `${p2}<InputOTPSlot index={${i}} />`).join("\n");
+    return [
+      `${pad}<InputOTP maxLength={${count}}>`,
+      `${p1}<InputOTPGroup>`,
+      slotLines,
+      `${p1}</InputOTPGroup>`,
+      `${pad}</InputOTP>`
+    ].join("\n");
+  }
+  function renderInputOTP(node, imports, indent) {
+    return renderInputOTPGroup([node], imports, indent);
+  }
   function findFirstText(children) {
     if (typeof children === "string")
       return children || null;
@@ -3232,6 +3264,12 @@ ${pad}</Avatar>`;
       if (isButtonGroupContainer(node)) {
         return renderButtonGroup(node, imports, indent);
       }
+      const otpSlots = node.children.filter(
+        (c) => "component" in c && c.component === "__input_otp__"
+      );
+      if (otpSlots.length > 0 && otpSlots.length === node.children.length) {
+        return renderInputOTPGroup(otpSlots, imports, indent);
+      }
       const chartDescendant = findFirstChartNode(node.children);
       if (chartDescendant) {
         return renderNode(chartDescendant, imports, indent);
@@ -3279,6 +3317,8 @@ ${pad}</div>`;
       return renderInputDecoration(sn, imports, indent);
     if (sn.component === "__input_file__")
       return renderInputFile(sn, imports, indent);
+    if (sn.component === "__input_otp__")
+      return renderInputOTP(sn, imports, indent);
     if (sn.component === "__field_vertical__")
       return renderField(sn, imports, indent, "vertical");
     if (sn.component === "__field_horizontal__")

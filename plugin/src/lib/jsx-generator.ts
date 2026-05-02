@@ -1106,6 +1106,37 @@ function renderDatePicker(node: ScannedNode, imports: ImportMap, indent: number)
     : renderDatePickerSingle(imports, indent);
 }
 
+// ─── Input OTP renderer ──────────────────────────────────────────────────────
+
+/** Render N OTP slot nodes as a complete <InputOTP> with one <InputOTPGroup> */
+function renderInputOTPGroup(slots: ScannedNode[], imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+  const p2  = "  ".repeat(indent + 2);
+
+  addImport(imports, INSTALL_KEY,                 "pnpm dlx shadcn@latest add input-otp");
+  addImport(imports, DIRECTIVE_KEY,               '"use client"');
+  addImport(imports, "@/components/ui/input-otp", "InputOTP");
+  addImport(imports, "@/components/ui/input-otp", "InputOTPGroup");
+  addImport(imports, "@/components/ui/input-otp", "InputOTPSlot");
+
+  const count    = slots.length || 6;
+  const slotLines = Array.from({ length: count }, (_, i) => `${p2}<InputOTPSlot index={${i}} />`).join("\n");
+
+  return [
+    `${pad}<InputOTP maxLength={${count}}>`,
+    `${p1}<InputOTPGroup>`,
+    slotLines,
+    `${p1}</InputOTPGroup>`,
+    `${pad}</InputOTP>`,
+  ].join("\n");
+}
+
+function renderInputOTP(node: ScannedNode, imports: ImportMap, indent: number): string {
+  // Single standalone slot — render as a full 6-slot OTP (no parent frame to count from)
+  return renderInputOTPGroup([node], imports, indent);
+}
+
 // ─── Input renderer ──────────────────────────────────────────────────────────
 
 /** Return the first text string found anywhere in a children tree */
@@ -1886,6 +1917,14 @@ function renderNode(
       return renderButtonGroup(node, imports, indent);
     }
 
+    // Frame of Input OTP slots → emit <InputOTP> with one group, slot count = child count
+    const otpSlots = node.children.filter(
+      c => "component" in c && (c as ScannedNode).component === "__input_otp__"
+    ) as ScannedNode[];
+    if (otpSlots.length > 0 && otpSlots.length === node.children.length) {
+      return renderInputOTPGroup(otpSlots, imports, indent);
+    }
+
     // Frame wrapping a chart (axis labels, legend, gridlines) → render just the chart
     const chartDescendant = findFirstChartNode(node.children);
     if (chartDescendant) {
@@ -1947,6 +1986,7 @@ function renderNode(
   if (sn.component === "__input__")            return renderInput(sn, imports, indent);
   if (sn.component === "__input_decoration__") return renderInputDecoration(sn, imports, indent);
   if (sn.component === "__input_file__")       return renderInputFile(sn, imports, indent);
+  if (sn.component === "__input_otp__")        return renderInputOTP(sn, imports, indent);
 
   // Field
   if (sn.component === "__field_vertical__")   return renderField(sn, imports, indent, "vertical");
