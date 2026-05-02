@@ -359,6 +359,24 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     },
   },
 
+  // ── Empty ─────────────────────────────────────────────────────────────────
+  "Empty": {
+    component:  "__empty__",
+    importPath: "@/components/ui/empty",
+    props: {
+      "Variant": {
+        shadcnProp: "variant",
+        values: {
+          Default:          "default",
+          Outline:          "outline",
+          Background:       "background",
+          "Outline dashed": "outline-dashed",
+        },
+      },
+    },
+    children: "⮑ title",
+  },
+
   // ── Label ─────────────────────────────────────────────────────────────────
   "Label": {
     component:  "Label",

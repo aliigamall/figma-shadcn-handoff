@@ -773,6 +773,23 @@ ${darkLines}
             }
           }
         },
+        // ── Empty ─────────────────────────────────────────────────────────────────
+        "Empty": {
+          component: "__empty__",
+          importPath: "@/components/ui/empty",
+          props: {
+            "Variant": {
+              shadcnProp: "variant",
+              values: {
+                Default: "default",
+                Outline: "outline",
+                Background: "background",
+                "Outline dashed": "outline-dashed"
+              }
+            }
+          },
+          children: "\u2B91 title"
+        },
         // ── Label ─────────────────────────────────────────────────────────────────
         "Label": {
           component: "Label",
@@ -2421,6 +2438,40 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
     const months = parseInt((_a = monthsProp == null ? void 0 : monthsProp.value) != null ? _a : "1", 10);
     return months >= 2 ? renderDatePickerRange(imports, indent, months) : renderDatePickerSingle(imports, indent);
   }
+  function renderEmpty(node, imports, indent) {
+    var _a, _b, _c;
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add empty");
+    addImport(imports, "lucide-react", "Inbox");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/empty", "Empty");
+    addImport(imports, "@/components/ui/empty", "EmptyContent");
+    addImport(imports, "@/components/ui/empty", "EmptyDescription");
+    addImport(imports, "@/components/ui/empty", "EmptyHeader");
+    addImport(imports, "@/components/ui/empty", "EmptyMedia");
+    addImport(imports, "@/components/ui/empty", "EmptyTitle");
+    const variantProp = node.props.find((p) => p.shadcnProp === "variant");
+    const variant = (_a = variantProp == null ? void 0 : variantProp.value) != null ? _a : "default";
+    const children = Array.isArray(node.children) ? node.children : [];
+    const texts = collectTexts(children);
+    const title = (_b = texts[0]) != null ? _b : "No results";
+    const desc = (_c = texts[1]) != null ? _c : "Try adjusting your search or filters.";
+    const variantAttr = variant !== "default" ? ` variant="${variant}"` : "";
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    return [
+      `${pad}<Empty${variantAttr}>`,
+      `${p1}<EmptyHeader>`,
+      `${p2}<EmptyMedia><Inbox /></EmptyMedia>`,
+      `${p2}<EmptyTitle>${title}</EmptyTitle>`,
+      `${p2}<EmptyDescription>${desc}</EmptyDescription>`,
+      `${p1}</EmptyHeader>`,
+      `${p1}<EmptyContent>`,
+      `${p2}<Button>Take action</Button>`,
+      `${p1}</EmptyContent>`,
+      `${pad}</Empty>`
+    ].join("\n");
+  }
   function renderDrawer(_node, imports, indent) {
     addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add drawer");
     addImport(imports, "@/components/ui/button", "Button");
@@ -2805,6 +2856,8 @@ ${pad}</div>`;
       return renderDatePickerSingle(imports, indent);
     if (sn.component === "__calendar__")
       return renderDatePicker(sn, imports, indent);
+    if (sn.component === "__empty__")
+      return renderEmpty(sn, imports, indent);
     if (sn.component === "__drawer__")
       return renderDrawer(sn, imports, indent);
     if (sn.component === "__dialog__")

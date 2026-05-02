@@ -1095,6 +1095,48 @@ function renderDatePicker(node: ScannedNode, imports: ImportMap, indent: number)
     : renderDatePickerSingle(imports, indent);
 }
 
+// ─── Empty renderer ──────────────────────────────────────────────────────────
+
+function renderEmpty(node: ScannedNode, imports: ImportMap, indent: number): string {
+  addImport(imports, INSTALL_KEY,              "pnpm dlx shadcn@latest add empty");
+  addImport(imports, "lucide-react",           "Inbox");
+  addImport(imports, "@/components/ui/button", "Button");
+  addImport(imports, "@/components/ui/empty",  "Empty");
+  addImport(imports, "@/components/ui/empty",  "EmptyContent");
+  addImport(imports, "@/components/ui/empty",  "EmptyDescription");
+  addImport(imports, "@/components/ui/empty",  "EmptyHeader");
+  addImport(imports, "@/components/ui/empty",  "EmptyMedia");
+  addImport(imports, "@/components/ui/empty",  "EmptyTitle");
+
+  const variantProp = node.props.find(p => p.shadcnProp === "variant");
+  const variant     = variantProp?.value ?? "default";
+
+  // Extract title from scanned children text
+  const children   = Array.isArray(node.children) ? node.children as ScannedTree[] : [];
+  const texts      = collectTexts(children);
+  const title      = texts[0] ?? "No results";
+  const desc       = texts[1] ?? "Try adjusting your search or filters.";
+
+  const variantAttr = variant !== "default" ? ` variant="${variant}"` : "";
+
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+  const p2  = "  ".repeat(indent + 2);
+
+  return [
+    `${pad}<Empty${variantAttr}>`,
+    `${p1}<EmptyHeader>`,
+    `${p2}<EmptyMedia><Inbox /></EmptyMedia>`,
+    `${p2}<EmptyTitle>${title}</EmptyTitle>`,
+    `${p2}<EmptyDescription>${desc}</EmptyDescription>`,
+    `${p1}</EmptyHeader>`,
+    `${p1}<EmptyContent>`,
+    `${p2}<Button>Take action</Button>`,
+    `${p1}</EmptyContent>`,
+    `${pad}</Empty>`,
+  ].join("\n");
+}
+
 // ─── Drawer renderer ─────────────────────────────────────────────────────────
 
 function renderDrawer(_node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -1577,6 +1619,9 @@ function renderNode(
   // Date picker / calendar
   if (sn.component === "__date_picker__")   return renderDatePickerSingle(imports, indent);
   if (sn.component === "__calendar__")      return renderDatePicker(sn, imports, indent);
+
+  // Empty state
+  if (sn.component === "__empty__")         return renderEmpty(sn, imports, indent);
 
   // Drawer
   if (sn.component === "__drawer__")        return renderDrawer(sn, imports, indent);
