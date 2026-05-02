@@ -1366,6 +1366,131 @@ function renderField(node: ScannedNode, imports: ImportMap, indent: number, orie
   return [`${pad}<Field${orientAttr}>`, inner, `${pad}</Field>`].join("\n");
 }
 
+// ─── Item renderer ───────────────────────────────────────────────────────────
+
+/** Collect all text strings found anywhere in a children tree, in order */
+function findAllTexts(children: string | ScannedTree[]): string[] {
+  if (typeof children === "string") return children ? [children] : [];
+  const out: string[] = [];
+  for (const c of children as ScannedTree[]) {
+    if ("isText" in c)       { if ((c as ScannedText).content)       out.push((c as ScannedText).content); }
+    else if ("isInlineText" in c) { if ((c as ScannedInlineText).content) out.push((c as ScannedInlineText).content); }
+    else if ("isLayout" in c)     out.push(...findAllTexts((c as ScannedFrame).children));
+    else if ("component" in c)    out.push(...findAllTexts((c as ScannedNode).children as ScannedTree[]));
+  }
+  return out;
+}
+
+function renderItem(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+  const p2  = "  ".repeat(indent + 2);
+  const p3  = "  ".repeat(indent + 3);
+
+  addImport(imports, INSTALL_KEY,            "pnpm dlx shadcn@latest add item");
+  addImport(imports, "@/components/ui/item", "Item");
+  addImport(imports, "@/components/ui/item", "ItemContent");
+  addImport(imports, "@/components/ui/item", "ItemTitle");
+
+  const get = (prop: string) => node.props.find(p => p.shadcnProp === prop)?.value ?? null;
+
+  const variant    = get("variant");
+  const size       = get("size");
+  const mediaType  = get("mediaType");
+  const actionType = get("actionType");
+  const titleText  = get("title")  || findAllTexts(node.children as ScannedTree[])[0] || "Title";
+  const descText   = get("description") || findAllTexts(node.children as ScannedTree[])[1] || null;
+  const labelText  = get("label");
+
+  const variantAttr = variant ? ` variant="${variant}"` : "";
+  const sizeAttr    = size    ? ` size="${size}"`       : "";
+
+  const lines: string[] = [`${pad}<Item${variantAttr}${sizeAttr}>`];
+
+  // ── ItemMedia ──────────────────────────────────────────────────────────────
+  if (mediaType) {
+    addImport(imports, "@/components/ui/item", "ItemMedia");
+
+    if (mediaType === "icon" || mediaType === "iconBadge") {
+      const iconName = findIconChild(node.children as ScannedTree[]) ?? "InboxIcon";
+      addImport(imports, "lucide-react", iconName);
+      const mvAttr = mediaType === "iconBadge" ? ` variant="iconBadge"` : ` variant="icon"`;
+      lines.push(`${p1}<ItemMedia${mvAttr}>`, `${p2}<${iconName} />`, `${p1}</ItemMedia>`);
+
+    } else if (mediaType === "avatar") {
+      addImport(imports, "@/components/ui/avatar", "Avatar");
+      addImport(imports, "@/components/ui/avatar", "AvatarImage");
+      addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+      lines.push(
+        `${p1}<ItemMedia>`,
+        `${p2}<Avatar className="size-10">`,
+        `${p3}<AvatarImage src="" alt="" />`,
+        `${p3}<AvatarFallback>AB</AvatarFallback>`,
+        `${p2}</Avatar>`,
+        `${p1}</ItemMedia>`,
+      );
+
+    } else if (mediaType === "avatarStack") {
+      addImport(imports, "@/components/ui/avatar", "Avatar");
+      addImport(imports, "@/components/ui/avatar", "AvatarImage");
+      addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+      lines.push(
+        `${p1}<ItemMedia>`,
+        `${p2}<div className="flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background">`,
+        `${p3}<Avatar><AvatarImage src="" alt="" /><AvatarFallback>A</AvatarFallback></Avatar>`,
+        `${p3}<Avatar><AvatarImage src="" alt="" /><AvatarFallback>B</AvatarFallback></Avatar>`,
+        `${p2}</div>`,
+        `${p1}</ItemMedia>`,
+      );
+
+    } else if (mediaType === "image") {
+      lines.push(
+        `${p1}<ItemMedia>`,
+        `${p2}<img src="" alt="" className="size-10 rounded-sm object-cover" />`,
+        `${p1}</ItemMedia>`,
+      );
+    }
+  }
+
+  // ── ItemContent ────────────────────────────────────────────────────────────
+  lines.push(`${p1}<ItemContent>`);
+  lines.push(`${p2}<ItemTitle>${titleText}</ItemTitle>`);
+  if (descText) {
+    addImport(imports, "@/components/ui/item", "ItemDescription");
+    lines.push(`${p2}<ItemDescription>${descText}</ItemDescription>`);
+  }
+  lines.push(`${p1}</ItemContent>`);
+
+  // ── ItemActions ────────────────────────────────────────────────────────────
+  if (actionType) {
+    addImport(imports, "@/components/ui/item", "ItemActions");
+
+    if (actionType === "button") {
+      addImport(imports, "@/components/ui/button", "Button");
+      const btnText = findAllTexts(node.children as ScannedTree[]).find(t => t !== titleText && t !== descText) ?? "Action";
+      lines.push(`${p1}<ItemActions>`, `${p2}<Button size="sm" variant="outline">${btnText}</Button>`, `${p1}</ItemActions>`);
+
+    } else if (actionType === "iconButton") {
+      const iconName = findIconChild(node.children as ScannedTree[]) ?? "Plus";
+      addImport(imports, "@/components/ui/button", "Button");
+      addImport(imports, "lucide-react", iconName);
+      lines.push(`${p1}<ItemActions>`, `${p2}<Button size="icon-sm" variant="outline" className="rounded-full"><${iconName} /></Button>`, `${p1}</ItemActions>`);
+
+    } else if (actionType === "label") {
+      lines.push(`${p1}<ItemActions>`, `${p2}<span className="text-sm text-muted-foreground">${labelText ?? ""}</span>`, `${p1}</ItemActions>`);
+
+    } else if (actionType === "icon") {
+      const iconName = findIconChild(node.children as ScannedTree[]) ?? "ChevronRight";
+      addImport(imports, "@/components/ui/button", "Button");
+      addImport(imports, "lucide-react", iconName);
+      lines.push(`${p1}<ItemActions>`, `${p2}<Button size="icon-sm" variant="ghost"><${iconName} /></Button>`, `${p1}</ItemActions>`);
+    }
+  }
+
+  lines.push(`${pad}</Item>`);
+  return lines.join("\n");
+}
+
 // ─── Empty renderer ──────────────────────────────────────────────────────────
 
 function renderEmpty(node: ScannedNode, imports: ImportMap, indent: number): string {
@@ -1991,6 +2116,9 @@ function renderNode(
   // Field
   if (sn.component === "__field_vertical__")   return renderField(sn, imports, indent, "vertical");
   if (sn.component === "__field_horizontal__") return renderField(sn, imports, indent, "horizontal");
+
+  // Item
+  if (sn.component === "__item__")          return renderItem(sn, imports, indent);
 
   // Empty state
   if (sn.component === "__empty__")         return renderEmpty(sn, imports, indent);

@@ -377,6 +377,32 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     },
   },
 
+  // ── Item ──────────────────────────────────────────────────────────────────
+  "Item": {
+    component:  "__item__",
+    importPath: "@/components/ui/item",
+    props: {
+      "Variant": { shadcnProp: "variant", values: { Default: null, Outline: "outline", Muted: "muted" } },
+      "Size":    { shadcnProp: "size",    values: { Default: null, Small: "sm", Mini: "xs" } },
+      // Media type — Figma booleans come as "True"/"False" (capitalized)
+      "ItemMedia: icon":        { shadcnProp: "mediaType", values: { True: "icon",        False: null } },
+      "ItemMedia: iconBadge":   { shadcnProp: "mediaType", values: { True: "iconBadge",   False: null } },
+      "ItemMedia: avatar":      { shadcnProp: "mediaType", values: { True: "avatar",      False: null } },
+      "ItemMedia: avatarStack": { shadcnProp: "mediaType", values: { True: "avatarStack", False: null } },
+      "ItemMedia: image":       { shadcnProp: "mediaType", values: { True: "image",       False: null } },
+      // Action type — Figma booleans come as "True"/"False"
+      "ItemAction: icon":       { shadcnProp: "actionType", values: { True: "icon",       False: null } },
+      "ItemAction: button":     { shadcnProp: "actionType", values: { True: "button",     False: null } },
+      "ItemAction: iconButton": { shadcnProp: "actionType", values: { True: "iconButton", False: null } },
+      "ItemAction: label":      { shadcnProp: "actionType", values: { True: "label",      False: null } },
+      // Text content — no values map → raw value preserved as-is
+      "Title":       { shadcnProp: "title" },
+      "Description": { shadcnProp: "description" },
+      "Label":       { shadcnProp: "label" },
+    },
+    ignore: ["asChild", "State"],
+  },
+
   // ── Empty ─────────────────────────────────────────────────────────────────
   "Empty": {
     component:  "__empty__",

@@ -853,6 +853,31 @@ ${darkLines}
             "Size": { shadcnProp: "size", values: { Default: null, Large: "large" } }
           }
         },
+        // ── Item ──────────────────────────────────────────────────────────────────
+        "Item": {
+          component: "__item__",
+          importPath: "@/components/ui/item",
+          props: {
+            "Variant": { shadcnProp: "variant", values: { Default: null, Outline: "outline", Muted: "muted" } },
+            "Size": { shadcnProp: "size", values: { Default: null, Small: "sm", Mini: "xs" } },
+            // Media type — Figma booleans come as "True"/"False" (capitalized)
+            "ItemMedia: icon": { shadcnProp: "mediaType", values: { True: "icon", False: null } },
+            "ItemMedia: iconBadge": { shadcnProp: "mediaType", values: { True: "iconBadge", False: null } },
+            "ItemMedia: avatar": { shadcnProp: "mediaType", values: { True: "avatar", False: null } },
+            "ItemMedia: avatarStack": { shadcnProp: "mediaType", values: { True: "avatarStack", False: null } },
+            "ItemMedia: image": { shadcnProp: "mediaType", values: { True: "image", False: null } },
+            // Action type — Figma booleans come as "True"/"False"
+            "ItemAction: icon": { shadcnProp: "actionType", values: { True: "icon", False: null } },
+            "ItemAction: button": { shadcnProp: "actionType", values: { True: "button", False: null } },
+            "ItemAction: iconButton": { shadcnProp: "actionType", values: { True: "iconButton", False: null } },
+            "ItemAction: label": { shadcnProp: "actionType", values: { True: "label", False: null } },
+            // Text content — no values map → raw value preserved as-is
+            "Title": { shadcnProp: "title" },
+            "Description": { shadcnProp: "description" },
+            "Label": { shadcnProp: "label" }
+          },
+          ignore: ["asChild", "State"]
+        },
         // ── Empty ─────────────────────────────────────────────────────────────────
         "Empty": {
           component: "__empty__",
@@ -1223,7 +1248,7 @@ ${darkLines}
       const rawValue = String(rawProps[figmaKey].value);
       if (propDef.values && propDef.values[rawValue] === null)
         continue;
-      const mappedValue = propDef.values ? (_b = propDef.values[rawValue]) != null ? _b : rawValue.toLowerCase() : rawValue.toLowerCase();
+      const mappedValue = propDef.values ? (_b = propDef.values[rawValue]) != null ? _b : rawValue.toLowerCase() : rawValue;
       result.push({ shadcnProp: propDef.shadcnProp, value: mappedValue });
     }
     return result;
@@ -2820,6 +2845,117 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
     }
     return [`${pad}<Field${orientAttr}>`, inner, `${pad}</Field>`].join("\n");
   }
+  function findAllTexts(children) {
+    if (typeof children === "string")
+      return children ? [children] : [];
+    const out = [];
+    for (const c of children) {
+      if ("isText" in c) {
+        if (c.content)
+          out.push(c.content);
+      } else if ("isInlineText" in c) {
+        if (c.content)
+          out.push(c.content);
+      } else if ("isLayout" in c)
+        out.push(...findAllTexts(c.children));
+      else if ("component" in c)
+        out.push(...findAllTexts(c.children));
+    }
+    return out;
+  }
+  function renderItem(node, imports, indent) {
+    var _a, _b, _c, _d;
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add item");
+    addImport(imports, "@/components/ui/item", "Item");
+    addImport(imports, "@/components/ui/item", "ItemContent");
+    addImport(imports, "@/components/ui/item", "ItemTitle");
+    const get = (prop) => {
+      var _a2, _b2;
+      return (_b2 = (_a2 = node.props.find((p) => p.shadcnProp === prop)) == null ? void 0 : _a2.value) != null ? _b2 : null;
+    };
+    const variant = get("variant");
+    const size = get("size");
+    const mediaType = get("mediaType");
+    const actionType = get("actionType");
+    const titleText = get("title") || findAllTexts(node.children)[0] || "Title";
+    const descText = get("description") || findAllTexts(node.children)[1] || null;
+    const labelText = get("label");
+    const variantAttr = variant ? ` variant="${variant}"` : "";
+    const sizeAttr = size ? ` size="${size}"` : "";
+    const lines = [`${pad}<Item${variantAttr}${sizeAttr}>`];
+    if (mediaType) {
+      addImport(imports, "@/components/ui/item", "ItemMedia");
+      if (mediaType === "icon" || mediaType === "iconBadge") {
+        const iconName = (_a = findIconChild(node.children)) != null ? _a : "InboxIcon";
+        addImport(imports, "lucide-react", iconName);
+        const mvAttr = mediaType === "iconBadge" ? ` variant="iconBadge"` : ` variant="icon"`;
+        lines.push(`${p1}<ItemMedia${mvAttr}>`, `${p2}<${iconName} />`, `${p1}</ItemMedia>`);
+      } else if (mediaType === "avatar") {
+        addImport(imports, "@/components/ui/avatar", "Avatar");
+        addImport(imports, "@/components/ui/avatar", "AvatarImage");
+        addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+        lines.push(
+          `${p1}<ItemMedia>`,
+          `${p2}<Avatar className="size-10">`,
+          `${p3}<AvatarImage src="" alt="" />`,
+          `${p3}<AvatarFallback>AB</AvatarFallback>`,
+          `${p2}</Avatar>`,
+          `${p1}</ItemMedia>`
+        );
+      } else if (mediaType === "avatarStack") {
+        addImport(imports, "@/components/ui/avatar", "Avatar");
+        addImport(imports, "@/components/ui/avatar", "AvatarImage");
+        addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+        lines.push(
+          `${p1}<ItemMedia>`,
+          `${p2}<div className="flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background">`,
+          `${p3}<Avatar><AvatarImage src="" alt="" /><AvatarFallback>A</AvatarFallback></Avatar>`,
+          `${p3}<Avatar><AvatarImage src="" alt="" /><AvatarFallback>B</AvatarFallback></Avatar>`,
+          `${p2}</div>`,
+          `${p1}</ItemMedia>`
+        );
+      } else if (mediaType === "image") {
+        lines.push(
+          `${p1}<ItemMedia>`,
+          `${p2}<img src="" alt="" className="size-10 rounded-sm object-cover" />`,
+          `${p1}</ItemMedia>`
+        );
+      }
+    }
+    lines.push(`${p1}<ItemContent>`);
+    lines.push(`${p2}<ItemTitle>${titleText}</ItemTitle>`);
+    if (descText) {
+      addImport(imports, "@/components/ui/item", "ItemDescription");
+      lines.push(`${p2}<ItemDescription>${descText}</ItemDescription>`);
+    }
+    lines.push(`${p1}</ItemContent>`);
+    if (actionType) {
+      addImport(imports, "@/components/ui/item", "ItemActions");
+      if (actionType === "button") {
+        addImport(imports, "@/components/ui/button", "Button");
+        const btnText = (_b = findAllTexts(node.children).find((t) => t !== titleText && t !== descText)) != null ? _b : "Action";
+        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="sm" variant="outline">${btnText}</Button>`, `${p1}</ItemActions>`);
+      } else if (actionType === "iconButton") {
+        const iconName = (_c = findIconChild(node.children)) != null ? _c : "Plus";
+        addImport(imports, "@/components/ui/button", "Button");
+        addImport(imports, "lucide-react", iconName);
+        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="icon-sm" variant="outline" className="rounded-full"><${iconName} /></Button>`, `${p1}</ItemActions>`);
+      } else if (actionType === "label") {
+        lines.push(`${p1}<ItemActions>`, `${p2}<span className="text-sm text-muted-foreground">${labelText != null ? labelText : ""}</span>`, `${p1}</ItemActions>`);
+      } else if (actionType === "icon") {
+        const iconName = (_d = findIconChild(node.children)) != null ? _d : "ChevronRight";
+        addImport(imports, "@/components/ui/button", "Button");
+        addImport(imports, "lucide-react", iconName);
+        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="icon-sm" variant="ghost"><${iconName} /></Button>`, `${p1}</ItemActions>`);
+      }
+    }
+    lines.push(`${pad}</Item>`);
+    return lines.join("\n");
+  }
   function renderEmpty(node, imports, indent) {
     var _a, _b, _c;
     addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add empty");
@@ -3323,6 +3459,8 @@ ${pad}</div>`;
       return renderField(sn, imports, indent, "vertical");
     if (sn.component === "__field_horizontal__")
       return renderField(sn, imports, indent, "horizontal");
+    if (sn.component === "__item__")
+      return renderItem(sn, imports, indent);
     if (sn.component === "__empty__")
       return renderEmpty(sn, imports, indent);
     if (sn.component === "__icon_button__")

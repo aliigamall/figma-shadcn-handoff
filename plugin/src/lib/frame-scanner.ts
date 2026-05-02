@@ -202,9 +202,10 @@ function resolveProps(
     // Skip null-mapped values (means "don't emit this prop")
     if (propDef.values && propDef.values[rawValue] === null) continue;
 
+    // When no values map is defined, preserve raw value as-is (text content props)
     const mappedValue = propDef.values
       ? (propDef.values[rawValue] ?? rawValue.toLowerCase())
-      : rawValue.toLowerCase();
+      : rawValue;
 
     result.push({ shadcnProp: propDef.shadcnProp, value: mappedValue });
   }
