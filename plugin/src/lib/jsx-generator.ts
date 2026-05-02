@@ -1221,6 +1221,37 @@ function renderInputDecoration(node: ScannedNode, imports: ImportMap, indent: nu
   return renderInputAddon(node, imports, indent, "inline-end");
 }
 
+function renderInputFile(node: ScannedNode, imports: ImportMap, indent: number): string {
+  const pad = "  ".repeat(indent);
+  const p1  = "  ".repeat(indent + 1);
+
+  addImport(imports, INSTALL_KEY,             "pnpm dlx shadcn@latest add input field");
+  addImport(imports, "@/components/ui/input", "Input");
+  addImport(imports, "@/components/ui/field", "Field");
+  addImport(imports, "@/components/ui/field", "FieldLabel");
+  addImport(imports, "@/components/ui/field", "FieldDescription");
+
+  const roundProp = node.props.find(p => p.shadcnProp === "roundness");
+  const sizeProp  = node.props.find(p => p.shadcnProp === "size");
+  const stateProp = node.props.find(p => p.shadcnProp === "state");
+
+  const round   = roundProp?.value === "full";
+  const sizeVal = sizeProp?.value ?? "";
+  const isError = stateProp?.value === "error";
+
+  const sizeClassMap: Record<string, string> = { large: "h-12", small: "h-8", mini: "h-6 text-xs" };
+  const classes   = [sizeClassMap[sizeVal] ?? "", round ? "rounded-full" : "", isError ? "border-destructive" : ""].filter(Boolean).join(" ");
+  const classAttr = classes ? ` className="${classes}"` : "";
+
+  return [
+    `${pad}<Field>`,
+    `${p1}<FieldLabel htmlFor="file">Label</FieldLabel>`,
+    `${p1}<Input id="file" type="file"${classAttr} />`,
+    `${p1}<FieldDescription>Select a file to upload.</FieldDescription>`,
+    `${pad}</Field>`,
+  ].join("\n");
+}
+
 // ─── Field renderer ──────────────────────────────────────────────────────────
 
 function renderField(node: ScannedNode, imports: ImportMap, indent: number, orientation: "vertical" | "horizontal"): string {
@@ -1915,6 +1946,7 @@ function renderNode(
   // Input
   if (sn.component === "__input__")            return renderInput(sn, imports, indent);
   if (sn.component === "__input_decoration__") return renderInputDecoration(sn, imports, indent);
+  if (sn.component === "__input_file__")       return renderInputFile(sn, imports, indent);
 
   // Field
   if (sn.component === "__field_vertical__")   return renderField(sn, imports, indent, "vertical");

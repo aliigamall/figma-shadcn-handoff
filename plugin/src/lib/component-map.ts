@@ -346,6 +346,17 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     // No children key — scan all children to detect Input Decoration instances and text nodes
   },
 
+  "Input File": {
+    component:  "__input_file__",
+    importPath: "@/components/ui/input",
+    props: {
+      "Roundness": { shadcnProp: "roundness", values: { Default: null, Round: "full" } },
+      "Size":      { shadcnProp: "size",      values: { Default: null, Large: "large", Small: "small", Mini: "mini" } },
+      "State":     { shadcnProp: "state",     values: { Focus: null, Error: "error", "Error Focus": "error" } },
+      "File Chosen": { shadcnProp: "fileChosen", values: { True: "true", False: null } },
+    },
+  },
+
   ".Input Decoration": {
     component:  "__input_decoration__",
     importPath: "@/components/ui/input-group",

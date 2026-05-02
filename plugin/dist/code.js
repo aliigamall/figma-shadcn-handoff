@@ -825,6 +825,16 @@ ${darkLines}
           }
           // No children key — scan all children to detect Input Decoration instances and text nodes
         },
+        "Input File": {
+          component: "__input_file__",
+          importPath: "@/components/ui/input",
+          props: {
+            "Roundness": { shadcnProp: "roundness", values: { Default: null, Round: "full" } },
+            "Size": { shadcnProp: "size", values: { Default: null, Large: "large", Small: "small", Mini: "mini" } },
+            "State": { shadcnProp: "state", values: { Focus: null, Error: "error", "Error Focus": "error" } },
+            "File Chosen": { shadcnProp: "fileChosen", values: { True: "true", False: null } }
+          }
+        },
         ".Input Decoration": {
           component: "__input_decoration__",
           importPath: "@/components/ui/input-group",
@@ -2678,6 +2688,32 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
   function renderInputDecoration(node, imports, indent) {
     return renderInputAddon(node, imports, indent, "inline-end");
   }
+  function renderInputFile(node, imports, indent) {
+    var _a, _b;
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input field");
+    addImport(imports, "@/components/ui/input", "Input");
+    addImport(imports, "@/components/ui/field", "Field");
+    addImport(imports, "@/components/ui/field", "FieldLabel");
+    addImport(imports, "@/components/ui/field", "FieldDescription");
+    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
+    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
+    const stateProp = node.props.find((p) => p.shadcnProp === "state");
+    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
+    const sizeVal = (_a = sizeProp == null ? void 0 : sizeProp.value) != null ? _a : "";
+    const isError = (stateProp == null ? void 0 : stateProp.value) === "error";
+    const sizeClassMap = { large: "h-12", small: "h-8", mini: "h-6 text-xs" };
+    const classes = [(_b = sizeClassMap[sizeVal]) != null ? _b : "", round ? "rounded-full" : "", isError ? "border-destructive" : ""].filter(Boolean).join(" ");
+    const classAttr = classes ? ` className="${classes}"` : "";
+    return [
+      `${pad}<Field>`,
+      `${p1}<FieldLabel htmlFor="file">Label</FieldLabel>`,
+      `${p1}<Input id="file" type="file"${classAttr} />`,
+      `${p1}<FieldDescription>Select a file to upload.</FieldDescription>`,
+      `${pad}</Field>`
+    ].join("\n");
+  }
   function renderField(node, imports, indent, orientation) {
     var _a;
     const typeProp = node.props.find((p) => p.shadcnProp === "type");
@@ -3241,6 +3277,8 @@ ${pad}</div>`;
       return renderInput(sn, imports, indent);
     if (sn.component === "__input_decoration__")
       return renderInputDecoration(sn, imports, indent);
+    if (sn.component === "__input_file__")
+      return renderInputFile(sn, imports, indent);
     if (sn.component === "__field_vertical__")
       return renderField(sn, imports, indent, "vertical");
     if (sn.component === "__field_horizontal__")
