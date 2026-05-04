@@ -242,9 +242,15 @@ btnCopyPatch.addEventListener("click", () => {
 
 // ── Inspect tab ────────────────────────────────────────────────────────────
 
+const btnGenerate = document.getElementById("btn-generate") as HTMLButtonElement;
+
 function triggerInspect(): void {
+  btnGenerate.textContent = "Generating…";
+  btnGenerate.disabled = true;
   parent.postMessage({ pluginMessage: { type: "GET_TAILWIND" } }, "*");
 }
+
+btnGenerate.addEventListener("click", triggerInspect);
 
 function showEmpty(): void {
   inspectEmpty.classList.remove("hidden");
@@ -347,6 +353,9 @@ window.onmessage = (event: MessageEvent) => {
   }
 
   if (msg.type === "TAILWIND_RESULT") {
+    btnGenerate.textContent = "Generate";
+    btnGenerate.disabled = false;
+
     if (msg.error) {
       showEmpty();
       return;
@@ -382,10 +391,13 @@ window.onmessage = (event: MessageEvent) => {
     if (msg.hasSelection) {
       selectionBadge.classList.add("has-selection");
       selectionLabel.textContent = msg.nodeName || "1 node selected";
-      triggerInspect();
+      btnGenerate.textContent = "Generate";
+      btnGenerate.disabled = false;
     } else {
       selectionBadge.classList.remove("has-selection");
       selectionLabel.textContent = "No node selected";
+      btnGenerate.textContent = "Generate";
+      btnGenerate.disabled = true;
       showEmpty();
     }
     renderDevInfo(msg.componentInfo ?? null);

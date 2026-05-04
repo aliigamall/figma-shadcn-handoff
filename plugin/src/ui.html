@@ -183,10 +183,16 @@
   <!-- Inspect panel -->
   <div id="panel-inspect" class="panel flex-1 p-4 flex flex-col gap-3 hidden">
 
-    <!-- Selection indicator -->
-    <div id="selection-badge" class="selection-badge flex items-center gap-2 text-[12px] text-[#555] bg-[#f5f5f5] rounded-md px-3 py-2">
-      <span class="dot w-[7px] h-[7px] rounded-full bg-[#ccc] flex-shrink-0"></span>
-      <span id="selection-label" class="flex-1 truncate">No node selected</span>
+    <!-- Selection indicator + Generate button -->
+    <div class="flex items-center gap-2">
+      <div id="selection-badge" class="selection-badge flex items-center gap-2 text-[12px] text-[#555] bg-[#f5f5f5] rounded-md px-3 py-2 flex-1 min-w-0">
+        <span class="dot w-[7px] h-[7px] rounded-full bg-[#ccc] flex-shrink-0"></span>
+        <span id="selection-label" class="flex-1 truncate">No node selected</span>
+      </div>
+      <button id="btn-generate" disabled
+        class="flex-shrink-0 px-3 py-2 text-[12px] font-semibold rounded-md border-none cursor-pointer bg-[#1a1a1a] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#333] transition-colors">
+        Generate
+      </button>
     </div>
 
     <!-- Empty state -->
@@ -197,7 +203,7 @@
         <rect x="4" y="17" width="11" height="11" rx="2" fill="#1a1a1a"/>
         <rect x="17" y="17" width="11" height="11" rx="2" fill="#1a1a1a"/>
       </svg>
-      <p class="text-[12px] text-[#999]">Select a frame or component<br/>to inspect</p>
+      <p class="text-[12px] text-[#999]">Select a frame or component<br/>and click Generate</p>
     </div>
 
     <!-- JSX / HTML output — shown when mapped components found -->

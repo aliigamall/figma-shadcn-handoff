@@ -69,15 +69,15 @@
     const col = collection.toLowerCase().trim();
     const parts = path.split("/").map(sanitizeSegment);
     if (col === "semantic colors") {
-      const [group, ...rest] = parts;
-      if (group === "general")
+      const [group10, ...rest] = parts;
+      if (group10 === "general")
         return `--${rest.join("-")}`;
       const name = rest.join("-");
-      const prefix = `${group}-`;
-      const stripped = name === group ? "" : name.startsWith(prefix) ? name.slice(prefix.length) : name;
+      const prefix = `${group10}-`;
+      const stripped = name === group10 ? "" : name.startsWith(prefix) ? name.slice(prefix.length) : name;
       if (!stripped)
-        return `--${group}`;
-      return `--${group}-${stripped}`;
+        return `--${group10}`;
+      return `--${group10}-${stripped}`;
     }
     if (col === "raw colors" || col === "brand colors")
       return `--color-${parts.join("-")}`;
@@ -547,18 +547,293 @@ ${darkLines}
     }
   });
 
-  // src/lib/component-map.ts
-  function lookupComponent(figmaName) {
-    var _a;
-    if (COMPONENT_MAP[figmaName])
-      return COMPONENT_MAP[figmaName];
-    const base = figmaName.split(/[/,]/)[0].trim();
-    return (_a = COMPONENT_MAP[base]) != null ? _a : null;
+  // src/lib/tailwind-layout.ts
+  function gapClass(gap) {
+    return GAP_MAP[gap] ? `gap-${GAP_MAP[gap]}` : gap ? `gap-[${gap}px]` : "";
   }
-  var VARIANT_MAP, SIZE_MAP, CHECKED_MAP, COMPONENT_MAP;
-  var init_component_map = __esm({
-    "src/lib/component-map.ts"() {
+  function gapXClass(gap) {
+    return GAP_MAP[gap] ? `gap-x-${GAP_MAP[gap]}` : gap ? `gap-x-[${gap}px]` : "";
+  }
+  function gapYClass(gap) {
+    return GAP_MAP[gap] ? `gap-y-${GAP_MAP[gap]}` : gap ? `gap-y-[${gap}px]` : "";
+  }
+  function paddingClass(prefix, value) {
+    const map = {
+      2: "0.5",
+      4: "1",
+      6: "1.5",
+      8: "2",
+      10: "2.5",
+      12: "3",
+      16: "4",
+      20: "5",
+      24: "6",
+      32: "8",
+      40: "10",
+      48: "12",
+      64: "16"
+    };
+    return map[value] ? `${prefix}-${map[value]}` : `${prefix}-[${value}px]`;
+  }
+  function paddingClasses(layout) {
+    const { paddingTop: t, paddingRight: r, paddingBottom: b, paddingLeft: l } = layout;
+    if (t === 0 && r === 0 && b === 0 && l === 0)
+      return "";
+    if (t === b && l === r && t === l)
+      return paddingClass("p", t);
+    const parts = [];
+    if (t === b && t > 0)
+      parts.push(paddingClass("py", t));
+    else {
+      if (t > 0)
+        parts.push(paddingClass("pt", t));
+      if (b > 0)
+        parts.push(paddingClass("pb", b));
+    }
+    if (l === r && l > 0)
+      parts.push(paddingClass("px", l));
+    else {
+      if (l > 0)
+        parts.push(paddingClass("pl", l));
+      if (r > 0)
+        parts.push(paddingClass("pr", r));
+    }
+    return parts.join(" ");
+  }
+  function gridColsClass(cols) {
+    return cols >= 1 && cols <= 12 ? `grid-cols-${cols}` : cols > 0 ? `grid-cols-[repeat(${cols},minmax(0,1fr))]` : "";
+  }
+  function visualClasses(v) {
+    var _a;
+    const parts = [];
+    if (v.bgColor)
+      parts.push(`bg-[${v.bgColor}]`);
+    if (v.radius > 0)
+      parts.push(v.radius >= 9999 ? "rounded-full" : (_a = RADIUS_MAP[v.radius]) != null ? _a : `rounded-[${v.radius}px]`);
+    if (v.shadow)
+      parts.push("shadow-md");
+    if (v.borderColor)
+      parts.push(`border border-[${v.borderColor}]`);
+    if (v.opacity < 1)
+      parts.push(`opacity-[${Math.round(v.opacity * 100)}%]`);
+    return parts.join(" ");
+  }
+  function textVisualClasses(align, color, uppercase) {
+    const parts = [];
+    if (align === "center")
+      parts.push("text-center");
+    if (align === "right")
+      parts.push("text-right");
+    if (uppercase)
+      parts.push("uppercase");
+    if (color)
+      parts.push(`text-[${color}]`);
+    return parts.join(" ");
+  }
+  function layoutClasses(layout) {
+    const pad = paddingClasses(layout);
+    if (layout.direction === "grid") {
+      const cols = gridColsClass(layout.columns);
+      const gapStr2 = layout.gap === layout.rowGap ? gapClass(layout.gap) : [gapXClass(layout.gap), gapYClass(layout.rowGap)].filter(Boolean).join(" ");
+      return ["grid", cols, gapStr2, pad].filter(Boolean).join(" ");
+    }
+    if (layout.direction === "none")
+      return "";
+    const dir = layout.direction === "horizontal" ? "flex-row" : "flex-col";
+    const wrap = layout.wrap ? "flex-wrap" : "";
+    const gapStr = layout.wrap && layout.rowGap && layout.rowGap !== layout.gap ? [gapXClass(layout.gap), gapYClass(layout.rowGap)].filter(Boolean).join(" ") : gapClass(layout.gap);
+    return ["flex", dir, wrap, gapStr, pad].filter(Boolean).join(" ");
+  }
+  var GAP_MAP, RADIUS_MAP;
+  var init_tailwind_layout = __esm({
+    "src/lib/tailwind-layout.ts"() {
       "use strict";
+      GAP_MAP = {
+        0: "",
+        2: "0.5",
+        4: "1",
+        6: "1.5",
+        8: "2",
+        10: "2.5",
+        12: "3",
+        16: "4",
+        20: "5",
+        24: "6",
+        32: "8",
+        40: "10",
+        48: "12",
+        64: "16"
+      };
+      RADIUS_MAP = {
+        2: "rounded-sm",
+        4: "rounded",
+        6: "rounded-md",
+        8: "rounded-lg",
+        12: "rounded-xl",
+        16: "rounded-2xl",
+        24: "rounded-3xl"
+      };
+    }
+  });
+
+  // src/lib/render-utils.ts
+  function addImport(imports, path, name) {
+    if (!imports.has(path))
+      imports.set(path, /* @__PURE__ */ new Set());
+    imports.get(path).add(name);
+  }
+  function collectTexts(nodes) {
+    const out = [];
+    for (const n of nodes) {
+      if ("isText" in n) {
+        out.push(n.content);
+        continue;
+      }
+      if ("isLayout" in n)
+        out.push(...collectTexts(n.children));
+      if ("component" in n && Array.isArray(n.children))
+        out.push(...collectTexts(n.children));
+    }
+    return out;
+  }
+  function collectButtons(nodes) {
+    const out = [];
+    for (const n of nodes) {
+      if ("component" in n) {
+        const sn = n;
+        if (sn.component === "Button") {
+          out.push(sn);
+          continue;
+        }
+        if (Array.isArray(sn.children))
+          out.push(...collectButtons(sn.children));
+      }
+      if ("isLayout" in n)
+        out.push(...collectButtons(n.children));
+    }
+    return out;
+  }
+  function findIconChild(children) {
+    if (typeof children === "string")
+      return null;
+    for (const c of children) {
+      if ("isIcon" in c)
+        return c.lucideName;
+      if ("isLayout" in c) {
+        const r = findIconChild(c.children);
+        if (r)
+          return r;
+      }
+      if ("component" in c) {
+        const r = findIconChild(c.children);
+        if (r)
+          return r;
+      }
+    }
+    return null;
+  }
+  function findFirstText(children) {
+    if (typeof children === "string")
+      return children || null;
+    for (const c of children) {
+      if ("isText" in c)
+        return c.content || null;
+      if ("isInlineText" in c)
+        return c.content || null;
+      if ("isLayout" in c) {
+        const found = findFirstText(c.children);
+        if (found)
+          return found;
+      } else if ("component" in c) {
+        const found = findFirstText(c.children);
+        if (found)
+          return found;
+      }
+    }
+    return null;
+  }
+  function findAllTexts(children) {
+    if (typeof children === "string")
+      return children ? [children] : [];
+    const out = [];
+    for (const c of children) {
+      if ("isText" in c) {
+        if (c.content)
+          out.push(c.content);
+      } else if ("isInlineText" in c) {
+        if (c.content)
+          out.push(c.content);
+      } else if ("isLayout" in c)
+        out.push(...findAllTexts(c.children));
+      else if ("component" in c)
+        out.push(...findAllTexts(c.children));
+    }
+    return out;
+  }
+  function findDecorationNodes(children) {
+    if (typeof children === "string")
+      return [];
+    const result = [];
+    for (const c of children) {
+      if ("component" in c && c.component === "__input_decoration__") {
+        result.push(c);
+      } else if ("isLayout" in c) {
+        result.push(...findDecorationNodes(c.children));
+      } else if ("component" in c) {
+        result.push(...findDecorationNodes(c.children));
+      }
+    }
+    return result;
+  }
+  function findFirstChartNode(nodes) {
+    const CHART_COMPONENT_PREFIX = "__chart_";
+    for (const n of nodes) {
+      if ("component" in n && n.component.startsWith(CHART_COMPONENT_PREFIX)) {
+        return n;
+      }
+      if ("isLayout" in n) {
+        const found = findFirstChartNode(n.children);
+        if (found)
+          return found;
+      }
+    }
+    return null;
+  }
+  function renderProps(props) {
+    if (props.length === 0)
+      return "";
+    return " " + props.map(({ shadcnProp, value }) => {
+      if (value === "true")
+        return shadcnProp;
+      if (value === "false")
+        return ``;
+      if (value === "default")
+        return "";
+      return `${shadcnProp}="${value}"`;
+    }).filter(Boolean).join(" ");
+  }
+  function toJsKey(label) {
+    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/, "");
+    return key || "value";
+  }
+  function extractSeries(legendLabels, count) {
+    var _a, _b;
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      result.push((_b = (_a = legendLabels[i]) != null ? _a : FALLBACK_SERIES[i]) != null ? _b : `series${i + 1}`);
+    }
+    return result;
+  }
+  var PREAMBLE_KEY, INSTALL_KEY, CSS_KEY, DIRECTIVE_KEY, RAW_IMPORT_KEY, VARIANT_MAP, SIZE_MAP, CHECKED_MAP, CHART_MONTHS, CHART_VALUES, FALLBACK_SERIES, CHART_CSS_VARS;
+  var init_render_utils = __esm({
+    "src/lib/render-utils.ts"() {
+      "use strict";
+      init_tailwind_layout();
+      PREAMBLE_KEY = "__preamble__";
+      INSTALL_KEY = "__install__";
+      CSS_KEY = "__css__";
+      DIRECTIVE_KEY = "__directive__";
+      RAW_IMPORT_KEY = "__raw_import__";
       VARIANT_MAP = {
         Primary: "default",
         Secondary: "secondary",
@@ -579,613 +854,2431 @@ ${darkLines}
         False: "false",
         Indeterminate: "indeterminate"
       };
-      COMPONENT_MAP = {
-        // ── Button ────────────────────────────────────────────────────────────────
-        "Button": {
-          component: "Button",
-          importPath: "@/components/ui/button",
-          props: {
-            "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
-            "Size": { shadcnProp: "size", values: SIZE_MAP }
-          },
-          children: "Label",
-          ignore: ["State", "Roundness", "Show right icon", "Show left icon", "\u2B91 Right icon", "\u2B91 Left icon"]
-        },
-        // ── Button Group ──────────────────────────────────────────────────────────
-        "Button Group": {
-          component: "Button",
-          importPath: "@/components/ui/button",
-          props: {
-            "Skin": { shadcnProp: "variant", values: { Outlined: "outline", Ghost: "ghost" } },
-            "Size": { shadcnProp: "size", values: SIZE_MAP }
-          },
-          children: "Label",
-          ignore: ["State", "Position"]
-        },
-        "Button Group Icon Button": {
-          component: "Button",
-          importPath: "@/components/ui/button",
-          props: {
-            "Skin": { shadcnProp: "variant", values: { Outlined: "outline", Ghost: "ghost" } },
-            "Size": { shadcnProp: "size", values: { Default: "icon", Small: "icon-sm", Large: "icon-lg" } }
-          },
-          ignore: ["State", "Position", "Icon"]
-        },
-        // ── Loading Button ────────────────────────────────────────────────────────
-        "Loading Button": {
-          component: "__loading_button__",
-          importPath: "@/components/ui/button",
-          props: {
-            "Size": { shadcnProp: "size", values: { Default: null, Large: "lg", Small: "sm", Mini: "xs" } }
-          },
-          ignore: ["Roundness", "State"],
-          children: "Label"
-        },
-        // ── Badge ─────────────────────────────────────────────────────────────────
-        "Badge": {
-          component: "Badge",
-          importPath: "@/components/ui/badge",
-          props: {
-            "Variant": { shadcnProp: "variant", values: VARIANT_MAP }
-          },
-          children: "Label",
-          ignore: ["State", "Roundness", "Show left icon", "Show right icon", "\u2B91 Icon left", "\u2B91 Icon right"]
-        },
-        // ── Alert ─────────────────────────────────────────────────────────────────
-        "Alert": {
-          component: "Alert",
-          importPath: "@/components/ui/alert",
-          props: {
-            "Type": {
-              shadcnProp: "variant",
-              values: { Neutral: "default", Error: "destructive" }
-            }
-          },
-          slots: [
-            { key: "Line 1", component: "AlertTitle", importPath: "@/components/ui/alert" },
-            { key: "\u21B3 Line 2", component: "AlertDescription", importPath: "@/components/ui/alert", scanChildren: true }
-          ],
-          ignore: ["Show Line 2", "Show Icon", "Show Button", "Flip Icon", "\u2B91 Icon", "\u2B91  Line 2"]
-        },
-        // ── Alert Dialog ──────────────────────────────────────────────────────────
-        "Alert Dialog": {
-          component: "AlertDialog",
-          importPath: "@/components/ui/alert-dialog",
-          ignore: ["Type"]
-        },
-        // ── Avatar ────────────────────────────────────────────────────────────────
-        "Avatar": {
-          component: "Avatar",
-          importPath: "@/components/ui/avatar",
-          ignore: ["Picture", "Size", "Roundness Type"]
-        },
-        "Avatar Stack": {
-          component: "AvatarGroup",
-          importPath: "@/components/ui/avatar",
-          ignore: ["Size", "Type"]
-        },
-        // ── Textarea ──────────────────────────────────────────────────────────────
-        "Textarea": {
-          component: "Textarea",
-          importPath: "@/components/ui/textarea",
-          props: {
-            "State": {
-              shadcnProp: "disabled",
-              values: { Disabled: "true", Empty: null, Placeholder: null, Value: null, Focus: null, Error: null, "Error Focus": null }
-            }
-          },
-          ignore: ["Show resizable", "Roundness"]
-        },
-        // ── Select ────────────────────────────────────────────────────────────────
-        "Select & Combobox": {
-          component: "Select",
-          importPath: "@/components/ui/select",
-          ignore: ["Size", "State", "Lines", "Show Decoration", "Show Prepend"]
-        },
-        // ── Checkbox ──────────────────────────────────────────────────────────────
-        "Checkbox": {
-          component: "Checkbox",
-          importPath: "@/components/ui/checkbox",
-          props: {
-            "Checked?": { shadcnProp: "checked", values: CHECKED_MAP },
-            "State": {
-              shadcnProp: "disabled",
-              values: { Disabled: "true", Focus: null, Error: null, "Error Focus": null }
-            }
-          }
-        },
-        "Checkbox Group": {
-          component: "__checkbox_group__",
-          importPath: "@/components/ui/checkbox",
-          props: {
-            "Layout": {
-              shadcnProp: "layout",
-              values: { Inline: "inline", Stacked: "stacked" }
-            }
-          },
-          ignore: ["Checked?"]
-        },
-        "Rich Checkbox Group": {
-          component: "RichCheckboxGroup",
-          importPath: "@/components/ui/rich-checkbox-group",
-          props: {
-            "Checked": { shadcnProp: "checked", values: { True: "true", False: null } },
-            "Flipped": { shadcnProp: "flipped", values: { True: "true", False: null } }
-          },
-          children: "Line 1"
-        },
-        // ── Switch ────────────────────────────────────────────────────────────────
-        "Switch": {
-          component: "Switch",
-          importPath: "@/components/ui/switch",
-          props: {
-            "Checked?": { shadcnProp: "checked", values: { True: "true", False: "false" } }
-          },
-          ignore: ["State"]
-        },
-        // ── Radio ─────────────────────────────────────────────────────────────────
-        "Radio": {
-          component: "RadioGroupItem",
-          importPath: "@/components/ui/radio-group",
-          props: {
-            "Checked?": { shadcnProp: "checked", values: { True: "true", False: "false" } }
-          },
-          ignore: ["State"]
-        },
-        // ── Slider ────────────────────────────────────────────────────────────────
-        "Slider Horizontal": {
-          component: "Slider",
-          importPath: "@/components/ui/slider",
-          ignore: ["Type"]
-        },
-        "Slider Vertical": {
-          component: "Slider",
-          importPath: "@/components/ui/slider",
-          props: {
-            "Type": { shadcnProp: "orientation", values: { Default: "vertical", "Range narrow": "vertical", "Range wide": "vertical" } }
-          }
-        },
-        // ── Progress ──────────────────────────────────────────────────────────────
-        "Progress": {
-          component: "Progress",
-          importPath: "@/components/ui/progress",
-          props: {
-            "Progress": { shadcnProp: "value" }
-          }
-        },
-        // ── Tabs ──────────────────────────────────────────────────────────────────
-        "Tabs": {
-          component: "Tabs",
-          importPath: "@/components/ui/tabs",
-          ignore: ["Size", "Content", "Parts"]
-        },
-        // ── Tooltip ───────────────────────────────────────────────────────────────
-        "Tooltip": {
-          component: "Tooltip",
-          importPath: "@/components/ui/tooltip",
-          props: {
-            "Side": {
-              shadcnProp: "side",
-              values: { Top: "top", Bottom: "bottom", Left: "left", Right: "right" }
-            }
-          },
-          children: "Tooltip text"
-        },
-        // ── Separator ─────────────────────────────────────────────────────────────
-        "Separator": {
-          component: "Separator",
-          importPath: "@/components/ui/separator",
-          props: {
-            "Direction": {
-              shadcnProp: "orientation",
-              values: { Default: "horizontal", Vertical: "vertical" }
-            }
-          },
-          ignore: ["Spacing"]
-        },
-        // ── Command ───────────────────────────────────────────────────────────────
-        "Command": {
-          component: "__command__",
-          importPath: "@/components/ui/command"
-        },
-        // ── Date Picker ───────────────────────────────────────────────────────────
-        "Date Picker": {
-          component: "__date_picker__",
-          importPath: "@/components/ui/date-picker",
-          ignore: ["State"]
-        },
-        "Calendar": {
-          component: "__calendar__",
-          importPath: "@/components/ui/calendar",
-          props: {
-            "Months": {
-              shadcnProp: "months",
-              values: { "1 month": "1", "2 month": "2", "3 month": "3" }
-            }
-          }
-        },
-        // ── Navigation Menu ───────────────────────────────────────────────────────
-        "Navigation Menu": {
-          component: "__navigation_menu__",
-          importPath: "@/components/ui/navigation-menu",
-          props: {},
-          ignore: ["State"]
-        },
-        ".Navigation Menu Content": {
-          component: "__navigation_menu_content__",
-          importPath: "@/components/ui/navigation-menu",
-          props: {}
-        },
-        "Menu Item": {
-          component: "__menu_item__",
-          importPath: "@/components/ui/navigation-menu",
-          props: {
-            "Size": { shadcnProp: "size", values: { Regular: null, Large: "lg" } },
-            "Type": { shadcnProp: "type", values: { Default: null, Destructive: "destructive" } }
-          },
-          ignore: ["State"]
-        },
-        // ── Link Button ───────────────────────────────────────────────────────────
-        "Link Button": {
-          component: "LinkButton",
-          importPath: "@/components/ui/button",
-          props: {
-            "Size": { shadcnProp: "size", values: { Default: null, Large: "lg", Small: "sm", Mini: "xs" } }
-          },
-          ignore: ["Roundness", "State"],
-          children: "Label"
-        },
-        // ── Input OTP ─────────────────────────────────────────────────────────────
-        "Input OTP": {
-          component: "__input_otp__",
-          importPath: "@/components/ui/input-otp",
-          props: {
-            "Position": { shadcnProp: "position", values: { Left: "left", Middle: "middle", Right: "right" } },
-            "Size": { shadcnProp: "size", values: { Default: null, Large: "large", Small: "small", Mini: "mini" } },
-            "State": { shadcnProp: "state", values: { Empty: null, Placeholder: null, Value: null, Focus: null, Error: "error", "Error Focus": "error", Disabled: "disabled" } }
-          }
-        },
-        // ── Input ─────────────────────────────────────────────────────────────────
-        "Input": {
-          component: "__input__",
-          importPath: "@/components/ui/input",
-          props: {
-            "Roundness": { shadcnProp: "roundness", values: { Default: null, Round: "full" } },
-            "Size": { shadcnProp: "size", values: { Regular: null, Large: "large", Small: "small", Mini: "mini" } },
-            "State": { shadcnProp: "state", values: { Empty: null, Placeholder: "placeholder", Value: "value", Focus: null, Error: "error", "Error Focus": "error", Disabled: "disabled" } }
-          }
-          // No children key — scan all children to detect Input Decoration instances and text nodes
-        },
-        "Input File": {
-          component: "__input_file__",
-          importPath: "@/components/ui/input",
-          props: {
-            "Roundness": { shadcnProp: "roundness", values: { Default: null, Round: "full" } },
-            "Size": { shadcnProp: "size", values: { Default: null, Large: "large", Small: "small", Mini: "mini" } },
-            "State": { shadcnProp: "state", values: { Focus: null, Error: "error", "Error Focus": "error" } },
-            "File Chosen": { shadcnProp: "fileChosen", values: { True: "true", False: null } }
-          }
-        },
-        ".Input Decoration": {
-          component: "__input_decoration__",
-          importPath: "@/components/ui/input-group",
-          props: {
-            "Type": { shadcnProp: "type", values: { "Icon": "icon", "Icon muted": "icon-muted" } },
-            "Size": { shadcnProp: "size", values: { Default: null, Large: "large" } }
-          }
-        },
-        // ── Item ──────────────────────────────────────────────────────────────────
-        "Item": {
-          component: "__item__",
-          importPath: "@/components/ui/item",
-          props: {
-            "Variant": { shadcnProp: "variant", values: { Default: null, Outline: "outline", Muted: "muted" } },
-            "Size": { shadcnProp: "size", values: { Default: null, Small: "sm", Mini: "xs" } },
-            // Media type — Figma booleans come as "True"/"False" (capitalized)
-            "ItemMedia: icon": { shadcnProp: "mediaType", values: { True: "icon", False: null } },
-            "ItemMedia: iconBadge": { shadcnProp: "mediaType", values: { True: "iconBadge", False: null } },
-            "ItemMedia: avatar": { shadcnProp: "mediaType", values: { True: "avatar", False: null } },
-            "ItemMedia: avatarStack": { shadcnProp: "mediaType", values: { True: "avatarStack", False: null } },
-            "ItemMedia: image": { shadcnProp: "mediaType", values: { True: "image", False: null } },
-            // Action type — Figma booleans come as "True"/"False"
-            "ItemAction: icon": { shadcnProp: "actionType", values: { True: "icon", False: null } },
-            "ItemAction: button": { shadcnProp: "actionType", values: { True: "button", False: null } },
-            "ItemAction: iconButton": { shadcnProp: "actionType", values: { True: "iconButton", False: null } },
-            "ItemAction: label": { shadcnProp: "actionType", values: { True: "label", False: null } },
-            // Text content — no values map → raw value preserved as-is
-            "Title": { shadcnProp: "title" },
-            "Description": { shadcnProp: "description" },
-            "Label": { shadcnProp: "label" }
-          },
-          ignore: ["asChild", "State"]
-        },
-        // ── Empty ─────────────────────────────────────────────────────────────────
-        "Empty": {
-          component: "__empty__",
-          importPath: "@/components/ui/empty",
-          props: {
-            "Variant": {
-              shadcnProp: "variant",
-              values: {
-                Default: "default",
-                Outline: "outline",
-                Background: "background",
-                "Outline dashed": "outline-dashed"
-              }
-            }
-          },
-          children: "\u2B91 title"
-        },
-        // ── Field ─────────────────────────────────────────────────────────────────
-        "Vertical Field": {
-          component: "__field_vertical__",
-          importPath: "@/components/ui/field",
-          props: {
-            "Type": {
-              shadcnProp: "type",
-              values: {
-                Select: "select",
-                "Text Value": "text",
-                Radio: "radio",
-                Textarea: "textarea",
-                Checkbox: "checkbox",
-                Slider: "slider"
-              }
-            }
-          }
-        },
-        "Horizontal Field": {
-          component: "__field_horizontal__",
-          importPath: "@/components/ui/field",
-          props: {
-            "Type": {
-              shadcnProp: "type",
-              values: {
-                Select: "select",
-                "Text Value": "text",
-                Radio: "radio",
-                Textarea: "textarea",
-                Checkbox: "checkbox",
-                Slider: "slider"
-              }
-            }
-          }
-        },
-        // ── Label ─────────────────────────────────────────────────────────────────
-        "Label": {
-          component: "Label",
-          importPath: "@/components/ui/label",
-          ignore: ["Layout"]
-        },
-        // ── Skeleton ──────────────────────────────────────────────────────────────
-        "Skeleton": {
-          component: "Skeleton",
-          importPath: "@/components/ui/skeleton"
-        },
-        // ── Spinner ───────────────────────────────────────────────────────────────
-        "Spinner": {
-          component: "Loader2",
-          importPath: "lucide-react",
-          ignore: ["Type"]
-        },
-        // ── Card ──────────────────────────────────────────────────────────────────
-        "Card": {
-          component: "Card",
-          importPath: "@/components/ui/card",
-          ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No.", "State"]
-        },
-        // ── Breadcrumb ────────────────────────────────────────────────────────────
-        "Breadcrumb": {
-          component: "Breadcrumb",
-          importPath: "@/components/ui/breadcrumb",
-          ignore: ["Items"]
-        },
-        ".Breadcrumb item": {
-          component: "BreadcrumbItem",
-          importPath: "@/components/ui/breadcrumb",
-          children: "\u2B91 Label",
-          ignore: ["Content", "State"]
-        },
-        ".Breadcrumb separator": {
-          component: "BreadcrumbSeparator",
-          importPath: "@/components/ui/breadcrumb",
-          ignore: ["Content"]
-        },
-        // ── Pagination ────────────────────────────────────────────────────────────
-        "Pagination": {
-          component: "Pagination",
-          importPath: "@/components/ui/pagination",
-          ignore: ["Type", "State"]
-        },
-        // ── Icon Button ───────────────────────────────────────────────────────────
-        "Icon Button": {
-          component: "__icon_button__",
-          importPath: "@/components/ui/button",
-          props: {
-            "Variant": {
-              shadcnProp: "variant",
-              values: { Primary: "default", Secondary: "secondary", Outline: "outline", Ghost: "ghost", Destructive: "destructive" }
+      CHART_MONTHS = ["January", "February", "March", "April", "May", "June"];
+      CHART_VALUES = [
+        [186, 305, 237, 73, 209, 214],
+        [80, 200, 120, 190, 130, 140]
+      ];
+      FALLBACK_SERIES = ["desktop", "mobile"];
+      CHART_CSS_VARS = `:root {
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+.dark {
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+}`;
+    }
+  });
+
+  // src/lib/components/buttons.ts
+  function renderIconButton(node, imports, indent, _renderChild) {
+    var _a, _b, _c, _d;
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button");
+    addImport(imports, "@/components/ui/button", "Button");
+    const pad = "  ".repeat(indent);
+    const variantProp = node.props.find((p) => p.shadcnProp === "variant");
+    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
+    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
+    const disabledProp = node.props.find((p) => p.shadcnProp === "disabled");
+    const variant = (_a = variantProp == null ? void 0 : variantProp.value) != null ? _a : "default";
+    const sizeVal = (_b = sizeProp == null ? void 0 : sizeProp.value) != null ? _b : "default";
+    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
+    const disabled = (disabledProp == null ? void 0 : disabledProp.value) === "true";
+    const variantAttr = variant !== "default" ? ` variant="${variant}"` : "";
+    const disabledAttr = disabled ? " disabled" : "";
+    const sizeClassMap = { large: "size-12", small: "size-8", mini: "size-6" };
+    const sizeClass = (_c = sizeClassMap[sizeVal]) != null ? _c : "";
+    const roundClass = round ? "rounded-full" : "";
+    const classes = [sizeClass, roundClass].filter(Boolean).join(" ");
+    const classAttr = classes ? ` className="${classes}"` : "";
+    const iconName = (_d = findIconChild(node.children)) != null ? _d : "Plus";
+    addImport(imports, "lucide-react", iconName);
+    return `${pad}<Button size="icon"${variantAttr}${classAttr}${disabledAttr}><${iconName} className="size-4" /></Button>`;
+  }
+  function renderLoadingButton(node, imports, indent, _renderChild) {
+    var _a;
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button spinner");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/spinner", "Spinner");
+    const pad = "  ".repeat(indent);
+    const size = (_a = node.props.find((p) => p.shadcnProp === "size")) == null ? void 0 : _a.value;
+    const sizeAttr = size ? ` size="${size}"` : "";
+    const label = typeof node.children === "string" ? node.children : "Loading";
+    return `${pad}<Button variant="outline"${sizeAttr} disabled>
+${pad}  <Spinner data-icon="inline-start" />
+${pad}  ${label}
+${pad}</Button>`;
+  }
+  function renderLinkButton(node, imports, indent, _renderChild) {
+    var _a;
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button");
+    addImport(imports, "@/components/ui/button", "Button");
+    const pad = "  ".repeat(indent);
+    const size = (_a = node.props.find((p) => p.shadcnProp === "size")) == null ? void 0 : _a.value;
+    const sizeAttr = size ? ` size="${size}"` : "";
+    const label = typeof node.children === "string" ? node.children : "Link";
+    return `${pad}<Button variant="link"${sizeAttr}>${label}</Button>`;
+  }
+  var group;
+  var init_buttons = __esm({
+    "src/lib/components/buttons.ts"() {
+      "use strict";
+      init_render_utils();
+      group = {
+        defs: {
+          "Button": {
+            component: "Button",
+            importPath: "@/components/ui/button",
+            props: {
+              "Variant": { shadcnProp: "variant", values: VARIANT_MAP },
+              "Size": { shadcnProp: "size", values: SIZE_MAP }
             },
-            "Size": {
-              shadcnProp: "size",
-              values: { Default: "default", Large: "large", Small: "small", Mini: "mini" }
-            },
-            "Roundness": {
-              shadcnProp: "roundness",
-              values: { Default: null, Round: "full" }
-            }
+            children: "Label",
+            ignore: ["State", "Roundness", "Show right icon", "Show left icon", "\u2B91 Right icon", "\u2B91 Left icon"]
           },
-          ignore: ["State"]
-        },
-        // ── Hover Card ────────────────────────────────────────────────────────────
-        "Hover Card": {
-          component: "__hover_card__",
-          importPath: "@/components/ui/hover-card"
-        },
-        // ── Drawer ────────────────────────────────────────────────────────────────
-        "Drawer": {
-          component: "__drawer__",
-          importPath: "@/components/ui/drawer"
-        },
-        // ── Dialog ────────────────────────────────────────────────────────────────
-        "Dialog": {
-          component: "__dialog__",
-          importPath: "@/components/ui/dialog",
-          ignore: ["Type"]
-        },
-        "Dialog Header": {
-          component: "__dialog_header__",
-          importPath: "@/components/ui/dialog",
-          props: {
-            "Type": {
-              shadcnProp: "type",
-              values: { "Header": "header", "Close Only": "close-only", "Icon Button Close": "icon-close" }
-            }
-          }
-        },
-        "Dialog Footer": {
-          component: "__dialog_footer__",
-          importPath: "@/components/ui/dialog",
-          props: {
-            "Type": {
-              shadcnProp: "type",
-              values: {
-                "2 Buttons Right": "2-buttons-right",
-                "2 Full-width Buttons": "2-full-width",
-                "Single Full-width Button": "1-full-width"
-              }
-            }
-          }
-        },
-        // ── Toggle Button ─────────────────────────────────────────────────────────
-        "Toggle Button": {
-          component: "Toggle",
-          importPath: "@/components/ui/toggle",
-          props: {
-            "Skin": {
-              shadcnProp: "variant",
-              values: { Outlined: "outline", Ghost: "ghost" }
+          "Button Group": {
+            component: "Button",
+            importPath: "@/components/ui/button",
+            props: {
+              "Skin": { shadcnProp: "variant", values: { Outlined: "outline", Ghost: "ghost" } },
+              "Size": { shadcnProp: "size", values: SIZE_MAP }
             },
-            "Size": { shadcnProp: "size", values: SIZE_MAP },
-            "Active?": {
-              shadcnProp: "pressed",
-              values: { Yes: "true", No: "false" }
-            }
+            children: "Label",
+            ignore: ["State", "Position"]
           },
-          children: "Label",
-          ignore: ["State", "Roundness", "Position", "Show left icon", "Show right icon", "\u2B91 Left icon", "\u2B91 Right icon"]
-        },
-        // ── Accordion ─────────────────────────────────────────────────────────────
-        // "Bordered" variants are Figma-only visual styles — same shadcn output.
-        // State (Closed/Open/Focus) and Position (First/Middle/Last) are design-only.
-        "Accordion Trigger": {
-          component: "AccordionTrigger",
-          importPath: "@/components/ui/accordion",
-          children: "Accordion label",
-          ignore: ["State"]
-        },
-        "Accordion Content": {
-          component: "AccordionContent",
-          importPath: "@/components/ui/accordion"
-        },
-        "Accordion Trigger (Bordered)": {
-          component: "AccordionTrigger",
-          importPath: "@/components/ui/accordion",
-          children: "Accordion label",
-          ignore: ["State", "Position"]
-        },
-        "Accordion Content (Bordered)": {
-          component: "AccordionContent",
-          importPath: "@/components/ui/accordion"
-        },
-        // ── Charts ────────────────────────────────────────────────────────────────
-        "Line chart": {
-          component: "__chart_line__",
-          importPath: "@/components/ui/chart",
-          props: {
-            "Type": {
-              shadcnProp: "type",
-              values: {
-                Default: "default",
-                Linear: "linear",
-                Step: "step",
-                Stacked: "stacked",
-                Interactive: "interactive"
-              }
-            }
-          }
-        },
-        "Area chart": {
-          component: "__chart_area__",
-          importPath: "@/components/ui/chart",
-          props: {
-            "Type": {
-              shadcnProp: "type",
-              values: {
-                Default: "default",
-                Linear: "linear",
-                Step: "step",
-                Stacked: "stacked",
-                Interactive: "interactive"
-              }
-            }
-          }
-        },
-        "Bar chart": {
-          component: "__chart_bar__",
-          importPath: "@/components/ui/chart",
-          props: {
-            "Type": {
-              shadcnProp: "type",
-              values: {
-                Default: "default",
-                Horizontal: "horizontal",
-                Multiple: "multiple",
-                Stacked: "stacked",
-                Interactive: "interactive"
-              }
-            }
-          }
-        },
-        // ── Table ─────────────────────────────────────────────────────────────────
-        "Basic Table Header": {
-          component: "TableHead",
-          importPath: "@/components/ui/table",
-          ignore: ["Cell Type", "State", "Alignment"]
-        },
-        "Basic Table Cell": {
-          component: "TableCell",
-          importPath: "@/components/ui/table",
-          ignore: ["Parity", "State", "Alignment"]
-        },
-        "Table Header": {
-          component: "__data_table_header__",
-          importPath: "@/components/ui/table",
-          ignore: ["Content", "Alignment", "State"]
-        },
-        "Table Cell": {
-          component: "__data_table_cell__",
-          importPath: "@/components/ui/table",
-          ignore: ["Content", "Alignment", "State", "Parity"]
-        },
-        // ── Toggle Icon Button ────────────────────────────────────────────────────
-        "Toggle Icon Button": {
-          component: "Toggle",
-          importPath: "@/components/ui/toggle",
-          props: {
-            "Skin": {
-              shadcnProp: "variant",
-              values: { Outlined: "outline", Ghost: "ghost" }
+          "Button Group Icon Button": {
+            component: "Button",
+            importPath: "@/components/ui/button",
+            props: {
+              "Skin": { shadcnProp: "variant", values: { Outlined: "outline", Ghost: "ghost" } },
+              "Size": { shadcnProp: "size", values: { Default: "icon", Small: "icon-sm", Large: "icon-lg" } }
             },
-            "Size": { shadcnProp: "size", values: SIZE_MAP },
-            "Active?": {
-              shadcnProp: "pressed",
-              values: { Yes: "true", No: "false" }
-            }
+            ignore: ["State", "Position", "Icon"]
           },
-          ignore: ["State", "Roundness", "Position", "Icon"]
+          "Loading Button": {
+            component: "__loading_button__",
+            importPath: "@/components/ui/button",
+            props: {
+              "Size": { shadcnProp: "size", values: { Default: null, Large: "lg", Small: "sm", Mini: "xs" } }
+            },
+            ignore: ["Roundness", "State"],
+            children: "Label"
+          },
+          "Link Button": {
+            component: "LinkButton",
+            importPath: "@/components/ui/button",
+            props: {
+              "Size": { shadcnProp: "size", values: { Default: null, Large: "lg", Small: "sm", Mini: "xs" } }
+            },
+            ignore: ["Roundness", "State"],
+            children: "Label"
+          },
+          "Icon Button": {
+            component: "__icon_button__",
+            importPath: "@/components/ui/button",
+            props: {
+              "Variant": {
+                shadcnProp: "variant",
+                values: { Primary: "default", Secondary: "secondary", Outline: "outline", Ghost: "ghost", Destructive: "destructive" }
+              },
+              "Size": {
+                shadcnProp: "size",
+                values: { Default: "default", Large: "large", Small: "small", Mini: "mini" }
+              },
+              "Roundness": {
+                shadcnProp: "roundness",
+                values: { Default: null, Round: "full" }
+              }
+            },
+            ignore: ["State"]
+          }
+        },
+        renderers: {
+          "__icon_button__": renderIconButton,
+          "__loading_button__": renderLoadingButton,
+          "LinkButton": renderLinkButton
         }
       };
+    }
+  });
+
+  // src/lib/components/inputs.ts
+  function renderInputAddon(dec, imports, indent, align) {
+    var _a, _b;
+    addImport(imports, "@/components/ui/input-group", "InputGroupAddon");
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const alignAttr = align ? ` align="${align}"` : "";
+    const muted = ((_a = dec.props.find((p) => p.shadcnProp === "type")) == null ? void 0 : _a.value) === "icon-muted";
+    const iconCls = `size-4${muted ? " text-muted-foreground" : ""}`;
+    const iconName = (_b = findIconChild(dec.children)) != null ? _b : "Search";
+    addImport(imports, "lucide-react", iconName);
+    return [
+      `${pad}<InputGroupAddon${alignAttr}>`,
+      `${p1}<${iconName} className="${iconCls}" />`,
+      `${pad}</InputGroupAddon>`
+    ].join("\n");
+  }
+  function renderInput(node, imports, indent, _renderChild) {
+    var _a, _b, _c;
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
+    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
+    const stateProp = node.props.find((p) => p.shadcnProp === "state");
+    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
+    const sizeVal = (_a = sizeProp == null ? void 0 : sizeProp.value) != null ? _a : "";
+    const state = (_b = stateProp == null ? void 0 : stateProp.value) != null ? _b : "";
+    const sizeClassMap = { large: "h-12", small: "h-8", mini: "h-6 text-xs" };
+    const errorClass = state === "error" ? "border-destructive" : "";
+    const classes = [(_c = sizeClassMap[sizeVal]) != null ? _c : "", round ? "rounded-full" : "", errorClass].filter(Boolean).join(" ");
+    const classAttr = classes ? ` className="${classes}"` : "";
+    const disAttr = state === "disabled" ? " disabled" : "";
+    const rawText = findFirstText(node.children);
+    let valueAttr = "";
+    if (state === "value" && rawText) {
+      valueAttr = ` defaultValue="${rawText}"`;
+    } else if (state === "placeholder" && rawText) {
+      valueAttr = ` placeholder="${rawText}"`;
+    } else if (state === "placeholder") {
+      valueAttr = ` placeholder="Enter a value"`;
+    }
+    const decorations = findDecorationNodes(node.children);
+    if (decorations.length > 0) {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input input-group");
+      addImport(imports, "@/components/ui/input-group", "InputGroup");
+      addImport(imports, "@/components/ui/input-group", "InputGroupInput");
+      const addonLines = decorations.map((dec) => {
+        const isRight = /right/i.test(dec.layerName);
+        return renderInputAddon(dec, imports, indent + 1, isRight ? "inline-end" : null);
+      });
+      return [
+        `${pad}<InputGroup>`,
+        `${p1}<InputGroupInput${valueAttr}${classAttr}${disAttr} />`,
+        ...addonLines,
+        `${pad}</InputGroup>`
+      ].join("\n");
+    }
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input");
+    addImport(imports, "@/components/ui/input", "Input");
+    return `${pad}<Input${valueAttr}${classAttr}${disAttr} />`;
+  }
+  function renderInputDecoration(node, imports, indent, _renderChild) {
+    return renderInputAddon(node, imports, indent, "inline-end");
+  }
+  function renderInputFile(node, imports, indent, _renderChild) {
+    var _a, _b;
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input field");
+    addImport(imports, "@/components/ui/input", "Input");
+    addImport(imports, "@/components/ui/field", "Field");
+    addImport(imports, "@/components/ui/field", "FieldLabel");
+    addImport(imports, "@/components/ui/field", "FieldDescription");
+    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
+    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
+    const stateProp = node.props.find((p) => p.shadcnProp === "state");
+    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
+    const sizeVal = (_a = sizeProp == null ? void 0 : sizeProp.value) != null ? _a : "";
+    const isError = (stateProp == null ? void 0 : stateProp.value) === "error";
+    const sizeClassMap = { large: "h-12", small: "h-8", mini: "h-6 text-xs" };
+    const classes = [(_b = sizeClassMap[sizeVal]) != null ? _b : "", round ? "rounded-full" : "", isError ? "border-destructive" : ""].filter(Boolean).join(" ");
+    const classAttr = classes ? ` className="${classes}"` : "";
+    return [
+      `${pad}<Field>`,
+      `${p1}<FieldLabel htmlFor="file">Label</FieldLabel>`,
+      `${p1}<Input id="file" type="file"${classAttr} />`,
+      `${p1}<FieldDescription>Select a file to upload.</FieldDescription>`,
+      `${pad}</Field>`
+    ].join("\n");
+  }
+  function renderInputOTPGroup(slots, imports, indent) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input-otp");
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, "@/components/ui/input-otp", "InputOTP");
+    addImport(imports, "@/components/ui/input-otp", "InputOTPGroup");
+    addImport(imports, "@/components/ui/input-otp", "InputOTPSlot");
+    const count = slots.length || 6;
+    const slotLines = Array.from({ length: count }, (_, i) => `${p2}<InputOTPSlot index={${i}} />`).join("\n");
+    return [
+      `${pad}<InputOTP maxLength={${count}}>`,
+      `${p1}<InputOTPGroup>`,
+      slotLines,
+      `${p1}</InputOTPGroup>`,
+      `${pad}</InputOTP>`
+    ].join("\n");
+  }
+  function renderInputOTP(node, imports, indent, _renderChild) {
+    return renderInputOTPGroup([node], imports, indent);
+  }
+  var group2;
+  var init_inputs = __esm({
+    "src/lib/components/inputs.ts"() {
+      "use strict";
+      init_render_utils();
+      group2 = {
+        defs: {
+          "Input": {
+            component: "__input__",
+            importPath: "@/components/ui/input",
+            props: {
+              "Roundness": { shadcnProp: "roundness", values: { Default: null, Round: "full" } },
+              "Size": { shadcnProp: "size", values: { Regular: null, Large: "large", Small: "small", Mini: "mini" } },
+              "State": { shadcnProp: "state", values: { Empty: null, Placeholder: "placeholder", Value: "value", Focus: null, Error: "error", "Error Focus": "error", Disabled: "disabled" } }
+            }
+          },
+          "Input File": {
+            component: "__input_file__",
+            importPath: "@/components/ui/input",
+            props: {
+              "Roundness": { shadcnProp: "roundness", values: { Default: null, Round: "full" } },
+              "Size": { shadcnProp: "size", values: { Default: null, Large: "large", Small: "small", Mini: "mini" } },
+              "State": { shadcnProp: "state", values: { Focus: null, Error: "error", "Error Focus": "error" } },
+              "File Chosen": { shadcnProp: "fileChosen", values: { True: "true", False: null } }
+            }
+          },
+          ".Input Decoration": {
+            component: "__input_decoration__",
+            importPath: "@/components/ui/input-group",
+            props: {
+              "Type": { shadcnProp: "type", values: { "Icon": "icon", "Icon muted": "icon-muted" } },
+              "Size": { shadcnProp: "size", values: { Default: null, Large: "large" } }
+            }
+          },
+          "Input OTP": {
+            component: "__input_otp__",
+            importPath: "@/components/ui/input-otp",
+            props: {
+              "Position": { shadcnProp: "position", values: { Left: "left", Middle: "middle", Right: "right" } },
+              "Size": { shadcnProp: "size", values: { Default: null, Large: "large", Small: "small", Mini: "mini" } },
+              "State": { shadcnProp: "state", values: { Empty: null, Placeholder: null, Value: null, Focus: null, Error: "error", "Error Focus": "error", Disabled: "disabled" } }
+            }
+          }
+        },
+        renderers: {
+          "__input__": renderInput,
+          "__input_decoration__": renderInputDecoration,
+          "__input_file__": renderInputFile,
+          "__input_otp__": renderInputOTP
+        }
+      };
+    }
+  });
+
+  // src/lib/components/navigation.ts
+  function renderNavigationMenuContent(items, imports, indent) {
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    const p4 = "  ".repeat(indent + 4);
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuContent");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuLink");
+    const lines = [
+      `${p0}<NavigationMenuContent>`,
+      `${p1}<ul className="grid gap-2 p-4 w-[400px]">`
+    ];
+    items.forEach((item) => {
+      var _a, _b, _c;
+      const texts = findAllTexts(item.children);
+      const title = (_a = texts[0]) != null ? _a : "Item";
+      const desc = (_b = texts[1]) != null ? _b : null;
+      const isDestruct = ((_c = item.props.find((p) => p.shadcnProp === "type")) == null ? void 0 : _c.value) === "destructive";
+      lines.push(
+        `${p2}<li>`,
+        `${p3}<NavigationMenuLink asChild>`,
+        `${p4}<a href="#">`,
+        `${p4}  <div className="flex flex-col gap-1 text-sm">`,
+        `${p4}    <div className="font-medium leading-none${isDestruct ? " text-destructive" : ""}">${title}</div>`,
+        ...desc ? [`${p4}    <div className="line-clamp-2 text-muted-foreground">${desc}</div>`] : [],
+        `${p4}  </div>`,
+        `${p4}</a>`,
+        `${p3}</NavigationMenuLink>`,
+        `${p2}</li>`
+      );
+    });
+    lines.push(`${p1}</ul>`, `${p0}</NavigationMenuContent>`);
+    return lines.join("\n");
+  }
+  function renderNavigationMenu(node, imports, indent, _renderChild) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add navigation-menu");
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenu");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuList");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuItem");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuLink");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuTrigger");
+    addImport(imports, "@/components/ui/navigation-menu", "navigationMenuTriggerStyle");
+    const children = Array.isArray(node.children) ? node.children : [];
+    const buttonChildren = children.filter(
+      (c) => "component" in c && c.component === "Button"
+    );
+    const triggerLabels = buttonChildren.length > 0 ? buttonChildren.map((btn) => {
+      var _a;
+      return (_a = typeof btn.children === "string" ? btn.children : findFirstText(btn.children)) != null ? _a : "Menu";
+    }) : findAllTexts(children).slice(0, 3);
+    const lines = [`${pad}<NavigationMenu>`, `${p1}<NavigationMenuList>`];
+    if (triggerLabels.length === 0) {
+      lines.push(
+        `${p2}<NavigationMenuItem>`,
+        `${p3}<NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>`,
+        `${p3}  <a href="#">Home</a>`,
+        `${p3}</NavigationMenuLink>`,
+        `${p2}</NavigationMenuItem>`
+      );
+    } else {
+      triggerLabels.forEach((label) => {
+        lines.push(
+          `${p2}<NavigationMenuItem>`,
+          `${p3}<NavigationMenuTrigger>${label}</NavigationMenuTrigger>`,
+          `${p3}<NavigationMenuContent>`,
+          `${p3}  {/* Add your menu items here */}`,
+          `${p3}</NavigationMenuContent>`,
+          `${p2}</NavigationMenuItem>`
+        );
+      });
+    }
+    lines.push(`${p1}</NavigationMenuList>`, `${pad}</NavigationMenu>`);
+    return lines.join("\n");
+  }
+  function renderNavigationMenuContentNode(node, imports, indent, _renderChild) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add navigation-menu");
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenu");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuList");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuItem");
+    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuTrigger");
+    const items = (Array.isArray(node.children) ? node.children : []).filter((c) => "component" in c && c.component === "__menu_item__");
+    const content = renderNavigationMenuContent(items, imports, indent + 3);
+    return [
+      `${pad}<NavigationMenu>`,
+      `${p1}<NavigationMenuList>`,
+      `${p2}<NavigationMenuItem>`,
+      `${p3}<NavigationMenuTrigger>Menu</NavigationMenuTrigger>`,
+      content,
+      `${p2}</NavigationMenuItem>`,
+      `${p1}</NavigationMenuList>`,
+      `${pad}</NavigationMenu>`
+    ].join("\n");
+  }
+  function renderBreadcrumb(node, imports, indent, renderChild) {
+    var _a;
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    const children = Array.isArray(node.children) ? node.children : [];
+    const itemIndices = children.map((c, i) => "component" in c && c.component === "BreadcrumbItem" ? i : -1).filter((i) => i >= 0);
+    const lastItemIdx = (_a = itemIndices[itemIndices.length - 1]) != null ? _a : -1;
+    ["Breadcrumb", "BreadcrumbList", "BreadcrumbItem", "BreadcrumbLink", "BreadcrumbSeparator", "BreadcrumbPage"].forEach((n) => addImport(imports, "@/components/ui/breadcrumb", n));
+    const listInner = children.map((c, idx) => {
+      if (!("component" in c))
+        return "";
+      const sn = c;
+      if (sn.component === "BreadcrumbSeparator") {
+        return `${p2}<BreadcrumbSeparator />`;
+      }
+      if (sn.component === "BreadcrumbItem") {
+        const label = typeof sn.children === "string" ? sn.children : "Link";
+        if (idx === lastItemIdx) {
+          return `${p2}<BreadcrumbItem>
+${p3}<BreadcrumbPage>${label}</BreadcrumbPage>
+${p2}</BreadcrumbItem>`;
+        }
+        return `${p2}<BreadcrumbItem>
+${p3}<BreadcrumbLink href="/">${label}</BreadcrumbLink>
+${p2}</BreadcrumbItem>`;
+      }
+      return renderChild(c, imports, indent + 2);
+    }).filter(Boolean).join("\n");
+    return `${p0}<Breadcrumb>
+${p1}<BreadcrumbList>
+${listInner}
+${p1}</BreadcrumbList>
+${p0}</Breadcrumb>`;
+  }
+  var group3;
+  var init_navigation = __esm({
+    "src/lib/components/navigation.ts"() {
+      "use strict";
+      init_render_utils();
+      group3 = {
+        defs: {
+          "Navigation Menu": {
+            component: "__navigation_menu__",
+            importPath: "@/components/ui/navigation-menu",
+            props: {},
+            ignore: ["State"]
+          },
+          ".Navigation Menu Content": {
+            component: "__navigation_menu_content__",
+            importPath: "@/components/ui/navigation-menu",
+            props: {}
+          },
+          "Menu Item": {
+            component: "__menu_item__",
+            importPath: "@/components/ui/navigation-menu",
+            props: {
+              "Size": { shadcnProp: "size", values: { Regular: null, Large: "lg" } },
+              "Type": { shadcnProp: "type", values: { Default: null, Destructive: "destructive" } }
+            },
+            ignore: ["State"]
+          },
+          "Breadcrumb": {
+            component: "Breadcrumb",
+            importPath: "@/components/ui/breadcrumb",
+            ignore: ["Items"]
+          },
+          ".Breadcrumb item": {
+            component: "BreadcrumbItem",
+            importPath: "@/components/ui/breadcrumb",
+            children: "\u2B91 Label",
+            ignore: ["Content", "State"]
+          },
+          ".Breadcrumb separator": {
+            component: "BreadcrumbSeparator",
+            importPath: "@/components/ui/breadcrumb",
+            ignore: ["Content"]
+          },
+          "Pagination": {
+            component: "Pagination",
+            importPath: "@/components/ui/pagination",
+            ignore: ["Type", "State"]
+          }
+        },
+        renderers: {
+          "__navigation_menu__": renderNavigationMenu,
+          "__navigation_menu_content__": renderNavigationMenuContentNode,
+          "__menu_item__": (_node, _imports, _indent, _renderChild) => "",
+          "Breadcrumb": renderBreadcrumb
+        }
+      };
+    }
+  });
+
+  // src/lib/components/overlays.ts
+  function renderAlertDialog(node, imports, indent, _renderChild) {
+    var _a, _b, _c, _d, _e, _f;
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    const p4 = "  ".repeat(indent + 4);
+    const children = Array.isArray(node.children) ? node.children : [];
+    const texts = collectTexts(children);
+    const buttons = collectButtons(children);
+    const title = (_a = texts[0]) != null ? _a : "Are you absolutely sure?";
+    const description = (_b = texts[1]) != null ? _b : "This action cannot be undone.";
+    const isCancel = (b) => b.props.some((p) => p.shadcnProp === "variant" && ["outline", "ghost", "secondary"].includes(p.value));
+    const cancelBtn = (_c = buttons.find(isCancel)) != null ? _c : buttons[1];
+    const actionBtn = (_d = buttons.find((b) => b !== cancelBtn)) != null ? _d : buttons[0];
+    const cancelLabel = typeof (cancelBtn == null ? void 0 : cancelBtn.children) === "string" ? cancelBtn.children : "Cancel";
+    const actionLabel = typeof (actionBtn == null ? void 0 : actionBtn.children) === "string" ? actionBtn.children : "Continue";
+    const cancelVariant = (_e = cancelBtn == null ? void 0 : cancelBtn.props.find((p) => p.shadcnProp === "variant")) == null ? void 0 : _e.value;
+    const actionVariant = (_f = actionBtn == null ? void 0 : actionBtn.props.find((p) => p.shadcnProp === "variant")) == null ? void 0 : _f.value;
+    const cancelProps = cancelVariant && cancelVariant !== "default" ? ` variant="${cancelVariant}"` : "";
+    const actionProps = actionVariant && actionVariant !== "default" ? ` variant="${actionVariant}"` : "";
+    const propsStr = renderProps(node.props);
+    [
+      "AlertDialog",
+      "AlertDialogTrigger",
+      "AlertDialogContent",
+      "AlertDialogHeader",
+      "AlertDialogTitle",
+      "AlertDialogDescription",
+      "AlertDialogFooter",
+      "AlertDialogCancel",
+      "AlertDialogAction"
+    ].forEach((n) => addImport(imports, "@/components/ui/alert-dialog", n));
+    addImport(imports, "@/components/ui/button", "Button");
+    return [
+      `${p0}<AlertDialog${propsStr}>`,
+      `${p1}<AlertDialogTrigger asChild>`,
+      `${p2}<Button variant="outline">Open</Button>`,
+      `${p1}</AlertDialogTrigger>`,
+      `${p1}<AlertDialogContent>`,
+      `${p2}<AlertDialogHeader>`,
+      `${p3}<AlertDialogTitle>${title}</AlertDialogTitle>`,
+      `${p3}<AlertDialogDescription>${description}</AlertDialogDescription>`,
+      `${p2}</AlertDialogHeader>`,
+      `${p2}<AlertDialogFooter>`,
+      `${p3}<AlertDialogCancel${cancelProps}>${cancelLabel}</AlertDialogCancel>`,
+      `${p3}<AlertDialogAction${actionProps}>${actionLabel}</AlertDialogAction>`,
+      `${p2}</AlertDialogFooter>`,
+      `${p1}</AlertDialogContent>`,
+      `${p0}</AlertDialog>`
+    ].join("\n");
+  }
+  function renderHoverCard(node, imports, indent, _renderChild) {
+    var _a;
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add hover-card avatar");
+    addImport(imports, "@/components/ui/hover-card", "HoverCard");
+    addImport(imports, "@/components/ui/hover-card", "HoverCardContent");
+    addImport(imports, "@/components/ui/hover-card", "HoverCardTrigger");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/avatar", "Avatar");
+    addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+    addImport(imports, "@/components/ui/avatar", "AvatarImage");
+    addImport(imports, "lucide-react", "CalendarDays");
+    const children = Array.isArray(node.children) ? node.children : [];
+    const texts = collectTexts(children);
+    const trigger = (_a = texts[0]) != null ? _a : "@nextjs";
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    const p4 = "  ".repeat(indent + 4);
+    return [
+      `${pad}<HoverCard>`,
+      `${p1}<HoverCardTrigger asChild>`,
+      `${p2}<Button variant="link">${trigger}</Button>`,
+      `${p1}</HoverCardTrigger>`,
+      `${p1}<HoverCardContent className="w-80">`,
+      `${p2}<div className="flex justify-between space-x-4">`,
+      `${p3}<Avatar>`,
+      `${p4}<AvatarImage src="https://github.com/vercel.png" />`,
+      `${p4}<AvatarFallback>VC</AvatarFallback>`,
+      `${p3}</Avatar>`,
+      `${p3}<div className="space-y-1">`,
+      `${p4}<h4 className="text-sm font-semibold">${trigger}</h4>`,
+      `${p4}<p className="text-sm">The React Framework \u2013 created and maintained by @vercel.</p>`,
+      `${p4}<div className="flex items-center pt-2">`,
+      `${p4}  <CalendarDays className="mr-2 h-4 w-4 opacity-70" />`,
+      `${p4}  <span className="text-xs text-muted-foreground">Joined December 2021</span>`,
+      `${p4}</div>`,
+      `${p3}</div>`,
+      `${p2}</div>`,
+      `${p1}</HoverCardContent>`,
+      `${pad}</HoverCard>`
+    ].join("\n");
+  }
+  function renderDrawer(_node, imports, indent, _renderChild) {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add drawer");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/drawer", "Drawer");
+    addImport(imports, "@/components/ui/drawer", "DrawerClose");
+    addImport(imports, "@/components/ui/drawer", "DrawerContent");
+    addImport(imports, "@/components/ui/drawer", "DrawerDescription");
+    addImport(imports, "@/components/ui/drawer", "DrawerFooter");
+    addImport(imports, "@/components/ui/drawer", "DrawerHeader");
+    addImport(imports, "@/components/ui/drawer", "DrawerTitle");
+    addImport(imports, "@/components/ui/drawer", "DrawerTrigger");
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    addImport(
+      imports,
+      PREAMBLE_KEY,
+      `const DRAWER_SIDES = ["top", "right", "bottom", "left"] as const`
+    );
+    return [
+      `${pad}<div className="flex flex-wrap gap-2">`,
+      `${p1}{DRAWER_SIDES.map((side) => (`,
+      `${p2}<Drawer`,
+      `${p2}  key={side}`,
+      `${p2}  direction={side === "bottom" ? undefined : (side as "top" | "right" | "left")}`,
+      `${p2}>`,
+      `${p3}<DrawerTrigger asChild>`,
+      `${p3}  <Button variant="outline" className="capitalize">{side}</Button>`,
+      `${p3}</DrawerTrigger>`,
+      `${p3}<DrawerContent className="data-[vaul-drawer-direction=bottom]:max-h-[50vh] data-[vaul-drawer-direction=top]:max-h-[50vh]">`,
+      `${p3}  <DrawerHeader>`,
+      `${p3}    <DrawerTitle>Move Goal</DrawerTitle>`,
+      `${p3}    <DrawerDescription>Set your daily activity goal.</DrawerDescription>`,
+      `${p3}  </DrawerHeader>`,
+      `${p3}  <div className="no-scrollbar overflow-y-auto px-4">`,
+      `${p3}    {Array.from({ length: 5 }).map((_, i) => (`,
+      `${p3}      <p key={i} className="mb-4 leading-normal">`,
+      `${p3}        Lorem ipsum dolor sit amet, consectetur adipiscing elit.`,
+      `${p3}      </p>`,
+      `${p3}    ))}`,
+      `${p3}  </div>`,
+      `${p3}  <DrawerFooter>`,
+      `${p3}    <Button>Submit</Button>`,
+      `${p3}    <DrawerClose asChild>`,
+      `${p3}      <Button variant="outline">Cancel</Button>`,
+      `${p3}    </DrawerClose>`,
+      `${p3}  </DrawerFooter>`,
+      `${p3}</DrawerContent>`,
+      `${p2}</Drawer>`,
+      `${p1}  ))}`,
+      `${pad}</div>`
+    ].join("\n");
+  }
+  function dialogImports(imports) {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add dialog");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/dialog", "Dialog");
+    addImport(imports, "@/components/ui/dialog", "DialogClose");
+    addImport(imports, "@/components/ui/dialog", "DialogContent");
+    addImport(imports, "@/components/ui/dialog", "DialogDescription");
+    addImport(imports, "@/components/ui/dialog", "DialogFooter");
+    addImport(imports, "@/components/ui/dialog", "DialogHeader");
+    addImport(imports, "@/components/ui/dialog", "DialogTitle");
+    addImport(imports, "@/components/ui/dialog", "DialogTrigger");
+  }
+  function renderDialog(_node, imports, indent, _renderChild) {
+    dialogImports(imports);
+    addImport(imports, "@/components/ui/field", "Field");
+    addImport(imports, "@/components/ui/field", "FieldGroup");
+    addImport(imports, "@/components/ui/input", "Input");
+    addImport(imports, "@/components/ui/label", "Label");
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    return [
+      `${pad}<Dialog>`,
+      `${p1}<form>`,
+      `${p2}<DialogTrigger asChild>`,
+      `${p3}<Button variant="outline">Open Dialog</Button>`,
+      `${p2}</DialogTrigger>`,
+      `${p2}<DialogContent className="sm:max-w-sm">`,
+      `${p3}<DialogHeader>`,
+      `${p3}  <DialogTitle>Edit profile</DialogTitle>`,
+      `${p3}  <DialogDescription>Make changes to your profile here. Click save when you're done.</DialogDescription>`,
+      `${p3}</DialogHeader>`,
+      `${p3}<FieldGroup>`,
+      `${p3}  <Field>`,
+      `${p3}    <Label htmlFor="name">Name</Label>`,
+      `${p3}    <Input id="name" name="name" defaultValue="Pedro Duarte" />`,
+      `${p3}  </Field>`,
+      `${p3}  <Field>`,
+      `${p3}    <Label htmlFor="username">Username</Label>`,
+      `${p3}    <Input id="username" name="username" defaultValue="@peduarte" />`,
+      `${p3}  </Field>`,
+      `${p3}</FieldGroup>`,
+      `${p3}<DialogFooter>`,
+      `${p3}  <DialogClose asChild>`,
+      `${p3}    <Button variant="outline">Cancel</Button>`,
+      `${p3}  </DialogClose>`,
+      `${p3}  <Button type="submit">Save changes</Button>`,
+      `${p3}</DialogFooter>`,
+      `${p2}</DialogContent>`,
+      `${p1}</form>`,
+      `${pad}</Dialog>`
+    ].join("\n");
+  }
+  function renderDialogHeader(node, imports, indent, _renderChild) {
+    var _a;
+    dialogImports(imports);
+    const typeProp = node.props.find((p) => p.shadcnProp === "type");
+    const type = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "header";
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    if (type === "close-only" || type === "icon-close") {
+      addImport(imports, "lucide-react", "X");
+      return [
+        `${pad}<DialogHeader>`,
+        `${p1}<DialogTitle>Dialog Title</DialogTitle>`,
+        `${p1}<DialogClose asChild>`,
+        `${p1}  <Button variant="ghost" size="icon" className="absolute right-4 top-4"><X className="h-4 w-4" /></Button>`,
+        `${p1}</DialogClose>`,
+        `${pad}</DialogHeader>`
+      ].join("\n");
+    }
+    return [
+      `${pad}<DialogHeader>`,
+      `${p1}<DialogTitle>Dialog Title</DialogTitle>`,
+      `${p1}<DialogDescription>Dialog description goes here.</DialogDescription>`,
+      `${pad}</DialogHeader>`
+    ].join("\n");
+  }
+  function renderDialogFooter(node, imports, indent, _renderChild) {
+    var _a;
+    dialogImports(imports);
+    const typeProp = node.props.find((p) => p.shadcnProp === "type");
+    const type = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "2-buttons-right";
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    if (type === "1-full-width") {
+      return [
+        `${pad}<DialogFooter>`,
+        `${p1}<Button type="submit" className="w-full">Save changes</Button>`,
+        `${pad}</DialogFooter>`
+      ].join("\n");
+    }
+    if (type === "2-full-width") {
+      return [
+        `${pad}<DialogFooter className="flex-col gap-2 sm:flex-col">`,
+        `${p1}<Button type="submit" className="w-full">Save changes</Button>`,
+        `${p1}<DialogClose asChild>`,
+        `${p1}  <Button variant="outline" className="w-full">Cancel</Button>`,
+        `${p1}</DialogClose>`,
+        `${pad}</DialogFooter>`
+      ].join("\n");
+    }
+    return [
+      `${pad}<DialogFooter>`,
+      `${p1}<DialogClose asChild>`,
+      `${p1}  <Button variant="outline">Cancel</Button>`,
+      `${p1}</DialogClose>`,
+      `${p1}<Button type="submit">Save changes</Button>`,
+      `${pad}</DialogFooter>`
+    ].join("\n");
+  }
+  function renderCommand(_node, imports, indent, _renderChild) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add command");
+    addImport(imports, "lucide-react", "Calendar");
+    addImport(imports, "lucide-react", "Smile");
+    addImport(imports, "lucide-react", "Calculator");
+    addImport(imports, "lucide-react", "User");
+    addImport(imports, "lucide-react", "CreditCard");
+    addImport(imports, "lucide-react", "Settings");
+    addImport(imports, "@/components/ui/command", "Command");
+    addImport(imports, "@/components/ui/command", "CommandEmpty");
+    addImport(imports, "@/components/ui/command", "CommandGroup");
+    addImport(imports, "@/components/ui/command", "CommandInput");
+    addImport(imports, "@/components/ui/command", "CommandItem");
+    addImport(imports, "@/components/ui/command", "CommandList");
+    addImport(imports, "@/components/ui/command", "CommandSeparator");
+    addImport(imports, "@/components/ui/command", "CommandShortcut");
+    return [
+      `${pad}<Command className="max-w-sm rounded-lg border">`,
+      `${p1}<CommandInput placeholder="Type a command or search..." />`,
+      `${p1}<CommandList>`,
+      `${p2}<CommandEmpty>No results found.</CommandEmpty>`,
+      `${p2}<CommandGroup heading="Suggestions">`,
+      `${p3}<CommandItem><Calendar /><span>Calendar</span></CommandItem>`,
+      `${p3}<CommandItem><Smile /><span>Search Emoji</span></CommandItem>`,
+      `${p3}<CommandItem disabled><Calculator /><span>Calculator</span></CommandItem>`,
+      `${p2}</CommandGroup>`,
+      `${p2}<CommandSeparator />`,
+      `${p2}<CommandGroup heading="Settings">`,
+      `${p3}<CommandItem><User /><span>Profile</span><CommandShortcut>\u2318P</CommandShortcut></CommandItem>`,
+      `${p3}<CommandItem><CreditCard /><span>Billing</span><CommandShortcut>\u2318B</CommandShortcut></CommandItem>`,
+      `${p3}<CommandItem><Settings /><span>Settings</span><CommandShortcut>\u2318S</CommandShortcut></CommandItem>`,
+      `${p2}</CommandGroup>`,
+      `${p1}</CommandList>`,
+      `${pad}</Command>`
+    ].join("\n");
+  }
+  var group4;
+  var init_overlays = __esm({
+    "src/lib/components/overlays.ts"() {
+      "use strict";
+      init_render_utils();
+      group4 = {
+        defs: {
+          "Alert Dialog": {
+            component: "AlertDialog",
+            importPath: "@/components/ui/alert-dialog",
+            ignore: ["Type"]
+          },
+          "Hover Card": {
+            component: "__hover_card__",
+            importPath: "@/components/ui/hover-card"
+          },
+          "Drawer": {
+            component: "__drawer__",
+            importPath: "@/components/ui/drawer"
+          },
+          "Dialog": {
+            component: "__dialog__",
+            importPath: "@/components/ui/dialog",
+            ignore: ["Type"]
+          },
+          "Dialog Header": {
+            component: "__dialog_header__",
+            importPath: "@/components/ui/dialog",
+            props: {
+              "Type": {
+                shadcnProp: "type",
+                values: { "Header": "header", "Close Only": "close-only", "Icon Button Close": "icon-close" }
+              }
+            }
+          },
+          "Dialog Footer": {
+            component: "__dialog_footer__",
+            importPath: "@/components/ui/dialog",
+            props: {
+              "Type": {
+                shadcnProp: "type",
+                values: {
+                  "2 Buttons Right": "2-buttons-right",
+                  "2 Full-width Buttons": "2-full-width",
+                  "Single Full-width Button": "1-full-width"
+                }
+              }
+            }
+          },
+          "Command": {
+            component: "__command__",
+            importPath: "@/components/ui/command"
+          }
+        },
+        renderers: {
+          "AlertDialog": renderAlertDialog,
+          "__hover_card__": renderHoverCard,
+          "__drawer__": renderDrawer,
+          "__dialog__": renderDialog,
+          "__dialog_header__": renderDialogHeader,
+          "__dialog_footer__": renderDialogFooter,
+          "__command__": renderCommand
+        }
+      };
+    }
+  });
+
+  // src/lib/components/data.ts
+  function renderDataTable(_node, imports, _indent, _renderChild) {
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add table");
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, RAW_IMPORT_KEY, 'import * as React from "react"');
+    addImport(imports, "@tanstack/react-table", "flexRender");
+    addImport(imports, "@tanstack/react-table", "getCoreRowModel");
+    addImport(imports, "@tanstack/react-table", "getFilteredRowModel");
+    addImport(imports, "@tanstack/react-table", "getPaginationRowModel");
+    addImport(imports, "@tanstack/react-table", "getSortedRowModel");
+    addImport(imports, "@tanstack/react-table", "useReactTable");
+    addImport(imports, "@tanstack/react-table", "type ColumnDef");
+    addImport(imports, "@tanstack/react-table", "type ColumnFiltersState");
+    addImport(imports, "@tanstack/react-table", "type SortingState");
+    addImport(imports, "@tanstack/react-table", "type VisibilityState");
+    addImport(imports, "lucide-react", "ArrowUpDown");
+    addImport(imports, "lucide-react", "ChevronDown");
+    addImport(imports, "lucide-react", "MoreHorizontal");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/checkbox", "Checkbox");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenu");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuCheckboxItem");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuContent");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuGroup");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuItem");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuLabel");
+    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuTrigger");
+    addImport(imports, "@/components/ui/input", "Input");
+    addImport(imports, "@/components/ui/table", "Table");
+    addImport(imports, "@/components/ui/table", "TableBody");
+    addImport(imports, "@/components/ui/table", "TableCell");
+    addImport(imports, "@/components/ui/table", "TableHead");
+    addImport(imports, "@/components/ui/table", "TableHeader");
+    addImport(imports, "@/components/ui/table", "TableRow");
+    const template = `// Sample payment data
+const data: Payment[] = [
+  { id: "m5gr84i9", amount: 316, status: "success",    email: "ken99@example.com" },
+  { id: "3u1reuv4", amount: 242, status: "success",    email: "abe45@example.com" },
+  { id: "derv1ws0", amount: 837, status: "processing", email: "monserrat44@example.com" },
+  { id: "5kma53ae", amount: 874, status: "success",    email: "silas22@example.com" },
+  { id: "bhqecj4p", amount: 721, status: "failed",     email: "carmella@example.com" },
+  { id: "p9xk21hf", amount: 150, status: "pending",    email: "john.doe@example.com" },
+  { id: "q8wm47js", amount: 499, status: "success",    email: "jane.smith@example.com" },
+  { id: "r7vn63kt", amount: 299, status: "processing", email: "alex.johnson@example.com" },
+  { id: "s6up89lu", amount: 125, status: "failed",     email: "sarah.williams@example.com" },
+  { id: "t5to15mv", amount: 650, status: "pending",    email: "mike.brown@example.com" },
+]
+
+export type Payment = {
+  id: string
+  amount: number
+  status: "pending" | "processing" | "success" | "failed"
+  email: string
+}
+
+const columns: ColumnDef<Payment>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("status") as string
+      return (
+        <div className={\`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize \${
+          status === "success"    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+          : status === "processing" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+          : status === "failed"   ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+        }\`}>
+          {status}
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: "email",
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Email <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
+  },
+  {
+    accessorKey: "amount",
+    header: ({ column }) => (
+      <div className="text-right">
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Amount <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    ),
+    cell: ({ row }) => {
+      const amount = parseFloat(row.getValue("amount"))
+      const formatted = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
+      return <div className="text-right font-medium">{formatted}</div>
+    },
+  },
+  {
+    id: "actions",
+    enableHiding: false,
+    cell: ({ row }) => {
+      const payment = row.original
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(payment.id)}>
+                Copy payment ID
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuGroup>
+              <DropdownMenuItem>View customer</DropdownMenuItem>
+              <DropdownMenuItem>View payment details</DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
+  },
+]
+
+export default function DataTableDemo() {
+  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
+  const [rowSelection, setRowSelection] = React.useState({})
+
+  const table = useReactTable({
+    data,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: { sorting, columnFilters, columnVisibility, rowSelection },
+  })
+
+  return (
+    <div className="container mx-auto py-10">
+      <div className="w-full">
+        <div className="flex items-center gap-4 py-4">
+          <Input
+            placeholder="Filter emails..."
+            value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+            onChange={(e) => table.getColumn("email")?.setFilterValue(e.target.value)}
+            className="max-w-sm"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="ml-auto">
+                Columns <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                {table.getAllColumns().filter((col) => col.getCanHide()).map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    className="capitalize"
+                    checked={col.getIsVisible()}
+                    onCheckedChange={(value) => col.toggleVisibility(!!value)}
+                  >
+                    {col.id}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="overflow-hidden rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">No results.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex items-center justify-end gap-2 py-4">
+          <div className="flex-1 text-sm text-muted-foreground">
+            {table.getFilteredSelectedRowModel().rows.length} of{" "}
+            {table.getFilteredRowModel().rows.length} row(s) selected.
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}`;
+    addImport(imports, PREAMBLE_KEY, template);
+    return "";
+  }
+  function renderBarChart(node, imports, indent, _renderChild) {
+    var _a;
+    const typeProp = node.props.find((p) => p.shadcnProp === "type");
+    const chartType = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "default";
+    const children = Array.isArray(node.children) ? node.children : [];
+    const allTexts = collectTexts(children);
+    const legendLabels = allTexts.filter((t) => !/^[\d.,]+%?$/.test(t.trim()));
+    const seriesCount = chartType === "multiple" || chartType === "stacked" ? 2 : 1;
+    const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+    const dataLines = CHART_MONTHS.map((m, mi) => {
+      const vals = series.map((s) => {
+        var _a2, _b;
+        return `${s.key}: ${(_b = (_a2 = CHART_VALUES[s.idx]) == null ? void 0 : _a2[mi]) != null ? _b : 100}`;
+      }).join(", ");
+      return `  { month: "${m}", ${vals} },`;
+    });
+    const chartDataStr = `const chartData = [
+${dataLines.join("\n")}
+]`;
+    const configLines = series.map(
+      (s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`
+    );
+    const chartConfigStr = `const chartConfig = {
+${configLines.join("\n")}
+} satisfies ChartConfig`;
+    addImport(imports, "recharts", "BarChart");
+    addImport(imports, "recharts", "Bar");
+    addImport(imports, "recharts", "CartesianGrid");
+    addImport(imports, "@/components/ui/chart", "ChartContainer");
+    addImport(imports, "@/components/ui/chart", "type ChartConfig");
+    addImport(imports, "@/components/ui/chart", "ChartTooltip");
+    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const barElems = series.map((s, i) => {
+      if (chartType === "stacked") {
+        const isFirst = i === 0;
+        const isLast = i === series.length - 1;
+        const radius = isLast ? `{[4, 4, 0, 0]}` : isFirst ? `{[0, 0, 4, 4]}` : `{0}`;
+        return `${p2}<Bar dataKey="${s.key}" fill="var(--color-${s.key})" radius=${radius} stackId="a" />`;
+      }
+      return `${p2}<Bar dataKey="${s.key}" fill="var(--color-${s.key})" radius={4} />`;
+    }).join("\n");
+    let chartInner;
+    if (chartType === "horizontal") {
+      addImport(imports, "recharts", "XAxis");
+      addImport(imports, "recharts", "YAxis");
+      chartInner = [
+        `${p1}<BarChart accessibilityLayer data={chartData} layout="vertical">`,
+        `${p2}<CartesianGrid horizontal={false} />`,
+        `${p2}<XAxis type="number" hide />`,
+        `${p2}<YAxis dataKey="month" type="category" tickLine={false} axisLine={false} />`,
+        `${p2}<ChartTooltip content={<ChartTooltipContent />} />`,
+        barElems,
+        `${p1}</BarChart>`
+      ].join("\n");
+    } else {
+      addImport(imports, "recharts", "XAxis");
+      chartInner = [
+        `${p1}<BarChart accessibilityLayer data={chartData}>`,
+        `${p2}<CartesianGrid vertical={false} />`,
+        `${p2}<XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(v) => v.slice(0, 3)} />`,
+        `${p2}<ChartTooltip content={<ChartTooltipContent />} />`,
+        barElems,
+        `${p1}</BarChart>`
+      ].join("\n");
+    }
+    if (chartType === "interactive") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+      addImport(imports, CSS_KEY, CHART_CSS_VARS);
+      addImport(imports, "recharts", "BarChart");
+      addImport(imports, "recharts", "Bar");
+      addImport(imports, "recharts", "CartesianGrid");
+      addImport(imports, "recharts", "XAxis");
+      addImport(imports, "@/components/ui/chart", "ChartContainer");
+      addImport(imports, "@/components/ui/chart", "type ChartConfig");
+      addImport(imports, "@/components/ui/chart", "ChartTooltip");
+      addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+      const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
+      const DATES = ["2024-04-01", "2024-04-08", "2024-04-15", "2024-04-22", "2024-04-29", "2024-05-06", "2024-05-13", "2024-05-20", "2024-05-27", "2024-06-03", "2024-06-10", "2024-06-17", "2024-06-24"];
+      const VALS2 = [222, 97, 167, 242, 373, 301, 245, 409, 59, 261, 327, 292, 342];
+      const VALS3 = [150, 180, 120, 260, 290, 340, 180, 220, 100, 310, 250, 190, 280];
+      const iDataLines = DATES.map((d, i) => {
+        const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS2[i] : VALS3[i]}`).join(", ");
+        return `  { date: "${d}", ${vals} },`;
+      });
+      addImport(imports, PREAMBLE_KEY, `const chartData = [
+${iDataLines.join("\n")}
+]`);
+      addImport(imports, PREAMBLE_KEY, `const chartConfig = {
+${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}
+} satisfies ChartConfig`);
+      const keys = iSeries.map((s) => `"${s.key}"`).join(" | ");
+      addImport(imports, PREAMBLE_KEY, `const [activeChart, setActiveChart] = useState<${keys}>("${iSeries[0].key}")`);
+      return `${p0}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+${p1}<BarChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>
+${p2}<CartesianGrid vertical={false} />
+${p2}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />
+${p2}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" nameKey="views" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />
+${p2}<Bar dataKey={activeChart} fill={\`var(--color-\${activeChart})\`} />
+${p1}</BarChart>
+${p0}</ChartContainer>`;
+    }
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+    addImport(imports, CSS_KEY, CHART_CSS_VARS);
+    addImport(imports, PREAMBLE_KEY, chartDataStr);
+    addImport(imports, PREAMBLE_KEY, chartConfigStr);
+    return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+${chartInner}
+${p0}</ChartContainer>`;
+  }
+  function renderAreaChart(node, imports, indent, _renderChild) {
+    var _a;
+    const typeProp = node.props.find((p) => p.shadcnProp === "type");
+    const chartType = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "default";
+    const children = Array.isArray(node.children) ? node.children : [];
+    const allTexts = collectTexts(children);
+    const legendLabels = allTexts.filter((t) => !/^[\d.,]+%?$/.test(t.trim()));
+    const seriesCount = chartType === "stacked" ? 2 : 1;
+    const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+    addImport(imports, CSS_KEY, CHART_CSS_VARS);
+    if (chartType === "interactive") {
+      addImport(imports, "recharts", "AreaChart");
+      addImport(imports, "recharts", "Area");
+      addImport(imports, "recharts", "CartesianGrid");
+      addImport(imports, "recharts", "XAxis");
+      addImport(imports, "@/components/ui/chart", "ChartContainer");
+      addImport(imports, "@/components/ui/chart", "type ChartConfig");
+      addImport(imports, "@/components/ui/chart", "ChartTooltip");
+      addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+      const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
+      const DATES = ["2024-04-01", "2024-04-08", "2024-04-15", "2024-04-22", "2024-04-29", "2024-05-06", "2024-05-13", "2024-05-20", "2024-05-27", "2024-06-03", "2024-06-10", "2024-06-17", "2024-06-24"];
+      const VALS_A = [222, 97, 167, 242, 373, 301, 245, 409, 59, 261, 327, 292, 342];
+      const VALS_B = [150, 180, 120, 260, 290, 340, 180, 220, 100, 310, 250, 190, 280];
+      const iDataLines = DATES.map((d, i) => {
+        const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS_A[i] : VALS_B[i]}`).join(", ");
+        return `  { date: "${d}", ${vals} },`;
+      });
+      addImport(imports, PREAMBLE_KEY, `const chartData = [
+${iDataLines.join("\n")}
+]`);
+      addImport(imports, PREAMBLE_KEY, `const chartConfig = {
+${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}
+} satisfies ChartConfig`);
+      const keys = iSeries.map((s) => `"${s.key}"`).join(" | ");
+      addImport(imports, PREAMBLE_KEY, `const [activeChart, setActiveChart] = useState<${keys}>("${iSeries[0].key}")`);
+      const p02 = "  ".repeat(indent);
+      const p12 = "  ".repeat(indent + 1);
+      const p22 = "  ".repeat(indent + 2);
+      const p3 = "  ".repeat(indent + 3);
+      const gradientDefs2 = iSeries.map((s) => {
+        const cap = s.key.charAt(0).toUpperCase() + s.key.slice(1);
+        return `${p3}<linearGradient id="fill${cap}" x1="0" y1="0" x2="0" y2="1">
+${p3}  <stop offset="5%" stopColor="var(--color-${s.key})" stopOpacity={0.8} />
+${p3}  <stop offset="95%" stopColor="var(--color-${s.key})" stopOpacity={0.1} />
+${p3}</linearGradient>`;
+      }).join("\n");
+      const areaElems2 = iSeries.map((s) => {
+        const cap = s.key.charAt(0).toUpperCase() + s.key.slice(1);
+        return `${p3}<Area dataKey="${s.key}" type="natural" fill="url(#fill${cap})" fillOpacity={0.4} stroke="var(--color-${s.key})" />`;
+      }).join("\n");
+      return [
+        `${p02}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">`,
+        `${p12}<AreaChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
+        `${p22}<defs>`,
+        gradientDefs2,
+        `${p22}</defs>`,
+        `${p22}<CartesianGrid vertical={false} />`,
+        `${p22}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />`,
+        `${p22}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />`,
+        areaElems2,
+        `${p12}</AreaChart>`,
+        `${p02}</ChartContainer>`
+      ].join("\n");
+    }
+    const dataLines = CHART_MONTHS.map((m, mi) => {
+      const vals = series.map((s) => {
+        var _a2, _b;
+        return `${s.key}: ${(_b = (_a2 = CHART_VALUES[s.idx]) == null ? void 0 : _a2[mi]) != null ? _b : 100}`;
+      }).join(", ");
+      return `  { month: "${m}", ${vals} },`;
+    });
+    const chartDataStr = `const chartData = [
+${dataLines.join("\n")}
+]`;
+    const configLines = series.map(
+      (s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`
+    );
+    const chartConfigStr = `const chartConfig = {
+${configLines.join("\n")}
+} satisfies ChartConfig`;
+    addImport(imports, PREAMBLE_KEY, chartDataStr);
+    addImport(imports, PREAMBLE_KEY, chartConfigStr);
+    addImport(imports, "recharts", "AreaChart");
+    addImport(imports, "recharts", "Area");
+    addImport(imports, "recharts", "CartesianGrid");
+    addImport(imports, "recharts", "XAxis");
+    addImport(imports, "@/components/ui/chart", "ChartContainer");
+    addImport(imports, "@/components/ui/chart", "type ChartConfig");
+    addImport(imports, "@/components/ui/chart", "ChartTooltip");
+    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const curveType = chartType === "linear" ? "linear" : chartType === "step" ? "step" : "natural";
+    const gradientDefs = series.map((s) => {
+      const capKey = s.key.charAt(0).toUpperCase() + s.key.slice(1);
+      return [
+        `${p2}  <linearGradient id="fill${capKey}" x1="0" y1="0" x2="0" y2="1">`,
+        `${p2}    <stop offset="5%" stopColor="var(--color-${s.key})" stopOpacity={0.8} />`,
+        `${p2}    <stop offset="95%" stopColor="var(--color-${s.key})" stopOpacity={0.1} />`,
+        `${p2}  </linearGradient>`
+      ].join("\n");
+    }).join("\n");
+    const areaElems = series.map((s) => {
+      const capKey = s.key.charAt(0).toUpperCase() + s.key.slice(1);
+      const stackProp = chartType === "stacked" ? ` stackId="a"` : "";
+      return `${p2}<Area type="${curveType}" dataKey="${s.key}" fill="url(#fill${capKey})" fillOpacity={0.4} stroke="var(--color-${s.key})"${stackProp} />`;
+    }).join("\n");
+    const chartInner = [
+      `${p1}<AreaChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
+      `${p2}<defs>`,
+      gradientDefs,
+      `${p2}</defs>`,
+      `${p2}<CartesianGrid vertical={false} />`,
+      `${p2}<XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />`,
+      `${p2}<ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />`,
+      areaElems,
+      `${p1}</AreaChart>`
+    ].join("\n");
+    return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+${chartInner}
+${p0}</ChartContainer>`;
+  }
+  function renderLineChart(node, imports, indent, _renderChild) {
+    var _a;
+    const typeProp = node.props.find((p) => p.shadcnProp === "type");
+    const chartType = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "default";
+    const children = Array.isArray(node.children) ? node.children : [];
+    const allTexts = collectTexts(children);
+    const legendLabels = allTexts.filter((t) => !/^[\d.,]+%?$/.test(t.trim()));
+    const seriesCount = chartType === "stacked" ? 2 : 1;
+    const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
+    addImport(imports, CSS_KEY, CHART_CSS_VARS);
+    addImport(imports, "recharts", "LineChart");
+    addImport(imports, "recharts", "Line");
+    addImport(imports, "recharts", "CartesianGrid");
+    addImport(imports, "recharts", "XAxis");
+    addImport(imports, "@/components/ui/chart", "ChartContainer");
+    addImport(imports, "@/components/ui/chart", "type ChartConfig");
+    addImport(imports, "@/components/ui/chart", "ChartTooltip");
+    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
+    if (chartType === "interactive") {
+      const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
+      const DATES = ["2024-04-01", "2024-04-08", "2024-04-15", "2024-04-22", "2024-04-29", "2024-05-06", "2024-05-13", "2024-05-20", "2024-05-27", "2024-06-03", "2024-06-10", "2024-06-17", "2024-06-24"];
+      const VALS_A = [222, 97, 167, 242, 373, 301, 245, 409, 59, 261, 327, 292, 342];
+      const VALS_B = [150, 180, 120, 260, 290, 340, 180, 220, 100, 310, 250, 190, 280];
+      const iDataLines = DATES.map((d, i) => {
+        const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS_A[i] : VALS_B[i]}`).join(", ");
+        return `  { date: "${d}", ${vals} },`;
+      });
+      addImport(imports, PREAMBLE_KEY, `const chartData = [
+${iDataLines.join("\n")}
+]`);
+      addImport(imports, PREAMBLE_KEY, `const chartConfig = {
+${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}
+} satisfies ChartConfig`);
+      const keys = iSeries.map((s) => `"${s.key}"`).join(" | ");
+      addImport(imports, PREAMBLE_KEY, `const [activeLine, setActiveLine] = useState<${keys}>("${iSeries[0].key}")`);
+      const p02 = "  ".repeat(indent);
+      const p12 = "  ".repeat(indent + 1);
+      const p22 = "  ".repeat(indent + 2);
+      const lineElems2 = iSeries.map(
+        (s) => `${p22}<Line dataKey="${s.key}" type="natural" stroke="var(--color-${s.key})" strokeWidth={2} dot={false} strokeOpacity={activeLine === "${s.key}" ? 1 : 0.3} />`
+      ).join("\n");
+      return [
+        `${p02}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">`,
+        `${p12}<LineChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
+        `${p22}<CartesianGrid vertical={false} />`,
+        `${p22}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />`,
+        `${p22}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />`,
+        lineElems2,
+        `${p12}</LineChart>`,
+        `${p02}</ChartContainer>`
+      ].join("\n");
+    }
+    const dataLines = CHART_MONTHS.map((m, mi) => {
+      const vals = series.map((s) => {
+        var _a2, _b;
+        return `${s.key}: ${(_b = (_a2 = CHART_VALUES[s.idx]) == null ? void 0 : _a2[mi]) != null ? _b : 100}`;
+      }).join(", ");
+      return `  { month: "${m}", ${vals} },`;
+    });
+    addImport(imports, PREAMBLE_KEY, `const chartData = [
+${dataLines.join("\n")}
+]`);
+    addImport(imports, PREAMBLE_KEY, `const chartConfig = {
+${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}
+} satisfies ChartConfig`);
+    const p0 = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const curveType = chartType === "linear" ? "linear" : chartType === "step" ? "step" : "natural";
+    const lineElems = series.map(
+      (s) => `${p2}<Line dataKey="${s.key}" type="${curveType}" stroke="var(--color-${s.key})" strokeWidth={2} dot={false} />`
+    ).join("\n");
+    return [
+      `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">`,
+      `${p1}<LineChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
+      `${p2}<CartesianGrid vertical={false} />`,
+      `${p2}<XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />`,
+      `${p2}<ChartTooltip cursor={false} content={<ChartTooltipContent />} />`,
+      lineElems,
+      `${p1}</LineChart>`,
+      `${p0}</ChartContainer>`
+    ].join("\n");
+  }
+  var group5;
+  var init_data = __esm({
+    "src/lib/components/data.ts"() {
+      "use strict";
+      init_render_utils();
+      group5 = {
+        defs: {
+          "Line chart": {
+            component: "__chart_line__",
+            importPath: "@/components/ui/chart",
+            props: {
+              "Type": {
+                shadcnProp: "type",
+                values: {
+                  Default: "default",
+                  Linear: "linear",
+                  Step: "step",
+                  Stacked: "stacked",
+                  Interactive: "interactive"
+                }
+              }
+            }
+          },
+          "Area chart": {
+            component: "__chart_area__",
+            importPath: "@/components/ui/chart",
+            props: {
+              "Type": {
+                shadcnProp: "type",
+                values: {
+                  Default: "default",
+                  Linear: "linear",
+                  Step: "step",
+                  Stacked: "stacked",
+                  Interactive: "interactive"
+                }
+              }
+            }
+          },
+          "Bar chart": {
+            component: "__chart_bar__",
+            importPath: "@/components/ui/chart",
+            props: {
+              "Type": {
+                shadcnProp: "type",
+                values: {
+                  Default: "default",
+                  Horizontal: "horizontal",
+                  Multiple: "multiple",
+                  Stacked: "stacked",
+                  Interactive: "interactive"
+                }
+              }
+            }
+          },
+          "Basic Table Header": {
+            component: "TableHead",
+            importPath: "@/components/ui/table",
+            ignore: ["Cell Type", "State", "Alignment"]
+          },
+          "Basic Table Cell": {
+            component: "TableCell",
+            importPath: "@/components/ui/table",
+            ignore: ["Parity", "State", "Alignment"]
+          },
+          "Table Header": {
+            component: "__data_table_header__",
+            importPath: "@/components/ui/table",
+            ignore: ["Content", "Alignment", "State"]
+          },
+          "Table Cell": {
+            component: "__data_table_cell__",
+            importPath: "@/components/ui/table",
+            ignore: ["Content", "Alignment", "State", "Parity"]
+          }
+        },
+        renderers: {
+          "__chart_bar__": renderBarChart,
+          "__chart_area__": renderAreaChart,
+          "__chart_line__": renderLineChart,
+          "__data_table_header__": renderDataTable,
+          "__data_table_cell__": renderDataTable
+        }
+      };
+    }
+  });
+
+  // src/lib/components/forms.ts
+  function renderCheckbox(node, imports, indent, _renderChild) {
+    var _a;
+    const pad = "  ".repeat(indent);
+    const ip = "  ".repeat(indent + 1);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
+    addImport(imports, "@/components/ui/checkbox", "Checkbox");
+    addImport(imports, "@/components/ui/field", "Field");
+    addImport(imports, "@/components/ui/field", "FieldLabel");
+    const children = Array.isArray(node.children) ? node.children : [];
+    const label = (_a = collectTexts(children)[0]) != null ? _a : "Label";
+    const id = toJsKey(label) + "-checkbox";
+    const disabled = node.props.find((p) => p.shadcnProp === "disabled" && p.value === "true");
+    const checked = node.props.find((p) => p.shadcnProp === "checked");
+    const checkedAttr = (checked == null ? void 0 : checked.value) === "true" ? " defaultChecked" : (checked == null ? void 0 : checked.value) === "indeterminate" ? ` checked="indeterminate"` : "";
+    const disabledAttr = disabled ? " disabled" : "";
+    return [
+      `${pad}<Field orientation="horizontal">`,
+      `${ip}<Checkbox id="${id}" name="${id}"${checkedAttr}${disabledAttr} />`,
+      `${ip}<FieldLabel htmlFor="${id}">${label}</FieldLabel>`,
+      `${pad}</Field>`
+    ].join("\n");
+  }
+  function renderCheckboxGroup(node, imports, indent, _renderChild) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
+    addImport(imports, "@/components/ui/checkbox", "Checkbox");
+    addImport(imports, "@/components/ui/field", "Field");
+    addImport(imports, "@/components/ui/field", "FieldGroup");
+    addImport(imports, "@/components/ui/field", "FieldLabel");
+    addImport(imports, "@/components/ui/field", "FieldLegend");
+    addImport(imports, "@/components/ui/field", "FieldSet");
+    const childCheckboxes = (Array.isArray(node.children) ? node.children : []).filter((c) => "component" in c && c.component === "Checkbox");
+    const items = childCheckboxes.length > 0 ? childCheckboxes : [null, null, null];
+    const fieldItems = items.map((child, i) => {
+      var _a;
+      const childTexts = child ? collectTexts(Array.isArray(child.children) ? child.children : []) : [];
+      const label = (_a = childTexts[0]) != null ? _a : `Option ${i + 1}`;
+      const id = toJsKey(label) + "-checkbox";
+      const checked = child == null ? void 0 : child.props.find((p) => p.shadcnProp === "checked");
+      const checkedAttr = (checked == null ? void 0 : checked.value) === "true" ? " defaultChecked" : "";
+      return [
+        `${p2}<Field orientation="horizontal">`,
+        `${p2}  <Checkbox id="${id}" name="${id}"${checkedAttr} />`,
+        `${p2}  <FieldLabel htmlFor="${id}" className="font-normal">${label}</FieldLabel>`,
+        `${p2}</Field>`
+      ].join("\n");
+    }).join("\n");
+    return [
+      `${pad}<FieldSet>`,
+      `${p1}<FieldLegend variant="label">Group label</FieldLegend>`,
+      `${p1}<FieldGroup className="gap-3">`,
+      fieldItems,
+      `${p1}</FieldGroup>`,
+      `${pad}</FieldSet>`
+    ].join("\n");
+  }
+  function renderField(node, imports, indent, orientation, _renderChild) {
+    var _a;
+    const typeProp = node.props.find((p) => p.shadcnProp === "type");
+    const type = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "text";
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add field");
+    addImport(imports, "@/components/ui/field", "Field");
+    addImport(imports, "@/components/ui/field", "FieldLabel");
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const orientAttr = orientation === "horizontal" ? ` orientation="horizontal"` : "";
+    const fieldId = `field-${type}`;
+    let inner = "";
+    if (type === "text") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input");
+      addImport(imports, "@/components/ui/input", "Input");
+      inner = [
+        `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
+        `${p1}<Input id="${fieldId}" placeholder="Enter a value" />`
+      ].join("\n");
+    } else if (type === "select") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add select");
+      addImport(imports, "@/components/ui/select", "Select");
+      addImport(imports, "@/components/ui/select", "SelectContent");
+      addImport(imports, "@/components/ui/select", "SelectItem");
+      addImport(imports, "@/components/ui/select", "SelectTrigger");
+      addImport(imports, "@/components/ui/select", "SelectValue");
+      inner = [
+        `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
+        `${p1}<Select>`,
+        `${p1}  <SelectTrigger id="${fieldId}"><SelectValue placeholder="Select an item" /></SelectTrigger>`,
+        `${p1}  <SelectContent>`,
+        `${p1}    <SelectItem value="option1">Option 1</SelectItem>`,
+        `${p1}    <SelectItem value="option2">Option 2</SelectItem>`,
+        `${p1}  </SelectContent>`,
+        `${p1}</Select>`
+      ].join("\n");
+    } else if (type === "textarea") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add textarea");
+      addImport(imports, "@/components/ui/textarea", "Textarea");
+      inner = [
+        `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
+        `${p1}<Textarea id="${fieldId}" placeholder="Type your message here" />`
+      ].join("\n");
+    } else if (type === "radio") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add radio-group");
+      addImport(imports, "@/components/ui/radio-group", "RadioGroup");
+      addImport(imports, "@/components/ui/radio-group", "RadioGroupItem");
+      addImport(imports, "@/components/ui/label", "Label");
+      inner = [
+        `${p1}<FieldLabel>Label</FieldLabel>`,
+        `${p1}<RadioGroup defaultValue="option1">`,
+        `${p1}  <div className="flex items-center gap-2"><RadioGroupItem id="r1" value="option1" /><Label htmlFor="r1">Option 1</Label></div>`,
+        `${p1}  <div className="flex items-center gap-2"><RadioGroupItem id="r2" value="option2" /><Label htmlFor="r2">Option 2</Label></div>`,
+        `${p1}</RadioGroup>`
+      ].join("\n");
+    } else if (type === "checkbox") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
+      addImport(imports, "@/components/ui/checkbox", "Checkbox");
+      inner = [
+        `${p1}<Checkbox id="${fieldId}" />`,
+        `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`
+      ].join("\n");
+      const checkboxOrient = ` orientation="horizontal"`;
+      return [`${pad}<Field${checkboxOrient}>`, inner, `${pad}</Field>`].join("\n");
+    } else if (type === "slider") {
+      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add slider");
+      addImport(imports, "@/components/ui/slider", "Slider");
+      inner = [
+        `${p1}<FieldLabel>Label</FieldLabel>`,
+        `${p1}<Slider defaultValue={[50]} max={100} step={1} />`
+      ].join("\n");
+    }
+    return [`${pad}<Field${orientAttr}>`, inner, `${pad}</Field>`].join("\n");
+  }
+  function renderFieldVertical(node, imports, indent, renderChild) {
+    return renderField(node, imports, indent, "vertical", renderChild);
+  }
+  function renderFieldHorizontal(node, imports, indent, renderChild) {
+    return renderField(node, imports, indent, "horizontal", renderChild);
+  }
+  var group6;
+  var init_forms = __esm({
+    "src/lib/components/forms.ts"() {
+      "use strict";
+      init_render_utils();
+      group6 = {
+        defs: {
+          "Checkbox": {
+            component: "Checkbox",
+            importPath: "@/components/ui/checkbox",
+            props: {
+              "Checked?": { shadcnProp: "checked", values: CHECKED_MAP },
+              "State": {
+                shadcnProp: "disabled",
+                values: { Disabled: "true", Focus: null, Error: null, "Error Focus": null }
+              }
+            }
+          },
+          "Checkbox Group": {
+            component: "__checkbox_group__",
+            importPath: "@/components/ui/checkbox",
+            props: {
+              "Layout": {
+                shadcnProp: "layout",
+                values: { Inline: "inline", Stacked: "stacked" }
+              }
+            },
+            ignore: ["Checked?"]
+          },
+          "Rich Checkbox Group": {
+            component: "RichCheckboxGroup",
+            importPath: "@/components/ui/rich-checkbox-group",
+            props: {
+              "Checked": { shadcnProp: "checked", values: { True: "true", False: null } },
+              "Flipped": { shadcnProp: "flipped", values: { True: "true", False: null } }
+            },
+            children: "Line 1"
+          },
+          "Switch": {
+            component: "Switch",
+            importPath: "@/components/ui/switch",
+            props: {
+              "Checked?": { shadcnProp: "checked", values: { True: "true", False: "false" } }
+            },
+            ignore: ["State"]
+          },
+          "Radio": {
+            component: "RadioGroupItem",
+            importPath: "@/components/ui/radio-group",
+            props: {
+              "Checked?": { shadcnProp: "checked", values: { True: "true", False: "false" } }
+            },
+            ignore: ["State"]
+          },
+          "Slider Horizontal": {
+            component: "Slider",
+            importPath: "@/components/ui/slider",
+            ignore: ["Type"]
+          },
+          "Slider Vertical": {
+            component: "Slider",
+            importPath: "@/components/ui/slider",
+            props: {
+              "Type": { shadcnProp: "orientation", values: { Default: "vertical", "Range narrow": "vertical", "Range wide": "vertical" } }
+            }
+          },
+          "Textarea": {
+            component: "Textarea",
+            importPath: "@/components/ui/textarea",
+            props: {
+              "State": {
+                shadcnProp: "disabled",
+                values: { Disabled: "true", Empty: null, Placeholder: null, Value: null, Focus: null, Error: null, "Error Focus": null }
+              }
+            },
+            ignore: ["Show resizable", "Roundness"]
+          },
+          "Select & Combobox": {
+            component: "Select",
+            importPath: "@/components/ui/select",
+            ignore: ["Size", "State", "Lines", "Show Decoration", "Show Prepend"]
+          },
+          "Label": {
+            component: "Label",
+            importPath: "@/components/ui/label",
+            ignore: ["Layout"]
+          },
+          "Vertical Field": {
+            component: "__field_vertical__",
+            importPath: "@/components/ui/field",
+            props: {
+              "Type": {
+                shadcnProp: "type",
+                values: {
+                  Select: "select",
+                  "Text Value": "text",
+                  Radio: "radio",
+                  Textarea: "textarea",
+                  Checkbox: "checkbox",
+                  Slider: "slider"
+                }
+              }
+            }
+          },
+          "Horizontal Field": {
+            component: "__field_horizontal__",
+            importPath: "@/components/ui/field",
+            props: {
+              "Type": {
+                shadcnProp: "type",
+                values: {
+                  Select: "select",
+                  "Text Value": "text",
+                  Radio: "radio",
+                  Textarea: "textarea",
+                  Checkbox: "checkbox",
+                  Slider: "slider"
+                }
+              }
+            }
+          }
+        },
+        renderers: {
+          "Checkbox": renderCheckbox,
+          "__checkbox_group__": renderCheckboxGroup,
+          "__field_vertical__": renderFieldVertical,
+          "__field_horizontal__": renderFieldHorizontal
+        }
+      };
+    }
+  });
+
+  // src/lib/components/display.ts
+  function renderCardHeader(slotChildren, imports, indent, renderChild) {
+    if (!(slotChildren == null ? void 0 : slotChildren.length))
+      return "";
+    const p1 = "  ".repeat(indent);
+    const p2 = "  ".repeat(indent + 1);
+    addImport(imports, "@/components/ui/card", "CardHeader");
+    addImport(imports, "@/components/ui/card", "CardTitle");
+    addImport(imports, "@/components/ui/card", "CardDescription");
+    const texts = collectTexts(slotChildren);
+    const lines = [];
+    if (texts[0])
+      lines.push(`${p2}<CardTitle>${texts[0]}</CardTitle>`);
+    if (texts[1])
+      lines.push(`${p2}<CardDescription>${texts[1]}</CardDescription>`);
+    const nonText = slotChildren.filter((c) => !("isText" in c));
+    nonText.forEach((c) => {
+      const s = renderChild(c, imports, indent + 1);
+      if (s)
+        lines.push(s);
+    });
+    if (!lines.length)
+      return "";
+    return `${p1}<CardHeader>
+${lines.join("\n")}
+${p1}</CardHeader>`;
+  }
+  function renderCardContent(slotChildren, imports, indent, renderChild) {
+    if (!(slotChildren == null ? void 0 : slotChildren.length))
+      return "";
+    const p1 = "  ".repeat(indent);
+    addImport(imports, "@/components/ui/card", "CardContent");
+    const inner = slotChildren.map((c) => renderChild(c, imports, indent + 1)).filter(Boolean).join("\n");
+    return inner ? `${p1}<CardContent>
+${inner}
+${p1}</CardContent>` : "";
+  }
+  function renderCardFooter(slotChildren, imports, indent, renderChild) {
+    if (!(slotChildren == null ? void 0 : slotChildren.length))
+      return "";
+    const p1 = "  ".repeat(indent);
+    addImport(imports, "@/components/ui/card", "CardFooter");
+    const inner = slotChildren.map((c) => renderChild(c, imports, indent + 1)).filter(Boolean).join("\n");
+    return inner ? `${p1}<CardFooter>
+${inner}
+${p1}</CardFooter>` : "";
+  }
+  function renderCard(node, imports, indent, renderChild) {
+    const p0 = "  ".repeat(indent);
+    addImport(imports, "@/components/ui/card", "Card");
+    const children = Array.isArray(node.children) ? node.children : [];
+    const layoutChildren = children.filter((c) => "isLayout" in c);
+    let slotFrames;
+    if (layoutChildren.length === 1 && layoutChildren[0].children.length > 0 && layoutChildren[0].children.every((c) => "isLayout" in c)) {
+      slotFrames = layoutChildren[0].children;
+    } else {
+      slotFrames = layoutChildren;
+    }
+    const slotContents = slotFrames.map((f) => {
+      var _a;
+      return (_a = f.children) != null ? _a : [];
+    });
+    const sections = [];
+    if (slotContents.length === 1) {
+      const s = renderCardContent(slotContents[0], imports, indent + 1, renderChild);
+      if (s)
+        sections.push(s);
+    } else if (slotContents.length === 2) {
+      const h = renderCardHeader(slotContents[0], imports, indent + 1, renderChild);
+      const c = renderCardContent(slotContents[1], imports, indent + 1, renderChild);
+      if (h)
+        sections.push(h);
+      if (c)
+        sections.push(c);
+    } else if (slotContents.length >= 3) {
+      const h = renderCardHeader(slotContents[0], imports, indent + 1, renderChild);
+      if (h)
+        sections.push(h);
+      for (let i = 1; i < slotContents.length - 1; i++) {
+        const c = renderCardContent(slotContents[i], imports, indent + 1, renderChild);
+        if (c)
+          sections.push(c);
+      }
+      const f = renderCardFooter(slotContents[slotContents.length - 1], imports, indent + 1, renderChild);
+      if (f)
+        sections.push(f);
+    }
+    const propsStr = renderProps(node.props);
+    return `${p0}<Card${propsStr}>
+${sections.join("\n")}
+${p0}</Card>`;
+  }
+  function renderItem(node, imports, indent, _renderChild) {
+    var _a, _b, _c, _d;
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    const p3 = "  ".repeat(indent + 3);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add item");
+    addImport(imports, "@/components/ui/item", "Item");
+    addImport(imports, "@/components/ui/item", "ItemContent");
+    addImport(imports, "@/components/ui/item", "ItemTitle");
+    const get = (prop) => {
+      var _a2, _b2;
+      return (_b2 = (_a2 = node.props.find((p) => p.shadcnProp === prop)) == null ? void 0 : _a2.value) != null ? _b2 : null;
+    };
+    const variant = get("variant");
+    const size = get("size");
+    const mediaType = get("mediaType");
+    const actionType = get("actionType");
+    const titleText = get("title") || findAllTexts(node.children)[0] || "Title";
+    const descText = get("description") || findAllTexts(node.children)[1] || null;
+    const labelText = get("label");
+    const variantAttr = variant ? ` variant="${variant}"` : "";
+    const sizeAttr = size ? ` size="${size}"` : "";
+    const lines = [`${pad}<Item${variantAttr}${sizeAttr}>`];
+    if (mediaType) {
+      addImport(imports, "@/components/ui/item", "ItemMedia");
+      if (mediaType === "icon" || mediaType === "iconBadge") {
+        const iconName = (_a = findIconChild(node.children)) != null ? _a : "InboxIcon";
+        addImport(imports, "lucide-react", iconName);
+        const mvAttr = mediaType === "iconBadge" ? ` variant="iconBadge"` : ` variant="icon"`;
+        lines.push(`${p1}<ItemMedia${mvAttr}>`, `${p2}<${iconName} />`, `${p1}</ItemMedia>`);
+      } else if (mediaType === "avatar") {
+        addImport(imports, "@/components/ui/avatar", "Avatar");
+        addImport(imports, "@/components/ui/avatar", "AvatarImage");
+        addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+        lines.push(
+          `${p1}<ItemMedia>`,
+          `${p2}<Avatar className="size-10">`,
+          `${p3}<AvatarImage src="" alt="" />`,
+          `${p3}<AvatarFallback>AB</AvatarFallback>`,
+          `${p2}</Avatar>`,
+          `${p1}</ItemMedia>`
+        );
+      } else if (mediaType === "avatarStack") {
+        addImport(imports, "@/components/ui/avatar", "Avatar");
+        addImport(imports, "@/components/ui/avatar", "AvatarImage");
+        addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+        lines.push(
+          `${p1}<ItemMedia>`,
+          `${p2}<div className="flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background">`,
+          `${p3}<Avatar><AvatarImage src="" alt="" /><AvatarFallback>A</AvatarFallback></Avatar>`,
+          `${p3}<Avatar><AvatarImage src="" alt="" /><AvatarFallback>B</AvatarFallback></Avatar>`,
+          `${p2}</div>`,
+          `${p1}</ItemMedia>`
+        );
+      } else if (mediaType === "image") {
+        lines.push(
+          `${p1}<ItemMedia>`,
+          `${p2}<img src="" alt="" className="size-10 rounded-sm object-cover" />`,
+          `${p1}</ItemMedia>`
+        );
+      }
+    }
+    lines.push(`${p1}<ItemContent>`);
+    lines.push(`${p2}<ItemTitle>${titleText}</ItemTitle>`);
+    if (descText) {
+      addImport(imports, "@/components/ui/item", "ItemDescription");
+      lines.push(`${p2}<ItemDescription>${descText}</ItemDescription>`);
+    }
+    lines.push(`${p1}</ItemContent>`);
+    if (actionType) {
+      addImport(imports, "@/components/ui/item", "ItemActions");
+      if (actionType === "button") {
+        addImport(imports, "@/components/ui/button", "Button");
+        const btnText = (_b = findAllTexts(node.children).find((t) => t !== titleText && t !== descText)) != null ? _b : "Action";
+        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="sm" variant="outline">${btnText}</Button>`, `${p1}</ItemActions>`);
+      } else if (actionType === "iconButton") {
+        const iconName = (_c = findIconChild(node.children)) != null ? _c : "Plus";
+        addImport(imports, "@/components/ui/button", "Button");
+        addImport(imports, "lucide-react", iconName);
+        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="icon-sm" variant="outline" className="rounded-full"><${iconName} /></Button>`, `${p1}</ItemActions>`);
+      } else if (actionType === "label") {
+        lines.push(`${p1}<ItemActions>`, `${p2}<span className="text-sm text-muted-foreground">${labelText != null ? labelText : ""}</span>`, `${p1}</ItemActions>`);
+      } else if (actionType === "icon") {
+        const iconName = (_d = findIconChild(node.children)) != null ? _d : "ChevronRight";
+        addImport(imports, "@/components/ui/button", "Button");
+        addImport(imports, "lucide-react", iconName);
+        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="icon-sm" variant="ghost"><${iconName} /></Button>`, `${p1}</ItemActions>`);
+      }
+    }
+    lines.push(`${pad}</Item>`);
+    return lines.join("\n");
+  }
+  function renderAvatar(node, imports, indent, _renderChild) {
+    var _a;
+    const pad = "  ".repeat(indent);
+    const ip = "  ".repeat(indent + 1);
+    const children = Array.isArray(node.children) ? node.children : [];
+    const texts = collectTexts(children);
+    const fallback = (_a = texts[0]) != null ? _a : "??";
+    addImport(imports, "@/components/ui/avatar", "Avatar");
+    addImport(imports, "@/components/ui/avatar", "AvatarImage");
+    addImport(imports, "@/components/ui/avatar", "AvatarFallback");
+    return `${pad}<Avatar>
+${ip}<AvatarImage src="" alt="" />
+${ip}<AvatarFallback>${fallback}</AvatarFallback>
+${pad}</Avatar>`;
+  }
+  function renderEmpty(node, imports, indent, _renderChild) {
+    var _a, _b, _c;
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add empty");
+    addImport(imports, "lucide-react", "Inbox");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/empty", "Empty");
+    addImport(imports, "@/components/ui/empty", "EmptyContent");
+    addImport(imports, "@/components/ui/empty", "EmptyDescription");
+    addImport(imports, "@/components/ui/empty", "EmptyHeader");
+    addImport(imports, "@/components/ui/empty", "EmptyMedia");
+    addImport(imports, "@/components/ui/empty", "EmptyTitle");
+    const variantProp = node.props.find((p) => p.shadcnProp === "variant");
+    const variant = (_a = variantProp == null ? void 0 : variantProp.value) != null ? _a : "default";
+    const children = Array.isArray(node.children) ? node.children : [];
+    const texts = collectTexts(children);
+    const title = (_b = texts[0]) != null ? _b : "No results";
+    const desc = (_c = texts[1]) != null ? _c : "Try adjusting your search or filters.";
+    const variantAttr = variant !== "default" ? ` variant="${variant}"` : "";
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    return [
+      `${pad}<Empty${variantAttr}>`,
+      `${p1}<EmptyHeader>`,
+      `${p2}<EmptyMedia><Inbox /></EmptyMedia>`,
+      `${p2}<EmptyTitle>${title}</EmptyTitle>`,
+      `${p2}<EmptyDescription>${desc}</EmptyDescription>`,
+      `${p1}</EmptyHeader>`,
+      `${p1}<EmptyContent>`,
+      `${p2}<Button>Take action</Button>`,
+      `${p1}</EmptyContent>`,
+      `${pad}</Empty>`
+    ].join("\n");
+  }
+  var group7;
+  var init_display = __esm({
+    "src/lib/components/display.ts"() {
+      "use strict";
+      init_render_utils();
+      group7 = {
+        defs: {
+          "Badge": {
+            component: "Badge",
+            importPath: "@/components/ui/badge",
+            props: {
+              "Variant": { shadcnProp: "variant", values: VARIANT_MAP }
+            },
+            children: "Label",
+            ignore: ["State", "Roundness", "Show left icon", "Show right icon", "\u2B91 Icon left", "\u2B91 Icon right"]
+          },
+          "Alert": {
+            component: "Alert",
+            importPath: "@/components/ui/alert",
+            props: {
+              "Type": {
+                shadcnProp: "variant",
+                values: { Neutral: "default", Error: "destructive" }
+              }
+            },
+            slots: [
+              { key: "Line 1", component: "AlertTitle", importPath: "@/components/ui/alert" },
+              { key: "\u21B3 Line 2", component: "AlertDescription", importPath: "@/components/ui/alert", scanChildren: true }
+            ],
+            ignore: ["Show Line 2", "Show Icon", "Show Button", "Flip Icon", "\u2B91 Icon", "\u2B91  Line 2"]
+          },
+          "Avatar": {
+            component: "Avatar",
+            importPath: "@/components/ui/avatar",
+            ignore: ["Picture", "Size", "Roundness Type"]
+          },
+          "Avatar Stack": {
+            component: "AvatarGroup",
+            importPath: "@/components/ui/avatar",
+            ignore: ["Size", "Type"]
+          },
+          "Card": {
+            component: "Card",
+            importPath: "@/components/ui/card",
+            ignore: ["Main Slot", "Header Slot", "Footer Slot", "Slot No.", "State"]
+          },
+          "Item": {
+            component: "__item__",
+            importPath: "@/components/ui/item",
+            props: {
+              "Variant": { shadcnProp: "variant", values: { Default: null, Outline: "outline", Muted: "muted" } },
+              "Size": { shadcnProp: "size", values: { Default: null, Small: "sm", Mini: "xs" } },
+              "ItemMedia: icon": { shadcnProp: "mediaType", values: { True: "icon", False: null } },
+              "ItemMedia: iconBadge": { shadcnProp: "mediaType", values: { True: "iconBadge", False: null } },
+              "ItemMedia: avatar": { shadcnProp: "mediaType", values: { True: "avatar", False: null } },
+              "ItemMedia: avatarStack": { shadcnProp: "mediaType", values: { True: "avatarStack", False: null } },
+              "ItemMedia: image": { shadcnProp: "mediaType", values: { True: "image", False: null } },
+              "ItemAction: icon": { shadcnProp: "actionType", values: { True: "icon", False: null } },
+              "ItemAction: button": { shadcnProp: "actionType", values: { True: "button", False: null } },
+              "ItemAction: iconButton": { shadcnProp: "actionType", values: { True: "iconButton", False: null } },
+              "ItemAction: label": { shadcnProp: "actionType", values: { True: "label", False: null } },
+              "Title": { shadcnProp: "title" },
+              "Description": { shadcnProp: "description" },
+              "Label": { shadcnProp: "label" }
+            },
+            ignore: ["asChild", "State"]
+          },
+          "Empty": {
+            component: "__empty__",
+            importPath: "@/components/ui/empty",
+            props: {
+              "Variant": {
+                shadcnProp: "variant",
+                values: {
+                  Default: "default",
+                  Outline: "outline",
+                  Background: "background",
+                  "Outline dashed": "outline-dashed"
+                }
+              }
+            },
+            children: "\u2B91 title"
+          },
+          "Skeleton": {
+            component: "Skeleton",
+            importPath: "@/components/ui/skeleton"
+          },
+          "Spinner": {
+            component: "Loader2",
+            importPath: "lucide-react",
+            ignore: ["Type"]
+          }
+        },
+        renderers: {
+          "Card": renderCard,
+          "__item__": renderItem,
+          "Avatar": renderAvatar,
+          "__empty__": renderEmpty
+        }
+      };
+    }
+  });
+
+  // src/lib/components/date.ts
+  function renderDatePickerSingle(imports, indent) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add calendar popover");
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, "react", "useState");
+    addImport(imports, "date-fns", "format");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/calendar", "Calendar");
+    addImport(imports, "@/components/ui/field", "Field");
+    addImport(imports, "@/components/ui/field", "FieldLabel");
+    addImport(imports, "@/components/ui/popover", "Popover");
+    addImport(imports, "@/components/ui/popover", "PopoverContent");
+    addImport(imports, "@/components/ui/popover", "PopoverTrigger");
+    addImport(imports, PREAMBLE_KEY, `const [date, setDate] = useState<Date>()`);
+    return [
+      `${pad}<Field className="mx-auto w-44">`,
+      `${p1}<FieldLabel htmlFor="date-picker">Date</FieldLabel>`,
+      `${p1}<Popover>`,
+      `${p2}<PopoverTrigger asChild>`,
+      `${p2}  <Button variant="outline" id="date-picker" className="justify-start font-normal">`,
+      `${p2}    {date ? format(date, "PPP") : <span>Pick a date</span>}`,
+      `${p2}  </Button>`,
+      `${p2}</PopoverTrigger>`,
+      `${p2}<PopoverContent className="w-auto p-0" align="start">`,
+      `${p2}  <Calendar mode="single" selected={date} onSelect={setDate} defaultMonth={date} />`,
+      `${p2}</PopoverContent>`,
+      `${p1}</Popover>`,
+      `${pad}</Field>`
+    ].join("\n");
+  }
+  function renderDatePickerRange(imports, indent, numberOfMonths = 2) {
+    const pad = "  ".repeat(indent);
+    const p1 = "  ".repeat(indent + 1);
+    const p2 = "  ".repeat(indent + 2);
+    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add calendar popover");
+    addImport(imports, DIRECTIVE_KEY, '"use client"');
+    addImport(imports, "react", "useState");
+    addImport(imports, "date-fns", "addDays");
+    addImport(imports, "date-fns", "format");
+    addImport(imports, "lucide-react", "CalendarIcon");
+    addImport(imports, "react-day-picker", "type DateRange");
+    addImport(imports, "@/components/ui/button", "Button");
+    addImport(imports, "@/components/ui/calendar", "Calendar");
+    addImport(imports, "@/components/ui/field", "Field");
+    addImport(imports, "@/components/ui/field", "FieldLabel");
+    addImport(imports, "@/components/ui/popover", "Popover");
+    addImport(imports, "@/components/ui/popover", "PopoverContent");
+    addImport(imports, "@/components/ui/popover", "PopoverTrigger");
+    addImport(
+      imports,
+      PREAMBLE_KEY,
+      `const [date, setDate] = useState<DateRange | undefined>({
+  from: new Date(new Date().getFullYear(), 0, 20),
+  to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
+})`
+    );
+    return [
+      `${pad}<Field className="mx-auto w-60">`,
+      `${p1}<FieldLabel htmlFor="date-picker-range">Date Range</FieldLabel>`,
+      `${p1}<Popover>`,
+      `${p2}<PopoverTrigger asChild>`,
+      `${p2}  <Button variant="outline" id="date-picker-range" className="justify-start px-2.5 font-normal">`,
+      `${p2}    <CalendarIcon />`,
+      `${p2}    {date?.from ? (`,
+      `${p2}      date.to ? (`,
+      `${p2}        <>{format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}</>`,
+      `${p2}      ) : format(date.from, "LLL dd, y")`,
+      `${p2}    ) : <span>Pick a date</span>}`,
+      `${p2}  </Button>`,
+      `${p2}</PopoverTrigger>`,
+      `${p2}<PopoverContent className="w-auto p-0" align="start">`,
+      `${p2}  <Calendar mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={${numberOfMonths}} />`,
+      `${p2}</PopoverContent>`,
+      `${p1}</Popover>`,
+      `${pad}</Field>`
+    ].join("\n");
+  }
+  function renderDatePicker(node, imports, indent, _renderChild) {
+    var _a;
+    const monthsProp = node.props.find((p) => p.shadcnProp === "months");
+    const months = parseInt((_a = monthsProp == null ? void 0 : monthsProp.value) != null ? _a : "1", 10);
+    return months >= 2 ? renderDatePickerRange(imports, indent, months) : renderDatePickerSingle(imports, indent);
+  }
+  function renderDatePickerSingleNode(_node, imports, indent, _renderChild) {
+    return renderDatePickerSingle(imports, indent);
+  }
+  var group8;
+  var init_date = __esm({
+    "src/lib/components/date.ts"() {
+      "use strict";
+      init_render_utils();
+      group8 = {
+        defs: {
+          "Date Picker": {
+            component: "__date_picker__",
+            importPath: "@/components/ui/date-picker",
+            ignore: ["State"]
+          },
+          "Calendar": {
+            component: "__calendar__",
+            importPath: "@/components/ui/calendar",
+            props: {
+              "Months": {
+                shadcnProp: "months",
+                values: { "1 month": "1", "2 month": "2", "3 month": "3" }
+              }
+            }
+          }
+        },
+        renderers: {
+          "__date_picker__": renderDatePickerSingleNode,
+          "__calendar__": renderDatePicker
+        }
+      };
+    }
+  });
+
+  // src/lib/components/misc.ts
+  var group9;
+  var init_misc = __esm({
+    "src/lib/components/misc.ts"() {
+      "use strict";
+      init_render_utils();
+      group9 = {
+        defs: {
+          "Tabs": {
+            component: "Tabs",
+            importPath: "@/components/ui/tabs",
+            ignore: ["Size", "Content", "Parts"]
+          },
+          "Tooltip": {
+            component: "Tooltip",
+            importPath: "@/components/ui/tooltip",
+            props: {
+              "Side": {
+                shadcnProp: "side",
+                values: { Top: "top", Bottom: "bottom", Left: "left", Right: "right" }
+              }
+            },
+            children: "Tooltip text"
+          },
+          "Separator": {
+            component: "Separator",
+            importPath: "@/components/ui/separator",
+            props: {
+              "Direction": {
+                shadcnProp: "orientation",
+                values: { Default: "horizontal", Vertical: "vertical" }
+              }
+            },
+            ignore: ["Spacing"]
+          },
+          "Progress": {
+            component: "Progress",
+            importPath: "@/components/ui/progress",
+            props: {
+              "Progress": { shadcnProp: "value" }
+            }
+          },
+          "Toggle Button": {
+            component: "Toggle",
+            importPath: "@/components/ui/toggle",
+            props: {
+              "Skin": {
+                shadcnProp: "variant",
+                values: { Outlined: "outline", Ghost: "ghost" }
+              },
+              "Size": { shadcnProp: "size", values: SIZE_MAP },
+              "Active?": {
+                shadcnProp: "pressed",
+                values: { Yes: "true", No: "false" }
+              }
+            },
+            children: "Label",
+            ignore: ["State", "Roundness", "Position", "Show left icon", "Show right icon", "\u2B91 Left icon", "\u2B91 Right icon"]
+          },
+          "Toggle Icon Button": {
+            component: "Toggle",
+            importPath: "@/components/ui/toggle",
+            props: {
+              "Skin": {
+                shadcnProp: "variant",
+                values: { Outlined: "outline", Ghost: "ghost" }
+              },
+              "Size": { shadcnProp: "size", values: SIZE_MAP },
+              "Active?": {
+                shadcnProp: "pressed",
+                values: { Yes: "true", No: "false" }
+              }
+            },
+            ignore: ["State", "Roundness", "Position", "Icon"]
+          },
+          "Accordion Trigger": {
+            component: "AccordionTrigger",
+            importPath: "@/components/ui/accordion",
+            children: "Accordion label",
+            ignore: ["State"]
+          },
+          "Accordion Content": {
+            component: "AccordionContent",
+            importPath: "@/components/ui/accordion"
+          },
+          "Accordion Trigger (Bordered)": {
+            component: "AccordionTrigger",
+            importPath: "@/components/ui/accordion",
+            children: "Accordion label",
+            ignore: ["State", "Position"]
+          },
+          "Accordion Content (Bordered)": {
+            component: "AccordionContent",
+            importPath: "@/components/ui/accordion"
+          }
+        },
+        renderers: {}
+      };
+    }
+  });
+
+  // src/lib/component-registry.ts
+  function lookupComponent(figmaName) {
+    var _a;
+    if (COMPONENT_MAP[figmaName])
+      return COMPONENT_MAP[figmaName];
+    const base = figmaName.split(/[/,]/)[0].trim();
+    return (_a = COMPONENT_MAP[base]) != null ? _a : void 0;
+  }
+  var ALL_GROUPS, COMPONENT_MAP, RENDERER_MAP;
+  var init_component_registry = __esm({
+    "src/lib/component-registry.ts"() {
+      "use strict";
+      init_buttons();
+      init_inputs();
+      init_navigation();
+      init_overlays();
+      init_data();
+      init_forms();
+      init_display();
+      init_date();
+      init_misc();
+      ALL_GROUPS = [
+        group,
+        group2,
+        group3,
+        group4,
+        group5,
+        group6,
+        group7,
+        group8,
+        group9
+      ];
+      COMPONENT_MAP = {};
+      RENDERER_MAP = {};
+      for (const g of ALL_GROUPS) {
+        Object.assign(COMPONENT_MAP, g.defs);
+        if (g.renderers)
+          Object.assign(RENDERER_MAP, g.renderers);
+      }
+    }
+  });
+
+  // src/lib/component-map.ts
+  var init_component_map = __esm({
+    "src/lib/component-map.ts"() {
+      "use strict";
+      init_component_registry();
     }
   });
 
@@ -1504,144 +3597,10 @@ ${darkLines}
     }
   });
 
-  // src/lib/tailwind-layout.ts
-  function gapClass(gap) {
-    return GAP_MAP[gap] ? `gap-${GAP_MAP[gap]}` : gap ? `gap-[${gap}px]` : "";
-  }
-  function gapXClass(gap) {
-    return GAP_MAP[gap] ? `gap-x-${GAP_MAP[gap]}` : gap ? `gap-x-[${gap}px]` : "";
-  }
-  function gapYClass(gap) {
-    return GAP_MAP[gap] ? `gap-y-${GAP_MAP[gap]}` : gap ? `gap-y-[${gap}px]` : "";
-  }
-  function paddingClass(prefix, value) {
-    const map = {
-      2: "0.5",
-      4: "1",
-      6: "1.5",
-      8: "2",
-      10: "2.5",
-      12: "3",
-      16: "4",
-      20: "5",
-      24: "6",
-      32: "8",
-      40: "10",
-      48: "12",
-      64: "16"
-    };
-    return map[value] ? `${prefix}-${map[value]}` : `${prefix}-[${value}px]`;
-  }
-  function paddingClasses(layout) {
-    const { paddingTop: t, paddingRight: r, paddingBottom: b, paddingLeft: l } = layout;
-    if (t === 0 && r === 0 && b === 0 && l === 0)
-      return "";
-    if (t === b && l === r && t === l)
-      return paddingClass("p", t);
-    const parts = [];
-    if (t === b && t > 0)
-      parts.push(paddingClass("py", t));
-    else {
-      if (t > 0)
-        parts.push(paddingClass("pt", t));
-      if (b > 0)
-        parts.push(paddingClass("pb", b));
-    }
-    if (l === r && l > 0)
-      parts.push(paddingClass("px", l));
-    else {
-      if (l > 0)
-        parts.push(paddingClass("pl", l));
-      if (r > 0)
-        parts.push(paddingClass("pr", r));
-    }
-    return parts.join(" ");
-  }
-  function gridColsClass(cols) {
-    return cols >= 1 && cols <= 12 ? `grid-cols-${cols}` : cols > 0 ? `grid-cols-[repeat(${cols},minmax(0,1fr))]` : "";
-  }
-  function visualClasses(v) {
-    var _a;
-    const parts = [];
-    if (v.bgColor)
-      parts.push(`bg-[${v.bgColor}]`);
-    if (v.radius > 0)
-      parts.push(v.radius >= 9999 ? "rounded-full" : (_a = RADIUS_MAP[v.radius]) != null ? _a : `rounded-[${v.radius}px]`);
-    if (v.shadow)
-      parts.push("shadow-md");
-    if (v.borderColor)
-      parts.push(`border border-[${v.borderColor}]`);
-    if (v.opacity < 1)
-      parts.push(`opacity-[${Math.round(v.opacity * 100)}%]`);
-    return parts.join(" ");
-  }
-  function textVisualClasses(align, color, uppercase) {
-    const parts = [];
-    if (align === "center")
-      parts.push("text-center");
-    if (align === "right")
-      parts.push("text-right");
-    if (uppercase)
-      parts.push("uppercase");
-    if (color)
-      parts.push(`text-[${color}]`);
-    return parts.join(" ");
-  }
-  function layoutClasses(layout) {
-    const pad = paddingClasses(layout);
-    if (layout.direction === "grid") {
-      const cols = gridColsClass(layout.columns);
-      const gapStr2 = layout.gap === layout.rowGap ? gapClass(layout.gap) : [gapXClass(layout.gap), gapYClass(layout.rowGap)].filter(Boolean).join(" ");
-      return ["grid", cols, gapStr2, pad].filter(Boolean).join(" ");
-    }
-    if (layout.direction === "none")
-      return "";
-    const dir = layout.direction === "horizontal" ? "flex-row" : "flex-col";
-    const wrap = layout.wrap ? "flex-wrap" : "";
-    const gapStr = layout.wrap && layout.rowGap && layout.rowGap !== layout.gap ? [gapXClass(layout.gap), gapYClass(layout.rowGap)].filter(Boolean).join(" ") : gapClass(layout.gap);
-    return ["flex", dir, wrap, gapStr, pad].filter(Boolean).join(" ");
-  }
-  var GAP_MAP, RADIUS_MAP;
-  var init_tailwind_layout = __esm({
-    "src/lib/tailwind-layout.ts"() {
-      "use strict";
-      GAP_MAP = {
-        0: "",
-        2: "0.5",
-        4: "1",
-        6: "1.5",
-        8: "2",
-        10: "2.5",
-        12: "3",
-        16: "4",
-        20: "5",
-        24: "6",
-        32: "8",
-        40: "10",
-        48: "12",
-        64: "16"
-      };
-      RADIUS_MAP = {
-        2: "rounded-sm",
-        4: "rounded",
-        6: "rounded-md",
-        8: "rounded-lg",
-        12: "rounded-xl",
-        16: "rounded-2xl",
-        24: "rounded-3xl"
-      };
-    }
-  });
-
   // src/lib/jsx-generator.ts
-  function addImport(imports, path, name) {
-    if (!imports.has(path))
-      imports.set(path, /* @__PURE__ */ new Set());
-    imports.get(path).add(name);
-  }
   function renderImports(imports) {
-    const directives = imports.get(DIRECTIVE_KEY) ? Array.from(imports.get(DIRECTIVE_KEY)).join("\n") : "";
-    const rawImports = imports.get(RAW_IMPORT_KEY) ? Array.from(imports.get(RAW_IMPORT_KEY)).join("\n") : "";
+    const directives = imports.get(DIRECTIVE_KEY3) ? Array.from(imports.get(DIRECTIVE_KEY3)).join("\n") : "";
+    const rawImports = imports.get(RAW_IMPORT_KEY2) ? Array.from(imports.get(RAW_IMPORT_KEY2)).join("\n") : "";
     const namedImports = Array.from(imports.entries()).filter(([path]) => !path.startsWith("__")).map(([path, names]) => `import { ${Array.from(names).join(", ")} } from "${path}";`).join("\n");
     return [directives, rawImports, namedImports].filter(Boolean).join("\n\n");
   }
@@ -1695,257 +3654,6 @@ ${pad}  </TableBody>`);
 ${parts.join("\n")}
 ${pad}</Table>`;
   }
-  function renderDataTable(_node, imports, _indent) {
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add table");
-    addImport(imports, DIRECTIVE_KEY, '"use client"');
-    addImport(imports, RAW_IMPORT_KEY, 'import * as React from "react"');
-    addImport(imports, "@tanstack/react-table", "flexRender");
-    addImport(imports, "@tanstack/react-table", "getCoreRowModel");
-    addImport(imports, "@tanstack/react-table", "getFilteredRowModel");
-    addImport(imports, "@tanstack/react-table", "getPaginationRowModel");
-    addImport(imports, "@tanstack/react-table", "getSortedRowModel");
-    addImport(imports, "@tanstack/react-table", "useReactTable");
-    addImport(imports, "@tanstack/react-table", "type ColumnDef");
-    addImport(imports, "@tanstack/react-table", "type ColumnFiltersState");
-    addImport(imports, "@tanstack/react-table", "type SortingState");
-    addImport(imports, "@tanstack/react-table", "type VisibilityState");
-    addImport(imports, "lucide-react", "ArrowUpDown");
-    addImport(imports, "lucide-react", "ChevronDown");
-    addImport(imports, "lucide-react", "MoreHorizontal");
-    addImport(imports, "@/components/ui/button", "Button");
-    addImport(imports, "@/components/ui/checkbox", "Checkbox");
-    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenu");
-    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuCheckboxItem");
-    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuContent");
-    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuGroup");
-    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuItem");
-    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuLabel");
-    addImport(imports, "@/components/ui/dropdown-menu", "DropdownMenuTrigger");
-    addImport(imports, "@/components/ui/input", "Input");
-    addImport(imports, "@/components/ui/table", "Table");
-    addImport(imports, "@/components/ui/table", "TableBody");
-    addImport(imports, "@/components/ui/table", "TableCell");
-    addImport(imports, "@/components/ui/table", "TableHead");
-    addImport(imports, "@/components/ui/table", "TableHeader");
-    addImport(imports, "@/components/ui/table", "TableRow");
-    const template = `// Sample payment data
-const data: Payment[] = [
-  { id: "m5gr84i9", amount: 316, status: "success",    email: "ken99@example.com" },
-  { id: "3u1reuv4", amount: 242, status: "success",    email: "abe45@example.com" },
-  { id: "derv1ws0", amount: 837, status: "processing", email: "monserrat44@example.com" },
-  { id: "5kma53ae", amount: 874, status: "success",    email: "silas22@example.com" },
-  { id: "bhqecj4p", amount: 721, status: "failed",     email: "carmella@example.com" },
-  { id: "p9xk21hf", amount: 150, status: "pending",    email: "john.doe@example.com" },
-  { id: "q8wm47js", amount: 499, status: "success",    email: "jane.smith@example.com" },
-  { id: "r7vn63kt", amount: 299, status: "processing", email: "alex.johnson@example.com" },
-  { id: "s6up89lu", amount: 125, status: "failed",     email: "sarah.williams@example.com" },
-  { id: "t5to15mv", amount: 650, status: "pending",    email: "mike.brown@example.com" },
-]
-
-export type Payment = {
-  id: string
-  amount: number
-  status: "pending" | "processing" | "success" | "failed"
-  email: string
-}
-
-const columns: ColumnDef<Payment>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as string
-      return (
-        <div className={\`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize \${
-          status === "success"    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-          : status === "processing" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-          : status === "failed"   ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-        }\`}>
-          {status}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: "email",
-    header: ({ column }) => (
-      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-        Email <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
-  },
-  {
-    accessorKey: "amount",
-    header: ({ column }) => (
-      <div className="text-right">
-        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Amount <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    ),
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("amount"))
-      const formatted = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
-      return <div className="text-right font-medium">{formatted}</div>
-    },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const payment = row.original
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(payment.id)}>
-                Copy payment ID
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuGroup>
-              <DropdownMenuItem>View customer</DropdownMenuItem>
-              <DropdownMenuItem>View payment details</DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
-  },
-]
-
-export default function DataTableDemo() {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
-
-  const table = useReactTable({
-    data,
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: { sorting, columnFilters, columnVisibility, rowSelection },
-  })
-
-  return (
-    <div className="container mx-auto py-10">
-      <div className="w-full">
-        <div className="flex items-center gap-4 py-4">
-          <Input
-            placeholder="Filter emails..."
-            value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
-            onChange={(e) => table.getColumn("email")?.setFilterValue(e.target.value)}
-            className="max-w-sm"
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto">
-                Columns <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                {table.getAllColumns().filter((col) => col.getCanHide()).map((col) => (
-                  <DropdownMenuCheckboxItem
-                    key={col.id}
-                    className="capitalize"
-                    checked={col.getIsVisible()}
-                    onCheckedChange={(value) => col.toggleVisibility(!!value)}
-                  >
-                    {col.id}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div className="overflow-hidden rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">No results.</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="flex items-center justify-end gap-2 py-4">
-          <div className="flex-1 text-sm text-muted-foreground">
-            {table.getFilteredSelectedRowModel().rows.length} of{" "}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-              Previous
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-              Next
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}`;
-    addImport(imports, PREAMBLE_KEY, template);
-    return "";
-  }
   function isAccordionTrigger(node) {
     return "component" in node && node.component === "AccordionTrigger";
   }
@@ -1984,1443 +3692,6 @@ ${ip}</AccordionItem>`;
 ${itemsJsx}
 ${pad}</Accordion>`;
   }
-  function collectTexts(nodes) {
-    const out = [];
-    for (const n of nodes) {
-      if ("isText" in n) {
-        out.push(n.content);
-        continue;
-      }
-      if ("isLayout" in n)
-        out.push(...collectTexts(n.children));
-      if ("component" in n && Array.isArray(n.children))
-        out.push(...collectTexts(n.children));
-    }
-    return out;
-  }
-  function findIconChild(children) {
-    if (typeof children === "string")
-      return null;
-    for (const c of children) {
-      if ("isIcon" in c)
-        return c.lucideName;
-      if ("isLayout" in c) {
-        const r = findIconChild(c.children);
-        if (r)
-          return r;
-      }
-      if ("component" in c) {
-        const r = findIconChild(c.children);
-        if (r)
-          return r;
-      }
-    }
-    return null;
-  }
-  function collectButtons(nodes) {
-    const out = [];
-    for (const n of nodes) {
-      if ("component" in n) {
-        const sn = n;
-        if (sn.component === "Button") {
-          out.push(sn);
-          continue;
-        }
-        if (Array.isArray(sn.children))
-          out.push(...collectButtons(sn.children));
-      }
-      if ("isLayout" in n)
-        out.push(...collectButtons(n.children));
-    }
-    return out;
-  }
-  function renderAlertDialog(node, imports, indent) {
-    var _a, _b, _c, _d, _e, _f;
-    const p0 = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    const p4 = "  ".repeat(indent + 4);
-    const children = Array.isArray(node.children) ? node.children : [];
-    const texts = collectTexts(children);
-    const buttons = collectButtons(children);
-    const title = (_a = texts[0]) != null ? _a : "Are you absolutely sure?";
-    const description = (_b = texts[1]) != null ? _b : "This action cannot be undone.";
-    const isCancel = (b) => b.props.some((p) => p.shadcnProp === "variant" && ["outline", "ghost", "secondary"].includes(p.value));
-    const cancelBtn = (_c = buttons.find(isCancel)) != null ? _c : buttons[1];
-    const actionBtn = (_d = buttons.find((b) => b !== cancelBtn)) != null ? _d : buttons[0];
-    const cancelLabel = typeof (cancelBtn == null ? void 0 : cancelBtn.children) === "string" ? cancelBtn.children : "Cancel";
-    const actionLabel = typeof (actionBtn == null ? void 0 : actionBtn.children) === "string" ? actionBtn.children : "Continue";
-    const cancelVariant = (_e = cancelBtn == null ? void 0 : cancelBtn.props.find((p) => p.shadcnProp === "variant")) == null ? void 0 : _e.value;
-    const actionVariant = (_f = actionBtn == null ? void 0 : actionBtn.props.find((p) => p.shadcnProp === "variant")) == null ? void 0 : _f.value;
-    const cancelProps = cancelVariant && cancelVariant !== "default" ? ` variant="${cancelVariant}"` : "";
-    const actionProps = actionVariant && actionVariant !== "default" ? ` variant="${actionVariant}"` : "";
-    const propsStr = renderProps(node.props);
-    [
-      "AlertDialog",
-      "AlertDialogTrigger",
-      "AlertDialogContent",
-      "AlertDialogHeader",
-      "AlertDialogTitle",
-      "AlertDialogDescription",
-      "AlertDialogFooter",
-      "AlertDialogCancel",
-      "AlertDialogAction"
-    ].forEach((n) => addImport(imports, "@/components/ui/alert-dialog", n));
-    addImport(imports, "@/components/ui/button", "Button");
-    return [
-      `${p0}<AlertDialog${propsStr}>`,
-      `${p1}<AlertDialogTrigger asChild>`,
-      `${p2}<Button variant="outline">Open</Button>`,
-      `${p1}</AlertDialogTrigger>`,
-      `${p1}<AlertDialogContent>`,
-      `${p2}<AlertDialogHeader>`,
-      `${p3}<AlertDialogTitle>${title}</AlertDialogTitle>`,
-      `${p3}<AlertDialogDescription>${description}</AlertDialogDescription>`,
-      `${p2}</AlertDialogHeader>`,
-      `${p2}<AlertDialogFooter>`,
-      `${p3}<AlertDialogCancel${cancelProps}>${cancelLabel}</AlertDialogCancel>`,
-      `${p3}<AlertDialogAction${actionProps}>${actionLabel}</AlertDialogAction>`,
-      `${p2}</AlertDialogFooter>`,
-      `${p1}</AlertDialogContent>`,
-      `${p0}</AlertDialog>`
-    ].join("\n");
-  }
-  function renderBreadcrumb(node, imports, indent) {
-    var _a;
-    const p0 = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    const children = Array.isArray(node.children) ? node.children : [];
-    const itemIndices = children.map((c, i) => "component" in c && c.component === "BreadcrumbItem" ? i : -1).filter((i) => i >= 0);
-    const lastItemIdx = (_a = itemIndices[itemIndices.length - 1]) != null ? _a : -1;
-    ["Breadcrumb", "BreadcrumbList", "BreadcrumbItem", "BreadcrumbLink", "BreadcrumbSeparator", "BreadcrumbPage"].forEach((n) => addImport(imports, "@/components/ui/breadcrumb", n));
-    const listInner = children.map((c, idx) => {
-      if (!("component" in c))
-        return "";
-      const sn = c;
-      if (sn.component === "BreadcrumbSeparator") {
-        return `${p2}<BreadcrumbSeparator />`;
-      }
-      if (sn.component === "BreadcrumbItem") {
-        const label = typeof sn.children === "string" ? sn.children : "Link";
-        if (idx === lastItemIdx) {
-          return `${p2}<BreadcrumbItem>
-${p3}<BreadcrumbPage>${label}</BreadcrumbPage>
-${p2}</BreadcrumbItem>`;
-        }
-        return `${p2}<BreadcrumbItem>
-${p3}<BreadcrumbLink href="/">${label}</BreadcrumbLink>
-${p2}</BreadcrumbItem>`;
-      }
-      return renderNode(c, imports, indent + 2);
-    }).filter(Boolean).join("\n");
-    return `${p0}<Breadcrumb>
-${p1}<BreadcrumbList>
-${listInner}
-${p1}</BreadcrumbList>
-${p0}</Breadcrumb>`;
-  }
-  function renderCardHeader(slotChildren, imports, indent) {
-    if (!(slotChildren == null ? void 0 : slotChildren.length))
-      return "";
-    const p1 = "  ".repeat(indent);
-    const p2 = "  ".repeat(indent + 1);
-    addImport(imports, "@/components/ui/card", "CardHeader");
-    addImport(imports, "@/components/ui/card", "CardTitle");
-    addImport(imports, "@/components/ui/card", "CardDescription");
-    const texts = collectTexts(slotChildren);
-    const lines = [];
-    if (texts[0])
-      lines.push(`${p2}<CardTitle>${texts[0]}</CardTitle>`);
-    if (texts[1])
-      lines.push(`${p2}<CardDescription>${texts[1]}</CardDescription>`);
-    const nonText = slotChildren.filter((c) => !("isText" in c));
-    nonText.forEach((c) => {
-      const s = renderNode(c, imports, indent + 1);
-      if (s)
-        lines.push(s);
-    });
-    if (!lines.length)
-      return "";
-    return `${p1}<CardHeader>
-${lines.join("\n")}
-${p1}</CardHeader>`;
-  }
-  function renderCardContent(slotChildren, imports, indent) {
-    if (!(slotChildren == null ? void 0 : slotChildren.length))
-      return "";
-    const p1 = "  ".repeat(indent);
-    addImport(imports, "@/components/ui/card", "CardContent");
-    const inner = slotChildren.map((c) => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
-    return inner ? `${p1}<CardContent>
-${inner}
-${p1}</CardContent>` : "";
-  }
-  function renderCardFooter(slotChildren, imports, indent) {
-    if (!(slotChildren == null ? void 0 : slotChildren.length))
-      return "";
-    const p1 = "  ".repeat(indent);
-    addImport(imports, "@/components/ui/card", "CardFooter");
-    const inner = slotChildren.map((c) => renderNode(c, imports, indent + 1)).filter(Boolean).join("\n");
-    return inner ? `${p1}<CardFooter>
-${inner}
-${p1}</CardFooter>` : "";
-  }
-  function renderCard(node, imports, indent) {
-    const p0 = "  ".repeat(indent);
-    addImport(imports, "@/components/ui/card", "Card");
-    const children = Array.isArray(node.children) ? node.children : [];
-    const layoutChildren = children.filter((c) => "isLayout" in c);
-    let slotFrames;
-    if (layoutChildren.length === 1 && layoutChildren[0].children.length > 0 && layoutChildren[0].children.every((c) => "isLayout" in c)) {
-      slotFrames = layoutChildren[0].children;
-    } else {
-      slotFrames = layoutChildren;
-    }
-    const slotContents = slotFrames.map((f) => {
-      var _a;
-      return (_a = f.children) != null ? _a : [];
-    });
-    const sections = [];
-    if (slotContents.length === 1) {
-      const s = renderCardContent(slotContents[0], imports, indent + 1);
-      if (s)
-        sections.push(s);
-    } else if (slotContents.length === 2) {
-      const h = renderCardHeader(slotContents[0], imports, indent + 1);
-      const c = renderCardContent(slotContents[1], imports, indent + 1);
-      if (h)
-        sections.push(h);
-      if (c)
-        sections.push(c);
-    } else if (slotContents.length >= 3) {
-      const h = renderCardHeader(slotContents[0], imports, indent + 1);
-      if (h)
-        sections.push(h);
-      for (let i = 1; i < slotContents.length - 1; i++) {
-        const c = renderCardContent(slotContents[i], imports, indent + 1);
-        if (c)
-          sections.push(c);
-      }
-      const f = renderCardFooter(slotContents[slotContents.length - 1], imports, indent + 1);
-      if (f)
-        sections.push(f);
-    }
-    const propsStr = renderProps(node.props);
-    return `${p0}<Card${propsStr}>
-${sections.join("\n")}
-${p0}</Card>`;
-  }
-  function findFirstChartNode(nodes) {
-    for (const n of nodes) {
-      if ("component" in n && n.component.startsWith(CHART_COMPONENT_PREFIX)) {
-        return n;
-      }
-      if ("isLayout" in n) {
-        const found = findFirstChartNode(n.children);
-        if (found)
-          return found;
-      }
-    }
-    return null;
-  }
-  function toJsKey(label) {
-    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/, "");
-    return key || "value";
-  }
-  function extractSeries(legendLabels, count) {
-    var _a, _b;
-    const result = [];
-    for (let i = 0; i < count; i++) {
-      result.push((_b = (_a = legendLabels[i]) != null ? _a : FALLBACK_SERIES[i]) != null ? _b : `series${i + 1}`);
-    }
-    return result;
-  }
-  function renderBarChart(node, imports, indent) {
-    var _a;
-    const typeProp = node.props.find((p) => p.shadcnProp === "type");
-    const chartType = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "default";
-    const children = Array.isArray(node.children) ? node.children : [];
-    const allTexts = collectTexts(children);
-    const legendLabels = allTexts.filter((t) => !/^[\d.,]+%?$/.test(t.trim()));
-    const seriesCount = chartType === "multiple" || chartType === "stacked" ? 2 : 1;
-    const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
-    const dataLines = CHART_MONTHS.map((m, mi) => {
-      const vals = series.map((s) => {
-        var _a2, _b;
-        return `${s.key}: ${(_b = (_a2 = CHART_VALUES[s.idx]) == null ? void 0 : _a2[mi]) != null ? _b : 100}`;
-      }).join(", ");
-      return `  { month: "${m}", ${vals} },`;
-    });
-    const chartDataStr = `const chartData = [
-${dataLines.join("\n")}
-]`;
-    const configLines = series.map(
-      (s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`
-    );
-    const chartConfigStr = `const chartConfig = {
-${configLines.join("\n")}
-} satisfies ChartConfig`;
-    addImport(imports, "recharts", "BarChart");
-    addImport(imports, "recharts", "Bar");
-    addImport(imports, "recharts", "CartesianGrid");
-    addImport(imports, "@/components/ui/chart", "ChartContainer");
-    addImport(imports, "@/components/ui/chart", "type ChartConfig");
-    addImport(imports, "@/components/ui/chart", "ChartTooltip");
-    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
-    const p0 = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const barElems = series.map((s, i) => {
-      if (chartType === "stacked") {
-        const isFirst = i === 0;
-        const isLast = i === series.length - 1;
-        const radius = isLast ? `{[4, 4, 0, 0]}` : isFirst ? `{[0, 0, 4, 4]}` : `{0}`;
-        return `${p2}<Bar dataKey="${s.key}" fill="var(--color-${s.key})" radius=${radius} stackId="a" />`;
-      }
-      return `${p2}<Bar dataKey="${s.key}" fill="var(--color-${s.key})" radius={4} />`;
-    }).join("\n");
-    let chartInner;
-    if (chartType === "horizontal") {
-      addImport(imports, "recharts", "XAxis");
-      addImport(imports, "recharts", "YAxis");
-      chartInner = [
-        `${p1}<BarChart accessibilityLayer data={chartData} layout="vertical">`,
-        `${p2}<CartesianGrid horizontal={false} />`,
-        `${p2}<XAxis type="number" hide />`,
-        `${p2}<YAxis dataKey="month" type="category" tickLine={false} axisLine={false} />`,
-        `${p2}<ChartTooltip content={<ChartTooltipContent />} />`,
-        barElems,
-        `${p1}</BarChart>`
-      ].join("\n");
-    } else {
-      addImport(imports, "recharts", "XAxis");
-      chartInner = [
-        `${p1}<BarChart accessibilityLayer data={chartData}>`,
-        `${p2}<CartesianGrid vertical={false} />`,
-        `${p2}<XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} tickFormatter={(v) => v.slice(0, 3)} />`,
-        `${p2}<ChartTooltip content={<ChartTooltipContent />} />`,
-        barElems,
-        `${p1}</BarChart>`
-      ].join("\n");
-    }
-    if (chartType === "interactive") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
-      addImport(imports, CSS_KEY, CHART_CSS_VARS);
-      addImport(imports, "recharts", "BarChart");
-      addImport(imports, "recharts", "Bar");
-      addImport(imports, "recharts", "CartesianGrid");
-      addImport(imports, "recharts", "XAxis");
-      addImport(imports, "@/components/ui/chart", "ChartContainer");
-      addImport(imports, "@/components/ui/chart", "type ChartConfig");
-      addImport(imports, "@/components/ui/chart", "ChartTooltip");
-      addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
-      const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
-      const DATES = ["2024-04-01", "2024-04-08", "2024-04-15", "2024-04-22", "2024-04-29", "2024-05-06", "2024-05-13", "2024-05-20", "2024-05-27", "2024-06-03", "2024-06-10", "2024-06-17", "2024-06-24"];
-      const VALS2 = [222, 97, 167, 242, 373, 301, 245, 409, 59, 261, 327, 292, 342];
-      const VALS3 = [150, 180, 120, 260, 290, 340, 180, 220, 100, 310, 250, 190, 280];
-      const iDataLines = DATES.map((d, i) => {
-        const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS2[i] : VALS3[i]}`).join(", ");
-        return `  { date: "${d}", ${vals} },`;
-      });
-      addImport(imports, PREAMBLE_KEY, `const chartData = [
-${iDataLines.join("\n")}
-]`);
-      addImport(imports, PREAMBLE_KEY, `const chartConfig = {
-${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}
-} satisfies ChartConfig`);
-      const keys = iSeries.map((s) => `"${s.key}"`).join(" | ");
-      addImport(imports, PREAMBLE_KEY, `const [activeChart, setActiveChart] = useState<${keys}>("${iSeries[0].key}")`);
-      const p02 = "  ".repeat(indent);
-      const p12 = "  ".repeat(indent + 1);
-      const p22 = "  ".repeat(indent + 2);
-      return `${p02}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
-${p12}<BarChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>
-${p22}<CartesianGrid vertical={false} />
-${p22}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />
-${p22}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" nameKey="views" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />
-${p22}<Bar dataKey={activeChart} fill={\`var(--color-\${activeChart})\`} />
-${p12}</BarChart>
-${p02}</ChartContainer>`;
-    }
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
-    addImport(imports, CSS_KEY, CHART_CSS_VARS);
-    addImport(imports, PREAMBLE_KEY, chartDataStr);
-    addImport(imports, PREAMBLE_KEY, chartConfigStr);
-    return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-${chartInner}
-${p0}</ChartContainer>`;
-  }
-  function renderAreaChart(node, imports, indent) {
-    var _a;
-    const typeProp = node.props.find((p) => p.shadcnProp === "type");
-    const chartType = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "default";
-    const children = Array.isArray(node.children) ? node.children : [];
-    const allTexts = collectTexts(children);
-    const legendLabels = allTexts.filter((t) => !/^[\d.,]+%?$/.test(t.trim()));
-    const seriesCount = chartType === "stacked" ? 2 : 1;
-    const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
-    addImport(imports, CSS_KEY, CHART_CSS_VARS);
-    if (chartType === "interactive") {
-      addImport(imports, "recharts", "AreaChart");
-      addImport(imports, "recharts", "Area");
-      addImport(imports, "recharts", "CartesianGrid");
-      addImport(imports, "recharts", "XAxis");
-      addImport(imports, "@/components/ui/chart", "ChartContainer");
-      addImport(imports, "@/components/ui/chart", "type ChartConfig");
-      addImport(imports, "@/components/ui/chart", "ChartTooltip");
-      addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
-      const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
-      const DATES = ["2024-04-01", "2024-04-08", "2024-04-15", "2024-04-22", "2024-04-29", "2024-05-06", "2024-05-13", "2024-05-20", "2024-05-27", "2024-06-03", "2024-06-10", "2024-06-17", "2024-06-24"];
-      const VALS_A = [222, 97, 167, 242, 373, 301, 245, 409, 59, 261, 327, 292, 342];
-      const VALS_B = [150, 180, 120, 260, 290, 340, 180, 220, 100, 310, 250, 190, 280];
-      const iDataLines = DATES.map((d, i) => {
-        const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS_A[i] : VALS_B[i]}`).join(", ");
-        return `  { date: "${d}", ${vals} },`;
-      });
-      addImport(imports, PREAMBLE_KEY, `const chartData = [
-${iDataLines.join("\n")}
-]`);
-      addImport(imports, PREAMBLE_KEY, `const chartConfig = {
-${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}
-} satisfies ChartConfig`);
-      const keys = iSeries.map((s) => `"${s.key}"`).join(" | ");
-      addImport(imports, PREAMBLE_KEY, `const [activeChart, setActiveChart] = useState<${keys}>("${iSeries[0].key}")`);
-      const p02 = "  ".repeat(indent);
-      const p12 = "  ".repeat(indent + 1);
-      const p22 = "  ".repeat(indent + 2);
-      const p3 = "  ".repeat(indent + 3);
-      const gradientDefs2 = iSeries.map((s) => {
-        const cap = s.key.charAt(0).toUpperCase() + s.key.slice(1);
-        return `${p3}<linearGradient id="fill${cap}" x1="0" y1="0" x2="0" y2="1">
-${p3}  <stop offset="5%" stopColor="var(--color-${s.key})" stopOpacity={0.8} />
-${p3}  <stop offset="95%" stopColor="var(--color-${s.key})" stopOpacity={0.1} />
-${p3}</linearGradient>`;
-      }).join("\n");
-      const areaElems2 = iSeries.map((s) => {
-        const cap = s.key.charAt(0).toUpperCase() + s.key.slice(1);
-        return `${p3}<Area dataKey="${s.key}" type="natural" fill="url(#fill${cap})" fillOpacity={0.4} stroke="var(--color-${s.key})" />`;
-      }).join("\n");
-      return [
-        `${p02}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">`,
-        `${p12}<AreaChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
-        `${p22}<defs>`,
-        gradientDefs2,
-        `${p22}</defs>`,
-        `${p22}<CartesianGrid vertical={false} />`,
-        `${p22}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />`,
-        `${p22}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />`,
-        areaElems2,
-        `${p12}</AreaChart>`,
-        `${p02}</ChartContainer>`
-      ].join("\n");
-    }
-    const dataLines = CHART_MONTHS.map((m, mi) => {
-      const vals = series.map((s) => {
-        var _a2, _b;
-        return `${s.key}: ${(_b = (_a2 = CHART_VALUES[s.idx]) == null ? void 0 : _a2[mi]) != null ? _b : 100}`;
-      }).join(", ");
-      return `  { month: "${m}", ${vals} },`;
-    });
-    const chartDataStr = `const chartData = [
-${dataLines.join("\n")}
-]`;
-    const configLines = series.map(
-      (s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`
-    );
-    const chartConfigStr = `const chartConfig = {
-${configLines.join("\n")}
-} satisfies ChartConfig`;
-    addImport(imports, PREAMBLE_KEY, chartDataStr);
-    addImport(imports, PREAMBLE_KEY, chartConfigStr);
-    addImport(imports, "recharts", "AreaChart");
-    addImport(imports, "recharts", "Area");
-    addImport(imports, "recharts", "CartesianGrid");
-    addImport(imports, "recharts", "XAxis");
-    addImport(imports, "@/components/ui/chart", "ChartContainer");
-    addImport(imports, "@/components/ui/chart", "type ChartConfig");
-    addImport(imports, "@/components/ui/chart", "ChartTooltip");
-    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
-    const p0 = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const curveType = chartType === "linear" ? "linear" : chartType === "step" ? "step" : "natural";
-    const gradientDefs = series.map((s) => {
-      const capKey = s.key.charAt(0).toUpperCase() + s.key.slice(1);
-      return [
-        `${p2}  <linearGradient id="fill${capKey}" x1="0" y1="0" x2="0" y2="1">`,
-        `${p2}    <stop offset="5%" stopColor="var(--color-${s.key})" stopOpacity={0.8} />`,
-        `${p2}    <stop offset="95%" stopColor="var(--color-${s.key})" stopOpacity={0.1} />`,
-        `${p2}  </linearGradient>`
-      ].join("\n");
-    }).join("\n");
-    const areaElems = series.map((s) => {
-      const capKey = s.key.charAt(0).toUpperCase() + s.key.slice(1);
-      const stackProp = chartType === "stacked" ? ` stackId="a"` : "";
-      return `${p2}<Area type="${curveType}" dataKey="${s.key}" fill="url(#fill${capKey})" fillOpacity={0.4} stroke="var(--color-${s.key})"${stackProp} />`;
-    }).join("\n");
-    const chartInner = [
-      `${p1}<AreaChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
-      `${p2}<defs>`,
-      gradientDefs,
-      `${p2}</defs>`,
-      `${p2}<CartesianGrid vertical={false} />`,
-      `${p2}<XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />`,
-      `${p2}<ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />`,
-      areaElems,
-      `${p1}</AreaChart>`
-    ].join("\n");
-    return `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-${chartInner}
-${p0}</ChartContainer>`;
-  }
-  function renderLineChart(node, imports, indent) {
-    var _a;
-    const typeProp = node.props.find((p) => p.shadcnProp === "type");
-    const chartType = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "default";
-    const children = Array.isArray(node.children) ? node.children : [];
-    const allTexts = collectTexts(children);
-    const legendLabels = allTexts.filter((t) => !/^[\d.,]+%?$/.test(t.trim()));
-    const seriesCount = chartType === "stacked" ? 2 : 1;
-    const series = extractSeries(legendLabels, seriesCount).map((label, i) => ({ label, key: toJsKey(label), idx: i }));
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add chart");
-    addImport(imports, CSS_KEY, CHART_CSS_VARS);
-    addImport(imports, "recharts", "LineChart");
-    addImport(imports, "recharts", "Line");
-    addImport(imports, "recharts", "CartesianGrid");
-    addImport(imports, "recharts", "XAxis");
-    addImport(imports, "@/components/ui/chart", "ChartContainer");
-    addImport(imports, "@/components/ui/chart", "type ChartConfig");
-    addImport(imports, "@/components/ui/chart", "ChartTooltip");
-    addImport(imports, "@/components/ui/chart", "ChartTooltipContent");
-    if (chartType === "interactive") {
-      const iSeries = series.length >= 2 ? series.slice(0, 2) : [{ label: "desktop", key: "desktop", idx: 0 }, { label: "mobile", key: "mobile", idx: 1 }];
-      const DATES = ["2024-04-01", "2024-04-08", "2024-04-15", "2024-04-22", "2024-04-29", "2024-05-06", "2024-05-13", "2024-05-20", "2024-05-27", "2024-06-03", "2024-06-10", "2024-06-17", "2024-06-24"];
-      const VALS_A = [222, 97, 167, 242, 373, 301, 245, 409, 59, 261, 327, 292, 342];
-      const VALS_B = [150, 180, 120, 260, 290, 340, 180, 220, 100, 310, 250, 190, 280];
-      const iDataLines = DATES.map((d, i) => {
-        const vals = iSeries.map((s, si) => `${s.key}: ${si === 0 ? VALS_A[i] : VALS_B[i]}`).join(", ");
-        return `  { date: "${d}", ${vals} },`;
-      });
-      addImport(imports, PREAMBLE_KEY, `const chartData = [
-${iDataLines.join("\n")}
-]`);
-      addImport(imports, PREAMBLE_KEY, `const chartConfig = {
-${iSeries.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}
-} satisfies ChartConfig`);
-      const keys = iSeries.map((s) => `"${s.key}"`).join(" | ");
-      addImport(imports, PREAMBLE_KEY, `const [activeLine, setActiveLine] = useState<${keys}>("${iSeries[0].key}")`);
-      const p02 = "  ".repeat(indent);
-      const p12 = "  ".repeat(indent + 1);
-      const p22 = "  ".repeat(indent + 2);
-      const lineElems2 = iSeries.map(
-        (s) => `${p22}<Line dataKey="${s.key}" type="natural" stroke="var(--color-${s.key})" strokeWidth={2} dot={false} strokeOpacity={activeLine === "${s.key}" ? 1 : 0.3} />`
-      ).join("\n");
-      return [
-        `${p02}<ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">`,
-        `${p12}<LineChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
-        `${p22}<CartesianGrid vertical={false} />`,
-        `${p22}<XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />`,
-        `${p22}<ChartTooltip content={<ChartTooltipContent className="w-[150px]" labelFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} />} />`,
-        lineElems2,
-        `${p12}</LineChart>`,
-        `${p02}</ChartContainer>`
-      ].join("\n");
-    }
-    const dataLines = CHART_MONTHS.map((m, mi) => {
-      const vals = series.map((s) => {
-        var _a2, _b;
-        return `${s.key}: ${(_b = (_a2 = CHART_VALUES[s.idx]) == null ? void 0 : _a2[mi]) != null ? _b : 100}`;
-      }).join(", ");
-      return `  { month: "${m}", ${vals} },`;
-    });
-    addImport(imports, PREAMBLE_KEY, `const chartData = [
-${dataLines.join("\n")}
-]`);
-    addImport(imports, PREAMBLE_KEY, `const chartConfig = {
-${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-${i + 1})" },`).join("\n")}
-} satisfies ChartConfig`);
-    const p0 = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const curveType = chartType === "linear" ? "linear" : chartType === "step" ? "step" : "natural";
-    const lineElems = series.map(
-      (s) => `${p2}<Line dataKey="${s.key}" type="${curveType}" stroke="var(--color-${s.key})" strokeWidth={2} dot={false} />`
-    ).join("\n");
-    return [
-      `${p0}<ChartContainer config={chartConfig} className="min-h-[200px] w-full">`,
-      `${p1}<LineChart accessibilityLayer data={chartData} margin={{ left: 12, right: 12 }}>`,
-      `${p2}<CartesianGrid vertical={false} />`,
-      `${p2}<XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />`,
-      `${p2}<ChartTooltip cursor={false} content={<ChartTooltipContent />} />`,
-      lineElems,
-      `${p1}</LineChart>`,
-      `${p0}</ChartContainer>`
-    ].join("\n");
-  }
-  function renderDatePickerSingle(imports, indent) {
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add calendar popover");
-    addImport(imports, DIRECTIVE_KEY, '"use client"');
-    addImport(imports, "react", "useState");
-    addImport(imports, "date-fns", "format");
-    addImport(imports, "@/components/ui/button", "Button");
-    addImport(imports, "@/components/ui/calendar", "Calendar");
-    addImport(imports, "@/components/ui/field", "Field");
-    addImport(imports, "@/components/ui/field", "FieldLabel");
-    addImport(imports, "@/components/ui/popover", "Popover");
-    addImport(imports, "@/components/ui/popover", "PopoverContent");
-    addImport(imports, "@/components/ui/popover", "PopoverTrigger");
-    addImport(imports, PREAMBLE_KEY, `const [date, setDate] = useState<Date>()`);
-    return [
-      `${pad}<Field className="mx-auto w-44">`,
-      `${p1}<FieldLabel htmlFor="date-picker">Date</FieldLabel>`,
-      `${p1}<Popover>`,
-      `${p2}<PopoverTrigger asChild>`,
-      `${p2}  <Button variant="outline" id="date-picker" className="justify-start font-normal">`,
-      `${p2}    {date ? format(date, "PPP") : <span>Pick a date</span>}`,
-      `${p2}  </Button>`,
-      `${p2}</PopoverTrigger>`,
-      `${p2}<PopoverContent className="w-auto p-0" align="start">`,
-      `${p2}  <Calendar mode="single" selected={date} onSelect={setDate} defaultMonth={date} />`,
-      `${p2}</PopoverContent>`,
-      `${p1}</Popover>`,
-      `${pad}</Field>`
-    ].join("\n");
-  }
-  function renderDatePickerRange(imports, indent, numberOfMonths = 2) {
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add calendar popover");
-    addImport(imports, DIRECTIVE_KEY, '"use client"');
-    addImport(imports, "react", "useState");
-    addImport(imports, "date-fns", "addDays");
-    addImport(imports, "date-fns", "format");
-    addImport(imports, "lucide-react", "CalendarIcon");
-    addImport(imports, "react-day-picker", "type DateRange");
-    addImport(imports, "@/components/ui/button", "Button");
-    addImport(imports, "@/components/ui/calendar", "Calendar");
-    addImport(imports, "@/components/ui/field", "Field");
-    addImport(imports, "@/components/ui/field", "FieldLabel");
-    addImport(imports, "@/components/ui/popover", "Popover");
-    addImport(imports, "@/components/ui/popover", "PopoverContent");
-    addImport(imports, "@/components/ui/popover", "PopoverTrigger");
-    addImport(
-      imports,
-      PREAMBLE_KEY,
-      `const [date, setDate] = useState<DateRange | undefined>({
-  from: new Date(new Date().getFullYear(), 0, 20),
-  to: addDays(new Date(new Date().getFullYear(), 0, 20), 20),
-})`
-    );
-    return [
-      `${pad}<Field className="mx-auto w-60">`,
-      `${p1}<FieldLabel htmlFor="date-picker-range">Date Range</FieldLabel>`,
-      `${p1}<Popover>`,
-      `${p2}<PopoverTrigger asChild>`,
-      `${p2}  <Button variant="outline" id="date-picker-range" className="justify-start px-2.5 font-normal">`,
-      `${p2}    <CalendarIcon />`,
-      `${p2}    {date?.from ? (`,
-      `${p2}      date.to ? (`,
-      `${p2}        <>{format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}</>`,
-      `${p2}      ) : format(date.from, "LLL dd, y")`,
-      `${p2}    ) : <span>Pick a date</span>}`,
-      `${p2}  </Button>`,
-      `${p2}</PopoverTrigger>`,
-      `${p2}<PopoverContent className="w-auto p-0" align="start">`,
-      `${p2}  <Calendar mode="range" defaultMonth={date?.from} selected={date} onSelect={setDate} numberOfMonths={${numberOfMonths}} />`,
-      `${p2}</PopoverContent>`,
-      `${p1}</Popover>`,
-      `${pad}</Field>`
-    ].join("\n");
-  }
-  function renderDatePicker(node, imports, indent) {
-    var _a;
-    const monthsProp = node.props.find((p) => p.shadcnProp === "months");
-    const months = parseInt((_a = monthsProp == null ? void 0 : monthsProp.value) != null ? _a : "1", 10);
-    return months >= 2 ? renderDatePickerRange(imports, indent, months) : renderDatePickerSingle(imports, indent);
-  }
-  function renderInputOTPGroup(slots, imports, indent) {
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input-otp");
-    addImport(imports, DIRECTIVE_KEY, '"use client"');
-    addImport(imports, "@/components/ui/input-otp", "InputOTP");
-    addImport(imports, "@/components/ui/input-otp", "InputOTPGroup");
-    addImport(imports, "@/components/ui/input-otp", "InputOTPSlot");
-    const count = slots.length || 6;
-    const slotLines = Array.from({ length: count }, (_, i) => `${p2}<InputOTPSlot index={${i}} />`).join("\n");
-    return [
-      `${pad}<InputOTP maxLength={${count}}>`,
-      `${p1}<InputOTPGroup>`,
-      slotLines,
-      `${p1}</InputOTPGroup>`,
-      `${pad}</InputOTP>`
-    ].join("\n");
-  }
-  function renderInputOTP(node, imports, indent) {
-    return renderInputOTPGroup([node], imports, indent);
-  }
-  function findFirstText(children) {
-    if (typeof children === "string")
-      return children || null;
-    for (const c of children) {
-      if ("isText" in c)
-        return c.content || null;
-      if ("isInlineText" in c)
-        return c.content || null;
-      if ("isLayout" in c) {
-        const found = findFirstText(c.children);
-        if (found)
-          return found;
-      } else if ("component" in c) {
-        const found = findFirstText(c.children);
-        if (found)
-          return found;
-      }
-    }
-    return null;
-  }
-  function findDecorationNodes(children) {
-    if (typeof children === "string")
-      return [];
-    const result = [];
-    for (const c of children) {
-      if ("component" in c && c.component === "__input_decoration__") {
-        result.push(c);
-      } else if ("isLayout" in c) {
-        result.push(...findDecorationNodes(c.children));
-      } else if ("component" in c) {
-        result.push(...findDecorationNodes(c.children));
-      }
-    }
-    return result;
-  }
-  function renderInputAddon(dec, imports, indent, align) {
-    var _a, _b;
-    addImport(imports, "@/components/ui/input-group", "InputGroupAddon");
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const alignAttr = align ? ` align="${align}"` : "";
-    const muted = ((_a = dec.props.find((p) => p.shadcnProp === "type")) == null ? void 0 : _a.value) === "icon-muted";
-    const iconCls = `size-4${muted ? " text-muted-foreground" : ""}`;
-    const iconName = (_b = findIconChild(dec.children)) != null ? _b : "Search";
-    addImport(imports, "lucide-react", iconName);
-    return [
-      `${pad}<InputGroupAddon${alignAttr}>`,
-      `${p1}<${iconName} className="${iconCls}" />`,
-      `${pad}</InputGroupAddon>`
-    ].join("\n");
-  }
-  function renderInput(node, imports, indent) {
-    var _a, _b, _c;
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
-    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
-    const stateProp = node.props.find((p) => p.shadcnProp === "state");
-    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
-    const sizeVal = (_a = sizeProp == null ? void 0 : sizeProp.value) != null ? _a : "";
-    const state = (_b = stateProp == null ? void 0 : stateProp.value) != null ? _b : "";
-    const sizeClassMap = { large: "h-12", small: "h-8", mini: "h-6 text-xs" };
-    const errorClass = state === "error" ? "border-destructive" : "";
-    const classes = [(_c = sizeClassMap[sizeVal]) != null ? _c : "", round ? "rounded-full" : "", errorClass].filter(Boolean).join(" ");
-    const classAttr = classes ? ` className="${classes}"` : "";
-    const disAttr = state === "disabled" ? " disabled" : "";
-    const rawText = findFirstText(node.children);
-    let valueAttr = "";
-    if (state === "value" && rawText) {
-      valueAttr = ` defaultValue="${rawText}"`;
-    } else if (state === "placeholder" && rawText) {
-      valueAttr = ` placeholder="${rawText}"`;
-    } else if (state === "placeholder") {
-      valueAttr = ` placeholder="Enter a value"`;
-    }
-    const decorations = findDecorationNodes(node.children);
-    if (decorations.length > 0) {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input input-group");
-      addImport(imports, "@/components/ui/input-group", "InputGroup");
-      addImport(imports, "@/components/ui/input-group", "InputGroupInput");
-      const addonLines = decorations.map((dec) => {
-        const isRight = /right/i.test(dec.layerName);
-        return renderInputAddon(dec, imports, indent + 1, isRight ? "inline-end" : null);
-      });
-      return [
-        `${pad}<InputGroup>`,
-        `${p1}<InputGroupInput${valueAttr}${classAttr}${disAttr} />`,
-        ...addonLines,
-        `${pad}</InputGroup>`
-      ].join("\n");
-    }
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input");
-    addImport(imports, "@/components/ui/input", "Input");
-    return `${pad}<Input${valueAttr}${classAttr}${disAttr} />`;
-  }
-  function renderInputDecoration(node, imports, indent) {
-    return renderInputAddon(node, imports, indent, "inline-end");
-  }
-  function renderInputFile(node, imports, indent) {
-    var _a, _b;
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input field");
-    addImport(imports, "@/components/ui/input", "Input");
-    addImport(imports, "@/components/ui/field", "Field");
-    addImport(imports, "@/components/ui/field", "FieldLabel");
-    addImport(imports, "@/components/ui/field", "FieldDescription");
-    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
-    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
-    const stateProp = node.props.find((p) => p.shadcnProp === "state");
-    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
-    const sizeVal = (_a = sizeProp == null ? void 0 : sizeProp.value) != null ? _a : "";
-    const isError = (stateProp == null ? void 0 : stateProp.value) === "error";
-    const sizeClassMap = { large: "h-12", small: "h-8", mini: "h-6 text-xs" };
-    const classes = [(_b = sizeClassMap[sizeVal]) != null ? _b : "", round ? "rounded-full" : "", isError ? "border-destructive" : ""].filter(Boolean).join(" ");
-    const classAttr = classes ? ` className="${classes}"` : "";
-    return [
-      `${pad}<Field>`,
-      `${p1}<FieldLabel htmlFor="file">Label</FieldLabel>`,
-      `${p1}<Input id="file" type="file"${classAttr} />`,
-      `${p1}<FieldDescription>Select a file to upload.</FieldDescription>`,
-      `${pad}</Field>`
-    ].join("\n");
-  }
-  function renderField(node, imports, indent, orientation) {
-    var _a;
-    const typeProp = node.props.find((p) => p.shadcnProp === "type");
-    const type = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "text";
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add field");
-    addImport(imports, "@/components/ui/field", "Field");
-    addImport(imports, "@/components/ui/field", "FieldLabel");
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const orientAttr = orientation === "horizontal" ? ` orientation="horizontal"` : "";
-    const fieldId = `field-${type}`;
-    let inner = "";
-    if (type === "text") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add input");
-      addImport(imports, "@/components/ui/input", "Input");
-      inner = [
-        `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
-        `${p1}<Input id="${fieldId}" placeholder="Enter a value" />`
-      ].join("\n");
-    } else if (type === "select") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add select");
-      addImport(imports, "@/components/ui/select", "Select");
-      addImport(imports, "@/components/ui/select", "SelectContent");
-      addImport(imports, "@/components/ui/select", "SelectItem");
-      addImport(imports, "@/components/ui/select", "SelectTrigger");
-      addImport(imports, "@/components/ui/select", "SelectValue");
-      inner = [
-        `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
-        `${p1}<Select>`,
-        `${p1}  <SelectTrigger id="${fieldId}"><SelectValue placeholder="Select an item" /></SelectTrigger>`,
-        `${p1}  <SelectContent>`,
-        `${p1}    <SelectItem value="option1">Option 1</SelectItem>`,
-        `${p1}    <SelectItem value="option2">Option 2</SelectItem>`,
-        `${p1}  </SelectContent>`,
-        `${p1}</Select>`
-      ].join("\n");
-    } else if (type === "textarea") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add textarea");
-      addImport(imports, "@/components/ui/textarea", "Textarea");
-      inner = [
-        `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`,
-        `${p1}<Textarea id="${fieldId}" placeholder="Type your message here" />`
-      ].join("\n");
-    } else if (type === "radio") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add radio-group");
-      addImport(imports, "@/components/ui/radio-group", "RadioGroup");
-      addImport(imports, "@/components/ui/radio-group", "RadioGroupItem");
-      addImport(imports, "@/components/ui/label", "Label");
-      inner = [
-        `${p1}<FieldLabel>Label</FieldLabel>`,
-        `${p1}<RadioGroup defaultValue="option1">`,
-        `${p1}  <div className="flex items-center gap-2"><RadioGroupItem id="r1" value="option1" /><Label htmlFor="r1">Option 1</Label></div>`,
-        `${p1}  <div className="flex items-center gap-2"><RadioGroupItem id="r2" value="option2" /><Label htmlFor="r2">Option 2</Label></div>`,
-        `${p1}</RadioGroup>`
-      ].join("\n");
-    } else if (type === "checkbox") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
-      addImport(imports, "@/components/ui/checkbox", "Checkbox");
-      inner = [
-        `${p1}<Checkbox id="${fieldId}" />`,
-        `${p1}<FieldLabel htmlFor="${fieldId}">Label</FieldLabel>`
-      ].join("\n");
-      const checkboxOrient = ` orientation="horizontal"`;
-      return [`${pad}<Field${checkboxOrient}>`, inner, `${pad}</Field>`].join("\n");
-    } else if (type === "slider") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add slider");
-      addImport(imports, "@/components/ui/slider", "Slider");
-      inner = [
-        `${p1}<FieldLabel>Label</FieldLabel>`,
-        `${p1}<Slider defaultValue={[50]} max={100} step={1} />`
-      ].join("\n");
-    }
-    return [`${pad}<Field${orientAttr}>`, inner, `${pad}</Field>`].join("\n");
-  }
-  function findAllTexts(children) {
-    if (typeof children === "string")
-      return children ? [children] : [];
-    const out = [];
-    for (const c of children) {
-      if ("isText" in c) {
-        if (c.content)
-          out.push(c.content);
-      } else if ("isInlineText" in c) {
-        if (c.content)
-          out.push(c.content);
-      } else if ("isLayout" in c)
-        out.push(...findAllTexts(c.children));
-      else if ("component" in c)
-        out.push(...findAllTexts(c.children));
-    }
-    return out;
-  }
-  function renderItem(node, imports, indent) {
-    var _a, _b, _c, _d;
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add item");
-    addImport(imports, "@/components/ui/item", "Item");
-    addImport(imports, "@/components/ui/item", "ItemContent");
-    addImport(imports, "@/components/ui/item", "ItemTitle");
-    const get = (prop) => {
-      var _a2, _b2;
-      return (_b2 = (_a2 = node.props.find((p) => p.shadcnProp === prop)) == null ? void 0 : _a2.value) != null ? _b2 : null;
-    };
-    const variant = get("variant");
-    const size = get("size");
-    const mediaType = get("mediaType");
-    const actionType = get("actionType");
-    const titleText = get("title") || findAllTexts(node.children)[0] || "Title";
-    const descText = get("description") || findAllTexts(node.children)[1] || null;
-    const labelText = get("label");
-    const variantAttr = variant ? ` variant="${variant}"` : "";
-    const sizeAttr = size ? ` size="${size}"` : "";
-    const lines = [`${pad}<Item${variantAttr}${sizeAttr}>`];
-    if (mediaType) {
-      addImport(imports, "@/components/ui/item", "ItemMedia");
-      if (mediaType === "icon" || mediaType === "iconBadge") {
-        const iconName = (_a = findIconChild(node.children)) != null ? _a : "InboxIcon";
-        addImport(imports, "lucide-react", iconName);
-        const mvAttr = mediaType === "iconBadge" ? ` variant="iconBadge"` : ` variant="icon"`;
-        lines.push(`${p1}<ItemMedia${mvAttr}>`, `${p2}<${iconName} />`, `${p1}</ItemMedia>`);
-      } else if (mediaType === "avatar") {
-        addImport(imports, "@/components/ui/avatar", "Avatar");
-        addImport(imports, "@/components/ui/avatar", "AvatarImage");
-        addImport(imports, "@/components/ui/avatar", "AvatarFallback");
-        lines.push(
-          `${p1}<ItemMedia>`,
-          `${p2}<Avatar className="size-10">`,
-          `${p3}<AvatarImage src="" alt="" />`,
-          `${p3}<AvatarFallback>AB</AvatarFallback>`,
-          `${p2}</Avatar>`,
-          `${p1}</ItemMedia>`
-        );
-      } else if (mediaType === "avatarStack") {
-        addImport(imports, "@/components/ui/avatar", "Avatar");
-        addImport(imports, "@/components/ui/avatar", "AvatarImage");
-        addImport(imports, "@/components/ui/avatar", "AvatarFallback");
-        lines.push(
-          `${p1}<ItemMedia>`,
-          `${p2}<div className="flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background">`,
-          `${p3}<Avatar><AvatarImage src="" alt="" /><AvatarFallback>A</AvatarFallback></Avatar>`,
-          `${p3}<Avatar><AvatarImage src="" alt="" /><AvatarFallback>B</AvatarFallback></Avatar>`,
-          `${p2}</div>`,
-          `${p1}</ItemMedia>`
-        );
-      } else if (mediaType === "image") {
-        lines.push(
-          `${p1}<ItemMedia>`,
-          `${p2}<img src="" alt="" className="size-10 rounded-sm object-cover" />`,
-          `${p1}</ItemMedia>`
-        );
-      }
-    }
-    lines.push(`${p1}<ItemContent>`);
-    lines.push(`${p2}<ItemTitle>${titleText}</ItemTitle>`);
-    if (descText) {
-      addImport(imports, "@/components/ui/item", "ItemDescription");
-      lines.push(`${p2}<ItemDescription>${descText}</ItemDescription>`);
-    }
-    lines.push(`${p1}</ItemContent>`);
-    if (actionType) {
-      addImport(imports, "@/components/ui/item", "ItemActions");
-      if (actionType === "button") {
-        addImport(imports, "@/components/ui/button", "Button");
-        const btnText = (_b = findAllTexts(node.children).find((t) => t !== titleText && t !== descText)) != null ? _b : "Action";
-        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="sm" variant="outline">${btnText}</Button>`, `${p1}</ItemActions>`);
-      } else if (actionType === "iconButton") {
-        const iconName = (_c = findIconChild(node.children)) != null ? _c : "Plus";
-        addImport(imports, "@/components/ui/button", "Button");
-        addImport(imports, "lucide-react", iconName);
-        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="icon-sm" variant="outline" className="rounded-full"><${iconName} /></Button>`, `${p1}</ItemActions>`);
-      } else if (actionType === "label") {
-        lines.push(`${p1}<ItemActions>`, `${p2}<span className="text-sm text-muted-foreground">${labelText != null ? labelText : ""}</span>`, `${p1}</ItemActions>`);
-      } else if (actionType === "icon") {
-        const iconName = (_d = findIconChild(node.children)) != null ? _d : "ChevronRight";
-        addImport(imports, "@/components/ui/button", "Button");
-        addImport(imports, "lucide-react", iconName);
-        lines.push(`${p1}<ItemActions>`, `${p2}<Button size="icon-sm" variant="ghost"><${iconName} /></Button>`, `${p1}</ItemActions>`);
-      }
-    }
-    lines.push(`${pad}</Item>`);
-    return lines.join("\n");
-  }
-  function renderEmpty(node, imports, indent) {
-    var _a, _b, _c;
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add empty");
-    addImport(imports, "lucide-react", "Inbox");
-    addImport(imports, "@/components/ui/button", "Button");
-    addImport(imports, "@/components/ui/empty", "Empty");
-    addImport(imports, "@/components/ui/empty", "EmptyContent");
-    addImport(imports, "@/components/ui/empty", "EmptyDescription");
-    addImport(imports, "@/components/ui/empty", "EmptyHeader");
-    addImport(imports, "@/components/ui/empty", "EmptyMedia");
-    addImport(imports, "@/components/ui/empty", "EmptyTitle");
-    const variantProp = node.props.find((p) => p.shadcnProp === "variant");
-    const variant = (_a = variantProp == null ? void 0 : variantProp.value) != null ? _a : "default";
-    const children = Array.isArray(node.children) ? node.children : [];
-    const texts = collectTexts(children);
-    const title = (_b = texts[0]) != null ? _b : "No results";
-    const desc = (_c = texts[1]) != null ? _c : "Try adjusting your search or filters.";
-    const variantAttr = variant !== "default" ? ` variant="${variant}"` : "";
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    return [
-      `${pad}<Empty${variantAttr}>`,
-      `${p1}<EmptyHeader>`,
-      `${p2}<EmptyMedia><Inbox /></EmptyMedia>`,
-      `${p2}<EmptyTitle>${title}</EmptyTitle>`,
-      `${p2}<EmptyDescription>${desc}</EmptyDescription>`,
-      `${p1}</EmptyHeader>`,
-      `${p1}<EmptyContent>`,
-      `${p2}<Button>Take action</Button>`,
-      `${p1}</EmptyContent>`,
-      `${pad}</Empty>`
-    ].join("\n");
-  }
-  function renderNavigationMenuContent(items, imports, indent) {
-    const p0 = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    const p4 = "  ".repeat(indent + 4);
-    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuContent");
-    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuLink");
-    const lines = [
-      `${p0}<NavigationMenuContent>`,
-      `${p1}<ul className="grid gap-2 p-4 w-[400px]">`
-    ];
-    items.forEach((item) => {
-      var _a, _b, _c;
-      const texts = findAllTexts(item.children);
-      const title = (_a = texts[0]) != null ? _a : "Item";
-      const desc = (_b = texts[1]) != null ? _b : null;
-      const isDestruct = ((_c = item.props.find((p) => p.shadcnProp === "type")) == null ? void 0 : _c.value) === "destructive";
-      lines.push(
-        `${p2}<li>`,
-        `${p3}<NavigationMenuLink asChild>`,
-        `${p4}<a href="#">`,
-        `${p4}  <div className="flex flex-col gap-1 text-sm">`,
-        `${p4}    <div className="font-medium leading-none${isDestruct ? " text-destructive" : ""}">${title}</div>`,
-        ...desc ? [`${p4}    <div className="line-clamp-2 text-muted-foreground">${desc}</div>`] : [],
-        `${p4}  </div>`,
-        `${p4}</a>`,
-        `${p3}</NavigationMenuLink>`,
-        `${p2}</li>`
-      );
-    });
-    lines.push(`${p1}</ul>`, `${p0}</NavigationMenuContent>`);
-    return lines.join("\n");
-  }
-  function renderNavigationMenu(node, imports, indent) {
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add navigation-menu");
-    addImport(imports, DIRECTIVE_KEY, '"use client"');
-    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenu");
-    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuList");
-    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuItem");
-    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuLink");
-    addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuTrigger");
-    addImport(imports, "@/components/ui/navigation-menu", "navigationMenuTriggerStyle");
-    const children = Array.isArray(node.children) ? node.children : [];
-    const buttonChildren = children.filter(
-      (c) => "component" in c && c.component === "Button"
-    );
-    const triggerLabels = buttonChildren.length > 0 ? buttonChildren.map((btn) => {
-      var _a;
-      return (_a = typeof btn.children === "string" ? btn.children : findFirstText(btn.children)) != null ? _a : "Menu";
-    }) : findAllTexts(children).slice(0, 3);
-    const lines = [`${pad}<NavigationMenu>`, `${p1}<NavigationMenuList>`];
-    if (triggerLabels.length === 0) {
-      lines.push(
-        `${p2}<NavigationMenuItem>`,
-        `${p3}<NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>`,
-        `${p3}  <a href="#">Home</a>`,
-        `${p3}</NavigationMenuLink>`,
-        `${p2}</NavigationMenuItem>`
-      );
-    } else {
-      triggerLabels.forEach((label) => {
-        lines.push(
-          `${p2}<NavigationMenuItem>`,
-          `${p3}<NavigationMenuTrigger>${label}</NavigationMenuTrigger>`,
-          `${p3}<NavigationMenuContent>`,
-          `${p3}  {/* Add your menu items here */}`,
-          `${p3}</NavigationMenuContent>`,
-          `${p2}</NavigationMenuItem>`
-        );
-      });
-    }
-    lines.push(`${p1}</NavigationMenuList>`, `${pad}</NavigationMenu>`);
-    return lines.join("\n");
-  }
-  function renderIconButton(node, imports, indent) {
-    var _a, _b, _c, _d;
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button");
-    addImport(imports, "@/components/ui/button", "Button");
-    const pad = "  ".repeat(indent);
-    const variantProp = node.props.find((p) => p.shadcnProp === "variant");
-    const sizeProp = node.props.find((p) => p.shadcnProp === "size");
-    const roundProp = node.props.find((p) => p.shadcnProp === "roundness");
-    const disabledProp = node.props.find((p) => p.shadcnProp === "disabled");
-    const variant = (_a = variantProp == null ? void 0 : variantProp.value) != null ? _a : "default";
-    const sizeVal = (_b = sizeProp == null ? void 0 : sizeProp.value) != null ? _b : "default";
-    const round = (roundProp == null ? void 0 : roundProp.value) === "full";
-    const disabled = (disabledProp == null ? void 0 : disabledProp.value) === "true";
-    const variantAttr = variant !== "default" ? ` variant="${variant}"` : "";
-    const disabledAttr = disabled ? " disabled" : "";
-    const sizeClassMap = { large: "size-12", small: "size-8", mini: "size-6" };
-    const sizeClass = (_c = sizeClassMap[sizeVal]) != null ? _c : "";
-    const roundClass = round ? "rounded-full" : "";
-    const classes = [sizeClass, roundClass].filter(Boolean).join(" ");
-    const classAttr = classes ? ` className="${classes}"` : "";
-    const iconName = (_d = findIconChild(node.children)) != null ? _d : "Plus";
-    addImport(imports, "lucide-react", iconName);
-    return `${pad}<Button size="icon"${variantAttr}${classAttr}${disabledAttr}><${iconName} className="size-4" /></Button>`;
-  }
-  function renderHoverCard(node, imports, indent) {
-    var _a;
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add hover-card avatar");
-    addImport(imports, "@/components/ui/hover-card", "HoverCard");
-    addImport(imports, "@/components/ui/hover-card", "HoverCardContent");
-    addImport(imports, "@/components/ui/hover-card", "HoverCardTrigger");
-    addImport(imports, "@/components/ui/button", "Button");
-    addImport(imports, "@/components/ui/avatar", "Avatar");
-    addImport(imports, "@/components/ui/avatar", "AvatarFallback");
-    addImport(imports, "@/components/ui/avatar", "AvatarImage");
-    addImport(imports, "lucide-react", "CalendarDays");
-    const children = Array.isArray(node.children) ? node.children : [];
-    const texts = collectTexts(children);
-    const trigger = (_a = texts[0]) != null ? _a : "@nextjs";
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    const p4 = "  ".repeat(indent + 4);
-    return [
-      `${pad}<HoverCard>`,
-      `${p1}<HoverCardTrigger asChild>`,
-      `${p2}<Button variant="link">${trigger}</Button>`,
-      `${p1}</HoverCardTrigger>`,
-      `${p1}<HoverCardContent className="w-80">`,
-      `${p2}<div className="flex justify-between space-x-4">`,
-      `${p3}<Avatar>`,
-      `${p4}<AvatarImage src="https://github.com/vercel.png" />`,
-      `${p4}<AvatarFallback>VC</AvatarFallback>`,
-      `${p3}</Avatar>`,
-      `${p3}<div className="space-y-1">`,
-      `${p4}<h4 className="text-sm font-semibold">${trigger}</h4>`,
-      `${p4}<p className="text-sm">The React Framework \u2013 created and maintained by @vercel.</p>`,
-      `${p4}<div className="flex items-center pt-2">`,
-      `${p4}  <CalendarDays className="mr-2 h-4 w-4 opacity-70" />`,
-      `${p4}  <span className="text-xs text-muted-foreground">Joined December 2021</span>`,
-      `${p4}</div>`,
-      `${p3}</div>`,
-      `${p2}</div>`,
-      `${p1}</HoverCardContent>`,
-      `${pad}</HoverCard>`
-    ].join("\n");
-  }
-  function renderDrawer(_node, imports, indent) {
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add drawer");
-    addImport(imports, "@/components/ui/button", "Button");
-    addImport(imports, "@/components/ui/drawer", "Drawer");
-    addImport(imports, "@/components/ui/drawer", "DrawerClose");
-    addImport(imports, "@/components/ui/drawer", "DrawerContent");
-    addImport(imports, "@/components/ui/drawer", "DrawerDescription");
-    addImport(imports, "@/components/ui/drawer", "DrawerFooter");
-    addImport(imports, "@/components/ui/drawer", "DrawerHeader");
-    addImport(imports, "@/components/ui/drawer", "DrawerTitle");
-    addImport(imports, "@/components/ui/drawer", "DrawerTrigger");
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    addImport(
-      imports,
-      PREAMBLE_KEY,
-      `const DRAWER_SIDES = ["top", "right", "bottom", "left"] as const`
-    );
-    return [
-      `${pad}<div className="flex flex-wrap gap-2">`,
-      `${p1}{DRAWER_SIDES.map((side) => (`,
-      `${p2}<Drawer`,
-      `${p2}  key={side}`,
-      `${p2}  direction={side === "bottom" ? undefined : (side as "top" | "right" | "left")}`,
-      `${p2}>`,
-      `${p3}<DrawerTrigger asChild>`,
-      `${p3}  <Button variant="outline" className="capitalize">{side}</Button>`,
-      `${p3}</DrawerTrigger>`,
-      `${p3}<DrawerContent className="data-[vaul-drawer-direction=bottom]:max-h-[50vh] data-[vaul-drawer-direction=top]:max-h-[50vh]">`,
-      `${p3}  <DrawerHeader>`,
-      `${p3}    <DrawerTitle>Move Goal</DrawerTitle>`,
-      `${p3}    <DrawerDescription>Set your daily activity goal.</DrawerDescription>`,
-      `${p3}  </DrawerHeader>`,
-      `${p3}  <div className="no-scrollbar overflow-y-auto px-4">`,
-      `${p3}    {Array.from({ length: 5 }).map((_, i) => (`,
-      `${p3}      <p key={i} className="mb-4 leading-normal">`,
-      `${p3}        Lorem ipsum dolor sit amet, consectetur adipiscing elit.`,
-      `${p3}      </p>`,
-      `${p3}    ))}`,
-      `${p3}  </div>`,
-      `${p3}  <DrawerFooter>`,
-      `${p3}    <Button>Submit</Button>`,
-      `${p3}    <DrawerClose asChild>`,
-      `${p3}      <Button variant="outline">Cancel</Button>`,
-      `${p3}    </DrawerClose>`,
-      `${p3}  </DrawerFooter>`,
-      `${p3}</DrawerContent>`,
-      `${p2}</Drawer>`,
-      `${p1}  ))}`,
-      `${pad}</div>`
-    ].join("\n");
-  }
-  function dialogImports(imports) {
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add dialog");
-    addImport(imports, "@/components/ui/button", "Button");
-    addImport(imports, "@/components/ui/dialog", "Dialog");
-    addImport(imports, "@/components/ui/dialog", "DialogClose");
-    addImport(imports, "@/components/ui/dialog", "DialogContent");
-    addImport(imports, "@/components/ui/dialog", "DialogDescription");
-    addImport(imports, "@/components/ui/dialog", "DialogFooter");
-    addImport(imports, "@/components/ui/dialog", "DialogHeader");
-    addImport(imports, "@/components/ui/dialog", "DialogTitle");
-    addImport(imports, "@/components/ui/dialog", "DialogTrigger");
-  }
-  function renderDialog(_node, imports, indent) {
-    dialogImports(imports);
-    addImport(imports, "@/components/ui/field", "Field");
-    addImport(imports, "@/components/ui/field", "FieldGroup");
-    addImport(imports, "@/components/ui/input", "Input");
-    addImport(imports, "@/components/ui/label", "Label");
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    return [
-      `${pad}<Dialog>`,
-      `${p1}<form>`,
-      `${p2}<DialogTrigger asChild>`,
-      `${p3}<Button variant="outline">Open Dialog</Button>`,
-      `${p2}</DialogTrigger>`,
-      `${p2}<DialogContent className="sm:max-w-sm">`,
-      `${p3}<DialogHeader>`,
-      `${p3}  <DialogTitle>Edit profile</DialogTitle>`,
-      `${p3}  <DialogDescription>Make changes to your profile here. Click save when you're done.</DialogDescription>`,
-      `${p3}</DialogHeader>`,
-      `${p3}<FieldGroup>`,
-      `${p3}  <Field>`,
-      `${p3}    <Label htmlFor="name">Name</Label>`,
-      `${p3}    <Input id="name" name="name" defaultValue="Pedro Duarte" />`,
-      `${p3}  </Field>`,
-      `${p3}  <Field>`,
-      `${p3}    <Label htmlFor="username">Username</Label>`,
-      `${p3}    <Input id="username" name="username" defaultValue="@peduarte" />`,
-      `${p3}  </Field>`,
-      `${p3}</FieldGroup>`,
-      `${p3}<DialogFooter>`,
-      `${p3}  <DialogClose asChild>`,
-      `${p3}    <Button variant="outline">Cancel</Button>`,
-      `${p3}  </DialogClose>`,
-      `${p3}  <Button type="submit">Save changes</Button>`,
-      `${p3}</DialogFooter>`,
-      `${p2}</DialogContent>`,
-      `${p1}</form>`,
-      `${pad}</Dialog>`
-    ].join("\n");
-  }
-  function renderDialogHeader(node, imports, indent) {
-    var _a;
-    dialogImports(imports);
-    const typeProp = node.props.find((p) => p.shadcnProp === "type");
-    const type = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "header";
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    if (type === "close-only" || type === "icon-close") {
-      addImport(imports, "lucide-react", "X");
-      return [
-        `${pad}<DialogHeader>`,
-        `${p1}<DialogTitle>Dialog Title</DialogTitle>`,
-        `${p1}<DialogClose asChild>`,
-        `${p1}  <Button variant="ghost" size="icon" className="absolute right-4 top-4"><X className="h-4 w-4" /></Button>`,
-        `${p1}</DialogClose>`,
-        `${pad}</DialogHeader>`
-      ].join("\n");
-    }
-    return [
-      `${pad}<DialogHeader>`,
-      `${p1}<DialogTitle>Dialog Title</DialogTitle>`,
-      `${p1}<DialogDescription>Dialog description goes here.</DialogDescription>`,
-      `${pad}</DialogHeader>`
-    ].join("\n");
-  }
-  function renderDialogFooter(node, imports, indent) {
-    var _a;
-    dialogImports(imports);
-    const typeProp = node.props.find((p) => p.shadcnProp === "type");
-    const type = (_a = typeProp == null ? void 0 : typeProp.value) != null ? _a : "2-buttons-right";
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    if (type === "1-full-width") {
-      return [
-        `${pad}<DialogFooter>`,
-        `${p1}<Button type="submit" className="w-full">Save changes</Button>`,
-        `${pad}</DialogFooter>`
-      ].join("\n");
-    }
-    if (type === "2-full-width") {
-      return [
-        `${pad}<DialogFooter className="flex-col gap-2 sm:flex-col">`,
-        `${p1}<Button type="submit" className="w-full">Save changes</Button>`,
-        `${p1}<DialogClose asChild>`,
-        `${p1}  <Button variant="outline" className="w-full">Cancel</Button>`,
-        `${p1}</DialogClose>`,
-        `${pad}</DialogFooter>`
-      ].join("\n");
-    }
-    return [
-      `${pad}<DialogFooter>`,
-      `${p1}<DialogClose asChild>`,
-      `${p1}  <Button variant="outline">Cancel</Button>`,
-      `${p1}</DialogClose>`,
-      `${p1}<Button type="submit">Save changes</Button>`,
-      `${pad}</DialogFooter>`
-    ].join("\n");
-  }
-  function renderCommand(_node, imports, indent) {
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    const p3 = "  ".repeat(indent + 3);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add command");
-    addImport(imports, "lucide-react", "Calendar");
-    addImport(imports, "lucide-react", "Smile");
-    addImport(imports, "lucide-react", "Calculator");
-    addImport(imports, "lucide-react", "User");
-    addImport(imports, "lucide-react", "CreditCard");
-    addImport(imports, "lucide-react", "Settings");
-    addImport(imports, "@/components/ui/command", "Command");
-    addImport(imports, "@/components/ui/command", "CommandEmpty");
-    addImport(imports, "@/components/ui/command", "CommandGroup");
-    addImport(imports, "@/components/ui/command", "CommandInput");
-    addImport(imports, "@/components/ui/command", "CommandItem");
-    addImport(imports, "@/components/ui/command", "CommandList");
-    addImport(imports, "@/components/ui/command", "CommandSeparator");
-    addImport(imports, "@/components/ui/command", "CommandShortcut");
-    return [
-      `${pad}<Command className="max-w-sm rounded-lg border">`,
-      `${p1}<CommandInput placeholder="Type a command or search..." />`,
-      `${p1}<CommandList>`,
-      `${p2}<CommandEmpty>No results found.</CommandEmpty>`,
-      `${p2}<CommandGroup heading="Suggestions">`,
-      `${p3}<CommandItem><Calendar /><span>Calendar</span></CommandItem>`,
-      `${p3}<CommandItem><Smile /><span>Search Emoji</span></CommandItem>`,
-      `${p3}<CommandItem disabled><Calculator /><span>Calculator</span></CommandItem>`,
-      `${p2}</CommandGroup>`,
-      `${p2}<CommandSeparator />`,
-      `${p2}<CommandGroup heading="Settings">`,
-      `${p3}<CommandItem><User /><span>Profile</span><CommandShortcut>\u2318P</CommandShortcut></CommandItem>`,
-      `${p3}<CommandItem><CreditCard /><span>Billing</span><CommandShortcut>\u2318B</CommandShortcut></CommandItem>`,
-      `${p3}<CommandItem><Settings /><span>Settings</span><CommandShortcut>\u2318S</CommandShortcut></CommandItem>`,
-      `${p2}</CommandGroup>`,
-      `${p1}</CommandList>`,
-      `${pad}</Command>`
-    ].join("\n");
-  }
-  function renderCheckbox(node, imports, indent) {
-    var _a;
-    const pad = "  ".repeat(indent);
-    const ip = "  ".repeat(indent + 1);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
-    addImport(imports, "@/components/ui/checkbox", "Checkbox");
-    addImport(imports, "@/components/ui/field", "Field");
-    addImport(imports, "@/components/ui/field", "FieldLabel");
-    const children = Array.isArray(node.children) ? node.children : [];
-    const label = (_a = collectTexts(children)[0]) != null ? _a : "Label";
-    const id = toJsKey(label) + "-checkbox";
-    const disabled = node.props.find((p) => p.shadcnProp === "disabled" && p.value === "true");
-    const checked = node.props.find((p) => p.shadcnProp === "checked");
-    const checkedAttr = (checked == null ? void 0 : checked.value) === "true" ? " defaultChecked" : (checked == null ? void 0 : checked.value) === "indeterminate" ? ` checked="indeterminate"` : "";
-    const disabledAttr = disabled ? " disabled" : "";
-    return [
-      `${pad}<Field orientation="horizontal">`,
-      `${ip}<Checkbox id="${id}" name="${id}"${checkedAttr}${disabledAttr} />`,
-      `${ip}<FieldLabel htmlFor="${id}">${label}</FieldLabel>`,
-      `${pad}</Field>`
-    ].join("\n");
-  }
-  function renderCheckboxGroup(node, imports, indent) {
-    const pad = "  ".repeat(indent);
-    const p1 = "  ".repeat(indent + 1);
-    const p2 = "  ".repeat(indent + 2);
-    addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add checkbox");
-    addImport(imports, "@/components/ui/checkbox", "Checkbox");
-    addImport(imports, "@/components/ui/field", "Field");
-    addImport(imports, "@/components/ui/field", "FieldGroup");
-    addImport(imports, "@/components/ui/field", "FieldLabel");
-    addImport(imports, "@/components/ui/field", "FieldLegend");
-    addImport(imports, "@/components/ui/field", "FieldSet");
-    const childCheckboxes = (Array.isArray(node.children) ? node.children : []).filter((c) => "component" in c && c.component === "Checkbox");
-    const items = childCheckboxes.length > 0 ? childCheckboxes : [null, null, null];
-    const fieldItems = items.map((child, i) => {
-      var _a;
-      const childTexts = child ? collectTexts(Array.isArray(child.children) ? child.children : []) : [];
-      const label = (_a = childTexts[0]) != null ? _a : `Option ${i + 1}`;
-      const id = toJsKey(label) + "-checkbox";
-      const checked = child == null ? void 0 : child.props.find((p) => p.shadcnProp === "checked");
-      const checkedAttr = (checked == null ? void 0 : checked.value) === "true" ? " defaultChecked" : "";
-      return [
-        `${p2}<Field orientation="horizontal">`,
-        `${p2}  <Checkbox id="${id}" name="${id}"${checkedAttr} />`,
-        `${p2}  <FieldLabel htmlFor="${id}" className="font-normal">${label}</FieldLabel>`,
-        `${p2}</Field>`
-      ].join("\n");
-    }).join("\n");
-    return [
-      `${pad}<FieldSet>`,
-      `${p1}<FieldLegend variant="label">Group label</FieldLegend>`,
-      `${p1}<FieldGroup className="gap-3">`,
-      fieldItems,
-      `${p1}</FieldGroup>`,
-      `${pad}</FieldSet>`
-    ].join("\n");
-  }
   function isButtonGroupContainer(node) {
     if (node.layout.direction !== "horizontal")
       return false;
@@ -3435,36 +3706,7 @@ ${series.map((s, i) => `  ${s.key}: { label: "${s.label}", color: "var(--chart-$
 ${buttonsJsx}
 ${pad}</ButtonGroup>`;
   }
-  function renderAvatar(node, imports, indent) {
-    var _a;
-    const pad = "  ".repeat(indent);
-    const ip = "  ".repeat(indent + 1);
-    const children = Array.isArray(node.children) ? node.children : [];
-    const texts = collectTexts(children);
-    const fallback = (_a = texts[0]) != null ? _a : "??";
-    addImport(imports, "@/components/ui/avatar", "Avatar");
-    addImport(imports, "@/components/ui/avatar", "AvatarImage");
-    addImport(imports, "@/components/ui/avatar", "AvatarFallback");
-    return `${pad}<Avatar>
-${ip}<AvatarImage src="" alt="" />
-${ip}<AvatarFallback>${fallback}</AvatarFallback>
-${pad}</Avatar>`;
-  }
-  function renderProps(props) {
-    if (props.length === 0)
-      return "";
-    return " " + props.map(({ shadcnProp, value }) => {
-      if (value === "true")
-        return shadcnProp;
-      if (value === "false")
-        return ``;
-      if (value === "default")
-        return "";
-      return `${shadcnProp}="${value}"`;
-    }).filter(Boolean).join(" ");
-  }
   function renderNode(node, imports, indent) {
-    var _a, _b;
     const pad = "  ".repeat(indent);
     if ("isInlineText" in node) {
       return `${pad}${node.content}`;
@@ -3490,7 +3732,10 @@ ${pad}</Avatar>`;
         return renderNode(node.children[0], imports, indent);
       }
       if (isDataTableGrid(node)) {
-        return renderDataTable(node, imports, indent);
+        const renderer = RENDERER_MAP["__data_table_cell__"];
+        if (renderer)
+          return renderer(node, imports, indent, renderNode);
+        return "";
       }
       if (isTableGrid(node)) {
         return renderTableGrid(node, imports, indent);
@@ -3523,117 +3768,10 @@ ${childrenStr}
 ${pad}</div>`;
     }
     const sn = node;
-    if (sn.component === "__chart_bar__")
-      return renderBarChart(sn, imports, indent);
-    if (sn.component === "__chart_area__")
-      return renderAreaChart(sn, imports, indent);
-    if (sn.component === "__chart_line__")
-      return renderLineChart(sn, imports, indent);
-    if (sn.component === "Card") {
-      return renderCard(sn, imports, indent);
-    }
-    if (sn.component === "Breadcrumb") {
-      return renderBreadcrumb(sn, imports, indent);
-    }
-    if (sn.component === "AlertDialog") {
-      return renderAlertDialog(sn, imports, indent);
-    }
-    if (sn.component === "Avatar") {
-      return renderAvatar(sn, imports, indent);
-    }
-    if (sn.component === "__data_table_header__" || sn.component === "__data_table_cell__") {
-      return renderDataTable(sn, imports, indent);
-    }
-    if (sn.component === "__date_picker__")
-      return renderDatePickerSingle(imports, indent);
-    if (sn.component === "__calendar__")
-      return renderDatePicker(sn, imports, indent);
-    if (sn.component === "__input__")
-      return renderInput(sn, imports, indent);
-    if (sn.component === "__input_decoration__")
-      return renderInputDecoration(sn, imports, indent);
-    if (sn.component === "__input_file__")
-      return renderInputFile(sn, imports, indent);
-    if (sn.component === "__input_otp__")
-      return renderInputOTP(sn, imports, indent);
-    if (sn.component === "__field_vertical__")
-      return renderField(sn, imports, indent, "vertical");
-    if (sn.component === "__field_horizontal__")
-      return renderField(sn, imports, indent, "horizontal");
-    if (sn.component === "__item__")
-      return renderItem(sn, imports, indent);
-    if (sn.component === "__empty__")
-      return renderEmpty(sn, imports, indent);
-    if (sn.component === "__navigation_menu__")
-      return renderNavigationMenu(sn, imports, indent);
-    if (sn.component === "__navigation_menu_content__") {
-      const pad2 = "  ".repeat(indent);
-      const p1 = "  ".repeat(indent + 1);
-      const p2 = "  ".repeat(indent + 2);
-      const p3 = "  ".repeat(indent + 3);
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add navigation-menu");
-      addImport(imports, DIRECTIVE_KEY, '"use client"');
-      addImport(imports, "@/components/ui/navigation-menu", "NavigationMenu");
-      addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuList");
-      addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuItem");
-      addImport(imports, "@/components/ui/navigation-menu", "NavigationMenuTrigger");
-      const items = (Array.isArray(sn.children) ? sn.children : []).filter((c) => "component" in c && c.component === "__menu_item__");
-      const content = renderNavigationMenuContent(items, imports, indent + 3);
-      return [
-        `${pad2}<NavigationMenu>`,
-        `${p1}<NavigationMenuList>`,
-        `${p2}<NavigationMenuItem>`,
-        `${p3}<NavigationMenuTrigger>Menu</NavigationMenuTrigger>`,
-        content,
-        `${p2}</NavigationMenuItem>`,
-        `${p1}</NavigationMenuList>`,
-        `${pad2}</NavigationMenu>`
-      ].join("\n");
-    }
-    if (sn.component === "__menu_item__")
-      return "";
-    if (sn.component === "__loading_button__") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button spinner");
-      addImport(imports, "@/components/ui/button", "Button");
-      addImport(imports, "@/components/ui/spinner", "Spinner");
-      const size = (_a = sn.props.find((p) => p.shadcnProp === "size")) == null ? void 0 : _a.value;
-      const sizeAttr = size ? ` size="${size}"` : "";
-      const label = typeof sn.children === "string" ? sn.children : "Loading";
-      return `${pad}<Button variant="outline"${sizeAttr} disabled>
-${pad}  <Spinner data-icon="inline-start" />
-${pad}  ${label}
-${pad}</Button>`;
-    }
-    if (sn.component === "LinkButton") {
-      addImport(imports, INSTALL_KEY, "pnpm dlx shadcn@latest add button");
-      addImport(imports, "@/components/ui/button", "Button");
-      const size = (_b = sn.props.find((p) => p.shadcnProp === "size")) == null ? void 0 : _b.value;
-      const sizeAttr = size ? ` size="${size}"` : "";
-      const label = typeof sn.children === "string" ? sn.children : "Link";
-      return `${pad}<Button variant="link"${sizeAttr}>${label}</Button>`;
-    }
-    if (sn.component === "__icon_button__")
-      return renderIconButton(sn, imports, indent);
-    if (sn.component === "__hover_card__")
-      return renderHoverCard(sn, imports, indent);
-    if (sn.component === "__drawer__")
-      return renderDrawer(sn, imports, indent);
-    if (sn.component === "__dialog__")
-      return renderDialog(sn, imports, indent);
-    if (sn.component === "__dialog_header__")
-      return renderDialogHeader(sn, imports, indent);
-    if (sn.component === "__dialog_footer__")
-      return renderDialogFooter(sn, imports, indent);
-    if (sn.component === "__command__") {
-      return renderCommand(sn, imports, indent);
-    }
-    if (sn.component === "Checkbox") {
-      return renderCheckbox(sn, imports, indent);
-    }
-    if (sn.component === "__checkbox_group__") {
-      return renderCheckboxGroup(sn, imports, indent);
-    }
-    const { component, importPath, props, children } = node;
+    const customRenderer = RENDERER_MAP[sn.component];
+    if (customRenderer)
+      return customRenderer(sn, imports, indent, renderNode);
+    const { component, importPath, props, children } = sn;
     addImport(imports, importPath, component);
     const propsStr = renderProps(props);
     const clsAttr = "";
@@ -3660,40 +3798,17 @@ ${pad}</${component}>`;
     ));
     return { install, imports: renderImports(imports), css, jsx, components };
   }
-  var PREAMBLE_KEY, INSTALL_KEY, CSS_KEY, DIRECTIVE_KEY, RAW_IMPORT_KEY, TABLE_CELL_COMPONENTS, DATA_TABLE_CELL_COMPONENTS, CHART_COMPONENT_PREFIX, CHART_MONTHS, CHART_VALUES, FALLBACK_SERIES, CHART_CSS_VARS;
+  var DIRECTIVE_KEY3, RAW_IMPORT_KEY2, TABLE_CELL_COMPONENTS, DATA_TABLE_CELL_COMPONENTS;
   var init_jsx_generator = __esm({
     "src/lib/jsx-generator.ts"() {
       "use strict";
-      init_tailwind_layout();
-      PREAMBLE_KEY = "__preamble__";
-      INSTALL_KEY = "__install__";
-      CSS_KEY = "__css__";
-      DIRECTIVE_KEY = "__directive__";
-      RAW_IMPORT_KEY = "__raw_import__";
+      init_render_utils();
+      init_component_registry();
+      init_inputs();
+      DIRECTIVE_KEY3 = "__directive__";
+      RAW_IMPORT_KEY2 = "__raw_import__";
       TABLE_CELL_COMPONENTS = /* @__PURE__ */ new Set(["TableHead", "TableCell"]);
       DATA_TABLE_CELL_COMPONENTS = /* @__PURE__ */ new Set(["__data_table_header__", "__data_table_cell__"]);
-      CHART_COMPONENT_PREFIX = "__chart_";
-      CHART_MONTHS = ["January", "February", "March", "April", "May", "June"];
-      CHART_VALUES = [
-        [186, 305, 237, 73, 209, 214],
-        [80, 200, 120, 190, 130, 140]
-      ];
-      FALLBACK_SERIES = ["desktop", "mobile"];
-      CHART_CSS_VARS = `:root {
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-}
-
-.dark {
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-}`;
     }
   });
 
