@@ -10,7 +10,7 @@
  */
 
 import type { ScannedText, ScannedImage, ScannedIcon, ScannedTree, ScannedFrame, ScannedNode } from "./frame-scanner";
-import { layoutClasses, visualClasses, textVisualClasses } from "./tailwind-layout";
+import { layoutClasses, visualClasses, textVisualClasses, textDecorationClasses } from "./tailwind-layout";
 
 // ─── shadcn/ui → HTML component definitions ───────────────────────────────────
 
@@ -302,8 +302,13 @@ function renderNode(node: ScannedTree, indent: number): string {
   // Text node
   if ("isText" in node) {
     const t = node as ScannedText;
-    const visualCls = textVisualClasses(t.align, t.color, t.uppercase, t.styleName);
-    const boldCls   = t.tag === "span" && t.bold && !t.styleName ? "font-semibold" : "";
+    if (t.styleName) {
+      const decorCls = textDecorationClasses(t.align, t.color, t.uppercase);
+      const cls = [t.styleName, decorCls].filter(Boolean).join(" ");
+      return `${pad}<${t.tag} class="${cls}">${t.content}</${t.tag}>`;
+    }
+    const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
+    const boldCls   = t.tag === "span" && t.bold ? "font-semibold" : "";
     const cls = [boldCls, visualCls].filter(Boolean).join(" ");
     return `${pad}<${t.tag}${cls ? ` class="${cls}"` : ""}>${t.content}</${t.tag}>`;
   }

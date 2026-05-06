@@ -7,7 +7,7 @@
  */
 
 import type { ScannedNode, ScannedFrame, ScannedText, ScannedImage, ScannedIcon, ScannedInlineText, ScannedTree } from "./frame-scanner";
-import { layoutClasses, visualClasses, textVisualClasses } from "./tailwind-layout";
+import { layoutClasses, visualClasses, textVisualClasses, textDecorationClasses } from "./tailwind-layout";
 
 // ─── Import tracking ──────────────────────────────────────────────────────────
 
@@ -2105,8 +2105,15 @@ function renderNode(
   // Text node
   if ("isText" in node) {
     const t = node as ScannedText;
-    const visualCls = textVisualClasses(t.align, t.color, t.uppercase, t.styleName);
-    const boldCls   = t.tag === "span" && t.bold && !t.styleName ? "font-semibold" : "";
+    if (t.styleName) {
+      addImport(imports, "@/components/ui/text", "Text");
+      const decorCls = textDecorationClasses(t.align, t.color, t.uppercase);
+      const variantAttr = ` variant="${t.styleName}"`;
+      const clsAttr = decorCls ? ` className="${decorCls}"` : "";
+      return `${pad}<Text${variantAttr}${clsAttr}>${t.content}</Text>`;
+    }
+    const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
+    const boldCls   = t.tag === "span" && t.bold ? "font-semibold" : "";
     const cls = [boldCls, visualCls].filter(Boolean).join(" ");
     return `${pad}<${t.tag}${cls ? ` className="${cls}"` : ""}>${t.content}</${t.tag}>`;
   }

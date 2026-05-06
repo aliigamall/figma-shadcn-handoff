@@ -261,6 +261,23 @@
       <textarea id="output-tailwind" class="flex-1 w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none min-h-0" placeholder="Select a node to inspect…" readonly></textarea>
     </div>
 
+    <!-- Text component generator -->
+    <div id="text-component-section" class="section flex flex-col gap-2 flex-shrink-0">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#bbb]">Text Component</span>
+        <div class="flex gap-1">
+          <button id="btn-gen-jsx" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">Text.tsx</button>
+          <button id="btn-gen-css" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-[#f0f0f0] text-black hover:bg-[#e5e5e5]">text.css</button>
+        </div>
+      </div>
+      <div id="text-component-output" class="hidden flex-col gap-1">
+        <textarea id="output-text-component" class="w-full font-mono text-[11px] leading-relaxed p-[10px] border border-[#e5e5e5] rounded-md resize-none text-[#1a1a1a] bg-[#fafafa] outline-none" style="height:160px" readonly></textarea>
+        <div class="flex justify-end">
+          <button id="btn-copy-text-component" class="px-[10px] py-1 text-[11px] border-none rounded-md cursor-pointer font-medium bg-black text-white hover:bg-[#222]">Copy</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Dev panel -->
@@ -497,6 +514,11 @@
   var btnCopyInstall = document.getElementById("btn-copy-install");
   var btnCopyImports = document.getElementById("btn-copy-imports");
   var btnCopyCssInspect = document.getElementById("btn-copy-css-inspect");
+  var btnGenJsx = document.getElementById("btn-gen-jsx");
+  var btnGenCss = document.getElementById("btn-gen-css");
+  var textComponentOutput = document.getElementById("text-component-output");
+  var outputTextComponent = document.getElementById("output-text-component");
+  var btnCopyTextComponent = document.getElementById("btn-copy-text-component");
   var _cachedJsxParts = { install: "", imports: "", css: "", jsx: "" };
   var _cachedHtml = "";
   function applyFrameworkOutput() {
@@ -525,6 +547,14 @@
   btnCopyInstall.addEventListener("click", () => copyToClipboard(codeInstall.value, btnCopyInstall));
   btnCopyImports.addEventListener("click", () => copyToClipboard(codeImports.value, btnCopyImports));
   btnCopyCssInspect.addEventListener("click", () => copyToClipboard(codeCss.value, btnCopyCssInspect));
+  btnCopyTextComponent.addEventListener("click", () => copyToClipboard(outputTextComponent.value, btnCopyTextComponent));
+  function triggerTextComponent(mode) {
+    btnGenJsx.disabled = true;
+    btnGenCss.disabled = true;
+    parent.postMessage({ pluginMessage: { type: "GET_TEXT_COMPONENT", mode } }, "*");
+  }
+  btnGenJsx.addEventListener("click", () => triggerTextComponent("jsx"));
+  btnGenCss.addEventListener("click", () => triggerTextComponent("css"));
   btnExport.addEventListener("click", () => {
     btnExport.disabled = true;
     btnExport.textContent = "Exporting\u2026";
@@ -593,6 +623,13 @@
     const msg = event.data.pluginMessage;
     if (!msg)
       return;
+    if (msg.type === "TEXT_COMPONENT") {
+      outputTextComponent.value = msg.component;
+      textComponentOutput.classList.remove("hidden");
+      textComponentOutput.classList.add("flex");
+      btnGenJsx.disabled = false;
+      btnGenCss.disabled = false;
+    }
     if (msg.type === "TOKENS_CSS") {
       outputTokens.value = msg.css;
       btnCopyTokens.disabled = false;

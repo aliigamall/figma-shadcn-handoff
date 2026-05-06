@@ -79,6 +79,16 @@ export function textVisualClasses(align: "left" | "center" | "right" | null, col
   return parts.join(" ");
 }
 
+/** Returns only the non-typography classes (color, alignment, case) — used when typography is handled by a variant prop. */
+export function textDecorationClasses(align: "left" | "center" | "right" | null, color: string | null, uppercase: boolean): string {
+  const parts: string[] = [];
+  if (align === "center") parts.push("text-center");
+  if (align === "right")  parts.push("text-right");
+  if (uppercase)          parts.push("uppercase");
+  if (color)              parts.push(colorClass("text", color));
+  return parts.join(" ");
+}
+
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 export function layoutClasses(layout: Layout): string {

@@ -1697,6 +1697,18 @@ ${darkLines}
       parts.push(colorClass("text", color));
     return parts.join(" ");
   }
+  function textDecorationClasses(align, color, uppercase) {
+    const parts = [];
+    if (align === "center")
+      parts.push("text-center");
+    if (align === "right")
+      parts.push("text-right");
+    if (uppercase)
+      parts.push("uppercase");
+    if (color)
+      parts.push(colorClass("text", color));
+    return parts.join(" ");
+  }
   function layoutClasses(layout) {
     const pad = paddingClasses(layout);
     if (layout.direction === "grid") {
@@ -3586,8 +3598,15 @@ ${pad}</Avatar>`;
     }
     if ("isText" in node) {
       const t = node;
-      const visualCls = textVisualClasses(t.align, t.color, t.uppercase, t.styleName);
-      const boldCls = t.tag === "span" && t.bold && !t.styleName ? "font-semibold" : "";
+      if (t.styleName) {
+        addImport(imports, "@/components/ui/text", "Text");
+        const decorCls = textDecorationClasses(t.align, t.color, t.uppercase);
+        const variantAttr = ` variant="${t.styleName}"`;
+        const clsAttr2 = decorCls ? ` className="${decorCls}"` : "";
+        return `${pad}<Text${variantAttr}${clsAttr2}>${t.content}</Text>`;
+      }
+      const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
+      const boldCls = t.tag === "span" && t.bold ? "font-semibold" : "";
       const cls = [boldCls, visualCls].filter(Boolean).join(" ");
       return `${pad}<${t.tag}${cls ? ` className="${cls}"` : ""}>${t.content}</${t.tag}>`;
     }
@@ -3862,8 +3881,13 @@ ${pad}<span class="inline-flex shrink-0 w-[${size}px] h-[${size}px]" aria-hidden
     }
     if ("isText" in node) {
       const t = node;
-      const visualCls = textVisualClasses(t.align, t.color, t.uppercase, t.styleName);
-      const boldCls = t.tag === "span" && t.bold && !t.styleName ? "font-semibold" : "";
+      if (t.styleName) {
+        const decorCls = textDecorationClasses(t.align, t.color, t.uppercase);
+        const cls2 = [t.styleName, decorCls].filter(Boolean).join(" ");
+        return `${pad}<${t.tag} class="${cls2}">${t.content}</${t.tag}>`;
+      }
+      const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
+      const boldCls = t.tag === "span" && t.bold ? "font-semibold" : "";
       const cls = [boldCls, visualCls].filter(Boolean).join(" ");
       return `${pad}<${t.tag}${cls ? ` class="${cls}"` : ""}>${t.content}</${t.tag}>`;
     }
@@ -4889,7 +4913,7 @@ ${pad}</${tag}>${interactiveSuffix}`;
         });
       }
       figma.ui.onmessage = (msg) => __async(exports, null, function* () {
-        var _a, _b, _c, _d, _e, _f, _g;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _i;
         if (msg.type === "EXPORT_TOKENS") {
           try {
             const { collections, variables } = yield collectVariables();
@@ -4958,6 +4982,118 @@ ${pad}</${tag}>${interactiveSuffix}`;
             figma.ui.postMessage({ type: "ERROR", message: String(err) });
           }
         }
+        if (msg.type === "GET_TEXT_COMPONENT") {
+          try {
+            const styles = yield figma.getLocalTextStylesAsync();
+            const entries = [];
+            const SIZE_MAP2 = {
+              12: "text-xs",
+              14: "text-sm",
+              16: "text-base",
+              18: "text-lg",
+              20: "text-xl",
+              24: "text-2xl",
+              30: "text-3xl",
+              36: "text-4xl",
+              48: "text-5xl",
+              60: "text-6xl",
+              72: "text-7xl"
+            };
+            const WEIGHT_MAP = {
+              100: "font-thin",
+              200: "font-extralight",
+              300: "font-light",
+              400: "font-normal",
+              500: "font-medium",
+              600: "font-semibold",
+              700: "font-bold",
+              800: "font-extrabold",
+              900: "font-black"
+            };
+            for (const style of styles) {
+              const variant = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+              const cls = [];
+              const fs = (_c = style.fontSize) != null ? _c : 16;
+              cls.push((_d = SIZE_MAP2[Math.round(fs)]) != null ? _d : `text-[${Math.round(fs)}px]`);
+              if (typeof style.fontWeight === "number") {
+                const w = WEIGHT_MAP[style.fontWeight];
+                if (w && w !== "font-normal")
+                  cls.push(w);
+              }
+              const lh = style.lineHeight;
+              if (lh && lh.unit !== "AUTO") {
+                const ratio = lh.unit === "PIXELS" ? lh.value / fs : lh.value / 100;
+                const LEADING = [
+                  [1, "leading-none"],
+                  [1.25, "leading-tight"],
+                  [1.375, "leading-snug"],
+                  [1.5, "leading-normal"],
+                  [1.625, "leading-relaxed"],
+                  [2, "leading-loose"]
+                ];
+                const match = LEADING.find(([v]) => Math.abs(ratio - v) < 0.05);
+                cls.push(match ? match[1] : `leading-[${+ratio.toFixed(3)}]`);
+              }
+              const ls = style.letterSpacing;
+              if (ls && typeof ls.value === "number" && ls.value !== 0) {
+                const em = ls.unit === "PIXELS" ? ls.value / fs : ls.value / 100;
+                const TRACKING = [
+                  [-0.05, "tracking-tighter"],
+                  [-0.025, "tracking-tight"],
+                  [0.025, "tracking-wide"],
+                  [0.05, "tracking-wider"],
+                  [0.1, "tracking-widest"]
+                ];
+                const match = TRACKING.find(([v]) => Math.abs(em - v) < 0.01);
+                cls.push(match ? match[1] : `tracking-[${+em.toFixed(4)}em]`);
+              }
+              const tag = variant.startsWith("heading-1") ? "h1" : variant.startsWith("heading-2") ? "h2" : variant.startsWith("heading-3") ? "h3" : variant.startsWith("heading-4") ? "h4" : variant.startsWith("caption") ? "span" : variant.includes("mono") ? "code" : "p";
+              entries.push({ variant, tag, classes: cls.join(" ") });
+            }
+            const mode = msg.mode;
+            let component;
+            if (mode === "css") {
+              component = entries.map(
+                (e) => `.${e.variant} {
+  @apply ${e.classes};
+}`
+              ).join("\n\n");
+            } else {
+              const variantType = entries.map((e) => `"${e.variant}"`).join(" | ");
+              const variantMap = entries.map((e) => `  "${e.variant}": "${e.classes}",`).join("\n");
+              const tagMap = entries.map((e) => `  "${e.variant}": "${e.tag}",`).join("\n");
+              component = `import { cn } from "@/lib/utils";
+
+type TextVariant = ${variantType};
+
+const variantClasses: Record<TextVariant, string> = {
+${variantMap}
+};
+
+const variantTag: Record<TextVariant, keyof React.JSX.IntrinsicElements> = {
+${tagMap}
+};
+
+interface TextProps extends React.HTMLAttributes<HTMLElement> {
+  variant: TextVariant;
+  as?: keyof React.JSX.IntrinsicElements;
+  children?: React.ReactNode;
+}
+
+export function Text({ variant, as, className, children, ...props }: TextProps) {
+  const Tag = (as ?? variantTag[variant]) as React.ElementType;
+  return (
+    <Tag className={cn(variantClasses[variant], className)} {...props}>
+      {children}
+    </Tag>
+  );
+}`;
+            }
+            figma.ui.postMessage({ type: "TEXT_COMPONENT", component, count: entries.length });
+          } catch (err) {
+            figma.ui.postMessage({ type: "ERROR", message: String(err) });
+          }
+        }
         if (msg.type === "APPLY_THEME") {
           try {
             let hslToRgba2 = function(hsl) {
@@ -4997,8 +5133,8 @@ ${pad}</${tag}>${interactiveSuffix}`;
               coll.renameMode(coll.modes[0].modeId, "light");
               coll.addMode("dark");
             }
-            const lightModeId = (_d = (_c = coll.modes.find((m) => m.name === "light")) == null ? void 0 : _c.modeId) != null ? _d : coll.modes[0].modeId;
-            const darkModeId = (_g = (_e = coll.modes.find((m) => m.name === "dark")) == null ? void 0 : _e.modeId) != null ? _g : (_f = coll.modes[1]) == null ? void 0 : _f.modeId;
+            const lightModeId = (_f = (_e = coll.modes.find((m) => m.name === "light")) == null ? void 0 : _e.modeId) != null ? _f : coll.modes[0].modeId;
+            const darkModeId = (_i = (_g = coll.modes.find((m) => m.name === "dark")) == null ? void 0 : _g.modeId) != null ? _i : (_h = coll.modes[1]) == null ? void 0 : _h.modeId;
             function upsertColorVar(name, lightHsl, darkHsl) {
               return __async(this, null, function* () {
                 const allVars = yield figma.variables.getLocalVariablesAsync();

@@ -155,7 +155,7 @@ document.querySelectorAll<HTMLButtonElement>(".tab").forEach((tab) => {
 
 // ── Element refs ───────────────────────────────────────────────────────────
 
-const btnExport       = document.getElementById("btn-export") as HTMLButtonElement;
+const btnExport          = document.getElementById("btn-export") as HTMLButtonElement;
 const outputTokens    = document.getElementById("output-tokens") as HTMLTextAreaElement;
 const statusTokens    = document.getElementById("status-tokens") as HTMLSpanElement;
 const btnCopyTokens   = document.getElementById("btn-copy-tokens") as HTMLButtonElement;
@@ -190,7 +190,12 @@ const codeCss          = document.getElementById("code-css") as HTMLTextAreaElem
 const jsxSectionLabel  = document.getElementById("jsx-section-label") as HTMLSpanElement;
 const btnCopyInstall   = document.getElementById("btn-copy-install") as HTMLButtonElement;
 const btnCopyImports   = document.getElementById("btn-copy-imports") as HTMLButtonElement;
-const btnCopyCssInspect = document.getElementById("btn-copy-css-inspect") as HTMLButtonElement;
+const btnCopyCssInspect       = document.getElementById("btn-copy-css-inspect") as HTMLButtonElement;
+const btnGenJsx               = document.getElementById("btn-gen-jsx") as HTMLButtonElement;
+const btnGenCss               = document.getElementById("btn-gen-css") as HTMLButtonElement;
+const textComponentOutput     = document.getElementById("text-component-output") as HTMLDivElement;
+const outputTextComponent     = document.getElementById("output-text-component") as HTMLTextAreaElement;
+const btnCopyTextComponent    = document.getElementById("btn-copy-text-component") as HTMLButtonElement;
 
 interface JsxParts { install: string; imports: string; css: string; jsx: string; }
 let _cachedJsxParts: JsxParts = { install: "", imports: "", css: "", jsx: "" };
@@ -223,6 +228,15 @@ frameworkSelect.addEventListener("change", applyFrameworkOutput);
 btnCopyInstall.addEventListener("click", () => copyToClipboard(codeInstall.value, btnCopyInstall));
 btnCopyImports.addEventListener("click", () => copyToClipboard(codeImports.value, btnCopyImports));
 btnCopyCssInspect.addEventListener("click", () => copyToClipboard(codeCss.value, btnCopyCssInspect));
+btnCopyTextComponent.addEventListener("click", () => copyToClipboard(outputTextComponent.value, btnCopyTextComponent));
+
+function triggerTextComponent(mode: "jsx" | "css") {
+  btnGenJsx.disabled = true;
+  btnGenCss.disabled = true;
+  parent.postMessage({ pluginMessage: { type: "GET_TEXT_COMPONENT", mode } }, "*");
+}
+btnGenJsx.addEventListener("click", () => triggerTextComponent("jsx"));
+btnGenCss.addEventListener("click", () => triggerTextComponent("css"));
 
 // ── Tokens tab ─────────────────────────────────────────────────────────────
 
@@ -309,6 +323,14 @@ btnCopyTailwind.addEventListener("click", () => copyToClipboard(outputTailwind.v
 window.onmessage = (event: MessageEvent) => {
   const msg = event.data.pluginMessage as Record<string, any>;
   if (!msg) return;
+
+  if (msg.type === "TEXT_COMPONENT") {
+    outputTextComponent.value = msg.component;
+    textComponentOutput.classList.remove("hidden");
+    textComponentOutput.classList.add("flex");
+    btnGenJsx.disabled = false;
+    btnGenCss.disabled = false;
+  }
 
   if (msg.type === "TOKENS_CSS") {
     outputTokens.value = msg.css;

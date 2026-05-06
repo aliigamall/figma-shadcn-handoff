@@ -308,6 +308,117 @@ figma.ui.onmessage = async (msg: { type: string }) => {
     }
   }
 
+  if (msg.type === "GET_TEXT_COMPONENT") {
+    try {
+      const styles = await figma.getLocalTextStylesAsync();
+      type StyleEntry = { variant: string; tag: string; classes: string };
+      const entries: StyleEntry[] = [];
+
+      const SIZE_MAP: Record<number, string> = {
+        12: "text-xs", 14: "text-sm", 16: "text-base", 18: "text-lg",
+        20: "text-xl", 24: "text-2xl", 30: "text-3xl", 36: "text-4xl",
+        48: "text-5xl", 60: "text-6xl", 72: "text-7xl",
+      };
+      const WEIGHT_MAP: Record<number, string> = {
+        100: "font-thin", 200: "font-extralight", 300: "font-light",
+        400: "font-normal", 500: "font-medium", 600: "font-semibold",
+        700: "font-bold", 800: "font-extrabold", 900: "font-black",
+      };
+
+      for (const style of styles) {
+        const variant = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+        const cls: string[] = [];
+        const fs = style.fontSize ?? 16;
+
+        cls.push(SIZE_MAP[Math.round(fs)] ?? `text-[${Math.round(fs)}px]`);
+
+        if (typeof style.fontWeight === "number") {
+          const w = WEIGHT_MAP[style.fontWeight];
+          if (w && w !== "font-normal") cls.push(w);
+        }
+
+        const lh = style.lineHeight as any;
+        if (lh && lh.unit !== "AUTO") {
+          const ratio = lh.unit === "PIXELS" ? lh.value / fs : lh.value / 100;
+          const LEADING: [number, string][] = [
+            [1.0, "leading-none"], [1.25, "leading-tight"], [1.375, "leading-snug"],
+            [1.5, "leading-normal"], [1.625, "leading-relaxed"], [2.0, "leading-loose"],
+          ];
+          const match = LEADING.find(([v]) => Math.abs(ratio - v) < 0.05);
+          cls.push(match ? match[1] : `leading-[${+(ratio.toFixed(3))}]`);
+        }
+
+        const ls = style.letterSpacing as any;
+        if (ls && typeof ls.value === "number" && ls.value !== 0) {
+          const em = ls.unit === "PIXELS" ? ls.value / fs : ls.value / 100;
+          const TRACKING: [number, string][] = [
+            [-0.05, "tracking-tighter"], [-0.025, "tracking-tight"],
+            [0.025, "tracking-wide"], [0.05, "tracking-wider"], [0.1, "tracking-widest"],
+          ];
+          const match = TRACKING.find(([v]) => Math.abs(em - v) < 0.01);
+          cls.push(match ? match[1] : `tracking-[${+(em.toFixed(4))}em]`);
+        }
+
+        // Semantic HTML tag
+        const tag = variant.startsWith("heading-1") ? "h1"
+                  : variant.startsWith("heading-2") ? "h2"
+                  : variant.startsWith("heading-3") ? "h3"
+                  : variant.startsWith("heading-4") ? "h4"
+                  : variant.startsWith("caption")   ? "span"
+                  : variant.includes("mono")        ? "code"
+                  : "p";
+
+        entries.push({ variant, tag, classes: cls.join(" ") });
+      }
+
+      const mode = (msg as any).mode as "jsx" | "css";
+      let component: string;
+
+      if (mode === "css") {
+        // Generate text.css — one class per style with @apply
+        component = entries.map(e =>
+          `.${e.variant} {\n  @apply ${e.classes};\n}`
+        ).join("\n\n");
+      } else {
+        // Generate Text.tsx React component
+        const variantType = entries.map(e => `"${e.variant}"`).join(" | ");
+        const variantMap  = entries.map(e => `  "${e.variant}": "${e.classes}",`).join("\n");
+        const tagMap      = entries.map(e => `  "${e.variant}": "${e.tag}",`).join("\n");
+
+        component = `import { cn } from "@/lib/utils";
+
+type TextVariant = ${variantType};
+
+const variantClasses: Record<TextVariant, string> = {
+${variantMap}
+};
+
+const variantTag: Record<TextVariant, keyof React.JSX.IntrinsicElements> = {
+${tagMap}
+};
+
+interface TextProps extends React.HTMLAttributes<HTMLElement> {
+  variant: TextVariant;
+  as?: keyof React.JSX.IntrinsicElements;
+  children?: React.ReactNode;
+}
+
+export function Text({ variant, as, className, children, ...props }: TextProps) {
+  const Tag = (as ?? variantTag[variant]) as React.ElementType;
+  return (
+    <Tag className={cn(variantClasses[variant], className)} {...props}>
+      {children}
+    </Tag>
+  );
+}`;
+      }
+
+      figma.ui.postMessage({ type: "TEXT_COMPONENT", component, count: entries.length });
+    } catch (err) {
+      figma.ui.postMessage({ type: "ERROR", message: String(err) });
+    }
+  }
+
   if (msg.type === "APPLY_THEME") {
     try {
       const config = (msg as any).config as ThemeConfig;
