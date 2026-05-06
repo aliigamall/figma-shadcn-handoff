@@ -1451,13 +1451,13 @@ ${darkLines}
           const textChildren = resolveChildren(node, def.children);
           if (textChildren !== null) {
             const iconNodes = [];
-            try {
-              for (const child of (_b = node.children) != null ? _b : []) {
+            for (const child of (_b = node.children) != null ? _b : []) {
+              try {
                 const s = yield scanNode(child);
                 if (s && "isIcon" in s)
                   iconNodes.push(s);
+              } catch (e) {
               }
-            } catch (e) {
             }
             const children = iconNodes.length > 0 ? [...iconNodes, { isInlineText: true, id: `${node.id}-text`, content: textChildren }] : textChildren;
             return {
@@ -1496,7 +1496,34 @@ ${darkLines}
         return scanFrameNode(node);
       }
       if (node.type === "FRAME" || node.type === "GROUP" || node.type === "COMPONENT") {
+        if (node.type === "COMPONENT") {
+          const isSmall = node.width <= 48 && node.height <= 48;
+          if (isSmall && looksLikeIconName(node.name)) {
+            return {
+              isIcon: true,
+              id: node.id,
+              name: node.name,
+              lucideName: toLucideName(node.name),
+              width: Math.round(node.width),
+              height: Math.round(node.height)
+            };
+          }
+        }
         return scanFrameNode(node);
+      }
+      if (node.type === "COMPONENT_SET") {
+        const isSmall = node.width <= 48 && node.height <= 48;
+        if (isSmall && looksLikeIconName(node.name)) {
+          return {
+            isIcon: true,
+            id: node.id,
+            name: node.name,
+            lucideName: toLucideName(node.name),
+            width: Math.round(node.width),
+            height: Math.round(node.height)
+          };
+        }
+        return null;
       }
       if (node.type === "TEXT") {
         const text = node;
@@ -1517,13 +1544,16 @@ ${darkLines}
           tag = "span";
         const align = text.textAlignHorizontal === "CENTER" ? "center" : text.textAlignHorizontal === "RIGHT" ? "right" : text.textAlignHorizontal === "JUSTIFIED" ? null : null;
         const uppercase = text.textCase === "UPPER";
-        const color = yield resolveColorToken(node, "fills");
+        const color = yield resolveColorToken(node, "fills").catch(() => null);
         let styleName = null;
         const textStyleId = text.textStyleId;
         if (textStyleId && typeof textStyleId === "string") {
-          const style = yield figma.getStyleByIdAsync(textStyleId);
-          if (style) {
-            styleName = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+          try {
+            const style = yield figma.getStyleByIdAsync(textStyleId);
+            if (style) {
+              styleName = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+            }
+          } catch (e) {
           }
         }
         return { isText: true, id: node.id, content, tag, bold, align, color, uppercase, styleName };
@@ -4952,6 +4982,12 @@ ${pad}</${tag}>${interactiveSuffix}`;
               jsxResult = generateJSX(tree);
               htmlResult = generateHTML(tree);
             } else if (node.type === "TEXT") {
+              const scanned = yield scanNode(node);
+              if (scanned) {
+                jsxResult = generateJSX(scanned);
+                htmlResult = generateHTML(scanned);
+              }
+            } else if (node.type === "COMPONENT" || node.type === "COMPONENT_SET") {
               const scanned = yield scanNode(node);
               if (scanned) {
                 jsxResult = generateJSX(scanned);

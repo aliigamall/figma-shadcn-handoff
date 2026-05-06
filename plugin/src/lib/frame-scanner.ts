@@ -338,12 +338,12 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
 
       if (textChildren !== null) {
         const iconNodes: ScannedTree[] = [];
-        try {
-          for (const child of node.children ?? []) {
+        for (const child of node.children ?? []) {
+          try {
             const s = await scanNode(child);
             if (s && "isIcon" in s) iconNodes.push(s);
-          }
-        } catch { /* icon scan failed — proceed without icons */ }
+          } catch { /* skip child that failed to scan */ }
+        }
         const children: string | ScannedTree[] = iconNodes.length > 0
           ? [...iconNodes, { isInlineText: true, id: `${node.id}-text`, content: textChildren } as ScannedInlineText]
           : textChildren;
@@ -388,7 +388,37 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
   }
 
   if (node.type === "FRAME" || node.type === "GROUP" || node.type === "COMPONENT") {
+    // Small component with icon-like name (e.g. "Icon / cloud-rain") → Lucide icon
+    if (node.type === "COMPONENT") {
+      const isSmall = node.width <= 48 && node.height <= 48;
+      if (isSmall && looksLikeIconName(node.name)) {
+        return {
+          isIcon:     true,
+          id:         node.id,
+          name:       node.name,
+          lucideName: toLucideName(node.name),
+          width:      Math.round(node.width),
+          height:     Math.round(node.height),
+        };
+      }
+    }
     return scanFrameNode(node as FrameNode);
+  }
+
+  // Component set — treat as icon if small and name looks like one
+  if (node.type === "COMPONENT_SET") {
+    const isSmall = node.width <= 48 && node.height <= 48;
+    if (isSmall && looksLikeIconName(node.name)) {
+      return {
+        isIcon:     true,
+        id:         node.id,
+        name:       node.name,
+        lucideName: toLucideName(node.name),
+        width:      Math.round(node.width),
+        height:     Math.round(node.height),
+      };
+    }
+    return null;
   }
 
   if (node.type === "TEXT") {
@@ -413,15 +443,17 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     : null;
 
     const uppercase = text.textCase === "UPPER";
-    const color = await resolveColorToken(node, "fills");
+    const color = await resolveColorToken(node, "fills").catch(() => null);
 
     let styleName: string | null = null;
     const textStyleId = text.textStyleId;
     if (textStyleId && typeof textStyleId === "string") {
-      const style = await figma.getStyleByIdAsync(textStyleId);
-      if (style) {
-        styleName = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
-      }
+      try {
+        const style = await figma.getStyleByIdAsync(textStyleId);
+        if (style) {
+          styleName = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+        }
+      } catch { /* library style not accessible */ }
     }
 
     return { isText: true, id: node.id, content, tag, bold, align, color, uppercase, styleName };

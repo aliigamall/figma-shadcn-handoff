@@ -280,6 +280,14 @@ figma.ui.onmessage = async (msg: { type: string }) => {
           htmlResult = generateHTML(scanned);
         }
       }
+      // Direct component / component-set selection (e.g. icon components)
+      else if (node.type === "COMPONENT" || node.type === "COMPONENT_SET") {
+        const scanned = await scanNode(node);
+        if (scanned) {
+          jsxResult = generateJSX(scanned);
+          htmlResult = generateHTML(scanned);
+        }
+      }
       // Single component instance → try new scanner first, fall back to old
       else if (node.type === "INSTANCE") {
         const scanned = await scanNode(node);
