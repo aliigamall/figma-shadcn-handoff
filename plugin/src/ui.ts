@@ -230,9 +230,34 @@ btnCopyImports.addEventListener("click", () => copyToClipboard(codeImports.value
 btnCopyCssInspect.addEventListener("click", () => copyToClipboard(codeCss.value, btnCopyCssInspect));
 btnCopyTextComponent.addEventListener("click", () => copyToClipboard(outputTextComponent.value, btnCopyTextComponent));
 
+let activeTextMode: "jsx" | "css" | null = null;
+
+const ACTIVE_CLS  = ["bg-black", "text-white", "hover:bg-[#222]"];
+const DEFAULT_CLS = ["bg-[#f0f0f0]", "text-black", "hover:bg-[#e5e5e5]"];
+
+function setTextBtn(btn: HTMLButtonElement, active: boolean) {
+  if (active) {
+    btn.classList.remove(...DEFAULT_CLS);
+    btn.classList.add(...ACTIVE_CLS);
+  } else {
+    btn.classList.remove(...ACTIVE_CLS);
+    btn.classList.add(...DEFAULT_CLS);
+  }
+}
+
 function triggerTextComponent(mode: "jsx" | "css") {
-  btnGenJsx.disabled = true;
-  btnGenCss.disabled = true;
+  if (activeTextMode === mode) {
+    // same button → toggle off
+    activeTextMode = null;
+    setTextBtn(btnGenJsx, false);
+    setTextBtn(btnGenCss, false);
+    textComponentOutput.classList.add("hidden");
+    textComponentOutput.classList.remove("flex");
+    return;
+  }
+  activeTextMode = mode;
+  setTextBtn(btnGenJsx, mode === "jsx");
+  setTextBtn(btnGenCss, mode === "css");
   parent.postMessage({ pluginMessage: { type: "GET_TEXT_COMPONENT", mode } }, "*");
 }
 btnGenJsx.addEventListener("click", () => triggerTextComponent("jsx"));
@@ -328,8 +353,6 @@ window.onmessage = (event: MessageEvent) => {
     outputTextComponent.value = msg.component;
     textComponentOutput.classList.remove("hidden");
     textComponentOutput.classList.add("flex");
-    btnGenJsx.disabled = false;
-    btnGenCss.disabled = false;
   }
 
   if (msg.type === "TOKENS_CSS") {
