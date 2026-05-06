@@ -4951,6 +4951,12 @@ ${pad}</${tag}>${interactiveSuffix}`;
               const tree = yield scanFrame(node);
               jsxResult = generateJSX(tree);
               htmlResult = generateHTML(tree);
+            } else if (node.type === "TEXT") {
+              const scanned = yield scanNode(node);
+              if (scanned) {
+                jsxResult = generateJSX(scanned);
+                htmlResult = generateHTML(scanned);
+              }
             } else if (node.type === "INSTANCE") {
               const scanned = yield scanNode(node);
               if (scanned) {

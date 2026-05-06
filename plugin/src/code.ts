@@ -272,6 +272,14 @@ figma.ui.onmessage = async (msg: { type: string }) => {
         jsxResult = generateJSX(tree);
         htmlResult = generateHTML(tree);
       }
+      // Direct text node → scan and generate JSX/HTML
+      else if (node.type === "TEXT") {
+        const scanned = await scanNode(node);
+        if (scanned) {
+          jsxResult = generateJSX(scanned);
+          htmlResult = generateHTML(scanned);
+        }
+      }
       // Single component instance → try new scanner first, fall back to old
       else if (node.type === "INSTANCE") {
         const scanned = await scanNode(node);
