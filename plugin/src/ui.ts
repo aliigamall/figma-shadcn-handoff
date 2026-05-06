@@ -191,6 +191,7 @@ const jsxSectionLabel  = document.getElementById("jsx-section-label") as HTMLSpa
 const btnCopyInstall   = document.getElementById("btn-copy-install") as HTMLButtonElement;
 const btnCopyImports   = document.getElementById("btn-copy-imports") as HTMLButtonElement;
 const btnCopyCssInspect       = document.getElementById("btn-copy-css-inspect") as HTMLButtonElement;
+const textComponentSection    = document.getElementById("text-component-section") as HTMLDivElement;
 const btnGenJsx               = document.getElementById("btn-gen-jsx") as HTMLButtonElement;
 const btnGenCss               = document.getElementById("btn-gen-css") as HTMLButtonElement;
 const textComponentOutput     = document.getElementById("text-component-output") as HTMLDivElement;
@@ -285,6 +286,15 @@ function triggerInspect(): void {
   parent.postMessage({ pluginMessage: { type: "GET_TAILWIND" } }, "*");
 }
 
+function resetTextComponentSection(): void {
+  textComponentSection.classList.add("hidden");
+  textComponentOutput.classList.add("hidden");
+  textComponentOutput.classList.remove("flex");
+  activeTextMode = null;
+  setTextBtn(btnGenJsx, false);
+  setTextBtn(btnGenCss, false);
+}
+
 function showEmpty(): void {
   inspectEmpty.classList.remove("hidden");
   jsxSection.classList.add("hidden");
@@ -294,6 +304,7 @@ function showEmpty(): void {
   sectionCss.classList.add("hidden");
   outputTailwind.value = "";
   btnCopyTailwind.disabled = true;
+  resetTextComponentSection();
 }
 
 function showResults(hasJsx: boolean): void {
@@ -412,11 +423,21 @@ window.onmessage = (event: MessageEvent) => {
       _cachedHtml = msg.htmlResult ?? "";
 
       applyFrameworkOutput();
+
+      // Show Text component section only when the output uses <Text>
+      const hasText = _cachedJsxParts.imports.includes("@/components/ui/text")
+                   || _cachedJsxParts.jsx.includes("<Text ");
+      if (hasText) {
+        textComponentSection.classList.remove("hidden");
+      } else {
+        resetTextComponentSection();
+      }
     } else {
       jsxSection.classList.add("hidden");
       _cachedJsxParts = { install: "", imports: "", css: "", jsx: "" };
       _cachedHtml = "";
       unmappedHint.classList.toggle("hidden", !msg.unmappedComponent);
+      resetTextComponentSection();
     }
 
     outputTailwind.value = msg.classes || "";
