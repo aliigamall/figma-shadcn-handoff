@@ -283,22 +283,29 @@ ${darkLines}
         const color = yield resolveColorClass(node, "fills", "text", variables, collections);
         if (color)
           cls.push(color);
-        if (typeof node.fontSize === "number") {
-          const SIZE = {
-            12: "text-xs",
-            14: "text-sm",
-            16: "text-base",
-            18: "text-lg",
-            20: "text-xl",
-            24: "text-2xl",
-            30: "text-3xl",
-            36: "text-4xl",
-            48: "text-5xl",
-            60: "text-6xl",
-            72: "text-7xl"
-          };
-          cls.push((_a = SIZE[Math.round(node.fontSize)]) != null ? _a : `text-[${Math.round(node.fontSize)}px]`);
+        const textStyleId = node.textStyleId;
+        if (textStyleId && typeof textStyleId === "string") {
+          const style = yield figma.getStyleByIdAsync(textStyleId);
+          if (style) {
+            const styleClass = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+            cls.push(`font-style-${styleClass}`);
+          }
         }
+        const fontSize = typeof node.fontSize === "number" ? node.fontSize : 14;
+        const SIZE = {
+          12: "text-xs",
+          14: "text-sm",
+          16: "text-base",
+          18: "text-lg",
+          20: "text-xl",
+          24: "text-2xl",
+          30: "text-3xl",
+          36: "text-4xl",
+          48: "text-5xl",
+          60: "text-6xl",
+          72: "text-7xl"
+        };
+        cls.push((_a = SIZE[Math.round(fontSize)]) != null ? _a : `text-[${Math.round(fontSize)}px]`);
         if (typeof node.fontWeight === "number") {
           const WEIGHT = {
             100: "font-thin",
@@ -314,6 +321,45 @@ ${darkLines}
           const w = WEIGHT[node.fontWeight];
           if (w && w !== "font-normal")
             cls.push(w);
+        }
+        const lineHeight = node.lineHeight;
+        if (lineHeight && typeof lineHeight === "object" && "unit" in lineHeight) {
+          let ratio = null;
+          if (lineHeight.unit === "PIXELS" && typeof lineHeight.value === "number") {
+            ratio = lineHeight.value / fontSize;
+          } else if (lineHeight.unit === "PERCENT" && typeof lineHeight.value === "number") {
+            ratio = lineHeight.value / 100;
+          }
+          if (ratio !== null) {
+            const LEADING = [
+              [1, "leading-none"],
+              [1.25, "leading-tight"],
+              [1.375, "leading-snug"],
+              [1.5, "leading-normal"],
+              [1.625, "leading-relaxed"],
+              [2, "leading-loose"]
+            ];
+            const match = LEADING.find(([v]) => Math.abs(ratio - v) < 0.05);
+            cls.push(match ? match[1] : `leading-[${+ratio.toFixed(3)}]`);
+          }
+        }
+        const letterSpacing = node.letterSpacing;
+        if (letterSpacing && typeof letterSpacing === "object" && "unit" in letterSpacing && typeof letterSpacing.value === "number" && letterSpacing.value !== 0) {
+          let em;
+          if (letterSpacing.unit === "PIXELS") {
+            em = letterSpacing.value / fontSize;
+          } else {
+            em = letterSpacing.value / 100;
+          }
+          const TRACKING = [
+            [-0.05, "tracking-tighter"],
+            [-0.025, "tracking-tight"],
+            [0.025, "tracking-wide"],
+            [0.05, "tracking-wider"],
+            [0.1, "tracking-widest"]
+          ];
+          const match = TRACKING.find(([v]) => Math.abs(em - v) < 0.01);
+          cls.push(match ? match[1] : `tracking-[${+em.toFixed(4)}em]`);
         }
         const ALIGN = {
           LEFT: "",
@@ -1472,7 +1518,15 @@ ${darkLines}
         const align = text.textAlignHorizontal === "CENTER" ? "center" : text.textAlignHorizontal === "RIGHT" ? "right" : text.textAlignHorizontal === "JUSTIFIED" ? null : null;
         const uppercase = text.textCase === "UPPER";
         const color = yield resolveColorToken(node, "fills");
-        return { isText: true, id: node.id, content, tag, bold, align, color, uppercase };
+        let styleName = null;
+        const textStyleId = text.textStyleId;
+        if (textStyleId && typeof textStyleId === "string") {
+          const style = yield figma.getStyleByIdAsync(textStyleId);
+          if (style) {
+            styleName = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+          }
+        }
+        return { isText: true, id: node.id, content, tag, bold, align, color, uppercase, styleName };
       }
       if ("fills" in node && Array.isArray(node.fills)) {
         const hasImage = node.fills.some((f) => f.type === "IMAGE");
@@ -1629,8 +1683,10 @@ ${darkLines}
       parts.push(`opacity-[${Math.round(v.opacity * 100)}%]`);
     return parts.join(" ");
   }
-  function textVisualClasses(align, color, uppercase) {
+  function textVisualClasses(align, color, uppercase, styleName) {
     const parts = [];
+    if (styleName)
+      parts.push(`font-style-${styleName}`);
     if (align === "center")
       parts.push("text-center");
     if (align === "right")
@@ -3530,8 +3586,8 @@ ${pad}</Avatar>`;
     }
     if ("isText" in node) {
       const t = node;
-      const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
-      const boldCls = t.tag === "span" && t.bold ? "font-semibold" : "";
+      const visualCls = textVisualClasses(t.align, t.color, t.uppercase, t.styleName);
+      const boldCls = t.tag === "span" && t.bold && !t.styleName ? "font-semibold" : "";
       const cls = [boldCls, visualCls].filter(Boolean).join(" ");
       return `${pad}<${t.tag}${cls ? ` className="${cls}"` : ""}>${t.content}</${t.tag}>`;
     }
@@ -3806,8 +3862,8 @@ ${pad}<span class="inline-flex shrink-0 w-[${size}px] h-[${size}px]" aria-hidden
     }
     if ("isText" in node) {
       const t = node;
-      const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
-      const boldCls = t.tag === "span" && t.bold ? "font-semibold" : "";
+      const visualCls = textVisualClasses(t.align, t.color, t.uppercase, t.styleName);
+      const boldCls = t.tag === "span" && t.bold && !t.styleName ? "font-semibold" : "";
       const cls = [boldCls, visualCls].filter(Boolean).join(" ");
       return `${pad}<${t.tag}${cls ? ` class="${cls}"` : ""}>${t.content}</${t.tag}>`;
     }

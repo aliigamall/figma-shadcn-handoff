@@ -302,8 +302,8 @@ function renderNode(node: ScannedTree, indent: number): string {
   // Text node
   if ("isText" in node) {
     const t = node as ScannedText;
-    const visualCls = textVisualClasses(t.align, t.color, t.uppercase);
-    const boldCls   = t.tag === "span" && t.bold ? "font-semibold" : "";
+    const visualCls = textVisualClasses(t.align, t.color, t.uppercase, t.styleName);
+    const boldCls   = t.tag === "span" && t.bold && !t.styleName ? "font-semibold" : "";
     const cls = [boldCls, visualCls].filter(Boolean).join(" ");
     return `${pad}<${t.tag}${cls ? ` class="${cls}"` : ""}>${t.content}</${t.tag}>`;
   }

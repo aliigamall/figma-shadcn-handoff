@@ -109,14 +109,24 @@ export async function getTailwindClasses(
     const color = await resolveColorClass(node, "fills", "text", variables, collections);
     if (color) cls.push(color);
 
-    if (typeof node.fontSize === "number") {
-      const SIZE: Record<number, string> = {
-        12: "text-xs", 14: "text-sm", 16: "text-base", 18: "text-lg",
-        20: "text-xl", 24: "text-2xl", 30: "text-3xl", 36: "text-4xl",
-        48: "text-5xl", 60: "text-6xl", 72: "text-7xl",
-      };
-      cls.push(SIZE[Math.round(node.fontSize)] ?? `text-[${Math.round(node.fontSize)}px]`);
+    // Named text style → resolve from Figma style API
+    const textStyleId = node.textStyleId;
+    if (textStyleId && typeof textStyleId === "string") {
+      const style = await figma.getStyleByIdAsync(textStyleId);
+      if (style) {
+        const styleClass = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+        cls.push(`font-style-${styleClass}`);
+      }
     }
+
+    const fontSize = typeof node.fontSize === "number" ? node.fontSize : 14;
+
+    const SIZE: Record<number, string> = {
+      12: "text-xs", 14: "text-sm", 16: "text-base", 18: "text-lg",
+      20: "text-xl", 24: "text-2xl", 30: "text-3xl", 36: "text-4xl",
+      48: "text-5xl", 60: "text-6xl", 72: "text-7xl",
+    };
+    cls.push(SIZE[Math.round(fontSize)] ?? `text-[${Math.round(fontSize)}px]`);
 
     if (typeof node.fontWeight === "number") {
       const WEIGHT: Record<number, string> = {
@@ -126,6 +136,43 @@ export async function getTailwindClasses(
       };
       const w = WEIGHT[node.fontWeight];
       if (w && w !== "font-normal") cls.push(w);
+    }
+
+    // Line height → leading-*
+    const lineHeight = node.lineHeight;
+    if (lineHeight && typeof lineHeight === "object" && "unit" in lineHeight) {
+      let ratio: number | null = null;
+      if (lineHeight.unit === "PIXELS" && typeof lineHeight.value === "number") {
+        ratio = lineHeight.value / fontSize;
+      } else if (lineHeight.unit === "PERCENT" && typeof lineHeight.value === "number") {
+        ratio = lineHeight.value / 100;
+      }
+      if (ratio !== null) {
+        const LEADING: [number, string][] = [
+          [1.0, "leading-none"], [1.25, "leading-tight"], [1.375, "leading-snug"],
+          [1.5, "leading-normal"], [1.625, "leading-relaxed"], [2.0, "leading-loose"],
+        ];
+        const match = LEADING.find(([v]) => Math.abs(ratio! - v) < 0.05);
+        cls.push(match ? match[1] : `leading-[${+(ratio.toFixed(3))}]`);
+      }
+    }
+
+    // Letter spacing → tracking-*
+    const letterSpacing = node.letterSpacing;
+    if (letterSpacing && typeof letterSpacing === "object" && "unit" in letterSpacing && typeof letterSpacing.value === "number" && letterSpacing.value !== 0) {
+      let em: number;
+      if (letterSpacing.unit === "PIXELS") {
+        em = letterSpacing.value / fontSize;
+      } else {
+        // PERCENT in Figma = em * 100 (e.g. -3% = -0.03em)
+        em = letterSpacing.value / 100;
+      }
+      const TRACKING: [number, string][] = [
+        [-0.05, "tracking-tighter"], [-0.025, "tracking-tight"],
+        [0.025, "tracking-wide"], [0.05, "tracking-wider"], [0.1, "tracking-widest"],
+      ];
+      const match = TRACKING.find(([v]) => Math.abs(em - v) < 0.01);
+      cls.push(match ? match[1] : `tracking-[${+(em.toFixed(4))}em]`);
     }
 
     const ALIGN: Record<string, string> = {

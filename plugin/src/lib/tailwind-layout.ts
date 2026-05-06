@@ -69,8 +69,9 @@ export function visualClasses(v: Visual): string {
   return parts.join(" ");
 }
 
-export function textVisualClasses(align: "left" | "center" | "right" | null, color: string | null, uppercase: boolean): string {
+export function textVisualClasses(align: "left" | "center" | "right" | null, color: string | null, uppercase: boolean, styleName?: string | null): string {
   const parts: string[] = [];
+  if (styleName) parts.push(`font-style-${styleName}`);
   if (align === "center") parts.push("text-center");
   if (align === "right")  parts.push("text-right");
   if (uppercase)          parts.push("uppercase");

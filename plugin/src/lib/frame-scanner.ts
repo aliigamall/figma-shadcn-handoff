@@ -64,8 +64,10 @@ export interface ScannedText {
   tag: "h1" | "h2" | "h3" | "p" | "span";
   bold: boolean;
   align: "left" | "center" | "right" | null;
-  color: string | null;     // hex
+  color: string | null;
   uppercase: boolean;
+  /** Figma text style name converted to a CSS class, e.g. "heading-1" */
+  styleName: string | null;
 }
 
 export interface ScannedImage {
@@ -413,7 +415,16 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     const uppercase = text.textCase === "UPPER";
     const color = await resolveColorToken(node, "fills");
 
-    return { isText: true, id: node.id, content, tag, bold, align, color, uppercase };
+    let styleName: string | null = null;
+    const textStyleId = text.textStyleId;
+    if (textStyleId && typeof textStyleId === "string") {
+      const style = await figma.getStyleByIdAsync(textStyleId);
+      if (style) {
+        styleName = style.name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+      }
+    }
+
+    return { isText: true, id: node.id, content, tag, bold, align, color, uppercase, styleName };
   }
 
   // Any shape with an image fill → img placeholder
