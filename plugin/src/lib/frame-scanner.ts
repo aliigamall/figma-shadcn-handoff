@@ -300,7 +300,36 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
         const EMPTY_LAYOUT: Layout = { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
         const usedTexts = new Set<string>();
         const slotChildren: ScannedNode[] = [];
+
+        // Helper: check a boolean component property (case-insensitive "true"/"false")
+        function isBooleanPropTrue(propKey: string): boolean {
+          let rawProps: Record<string, ComponentProperty>;
+          try { rawProps = node.componentProperties ?? {}; } catch { return false; }
+          const figmaKey = Object.keys(rawProps).find(k => k.split("#")[0] === propKey);
+          if (!figmaKey) return false;
+          const val = rawProps[figmaKey].value;
+          return String(val).toLowerCase() === "true";
+        }
+
         for (const slot of def.slots) {
+          // Skip slot when its boolean guard is present and set to false
+          if (slot.showWhen && !isBooleanPropTrue(slot.showWhen)) continue;
+
+          // Button-only slot (no text key) — emit as self-closing
+          if (!slot.key && !slot.scanChildren) {
+            slotChildren.push({
+              id:         `${node.id}-slot-${slot.component}`,
+              figmaName:  slot.component,
+              layerName:  slot.component,
+              component:  slot.component,
+              importPath: slot.importPath,
+              props:      [],
+              children:   "",
+              layout:     EMPTY_LAYOUT,
+            });
+            continue;
+          }
+
           let text: string | null = slot.key ? resolveChildren(node, slot.key) : null;
           if (text) usedTexts.add(text);
 

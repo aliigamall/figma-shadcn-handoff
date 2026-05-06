@@ -27,6 +27,8 @@ export interface SlotDef {
   importPath: string;
   /** If the named key isn't found as a component property, scan the node's children tree for the next unused TEXT layer */
   scanChildren?: boolean;
+  /** Obra BOOLEAN property name — slot is only emitted when this prop is "True" */
+  showWhen?: string;
 }
 
 export interface ComponentDef {
@@ -137,14 +139,23 @@ export const COMPONENT_MAP: Record<string, ComponentDef> = {
     props: {
       "Type": {
         shadcnProp: "variant",
-        values: { Neutral: "default", Error: "destructive" },
+        values: {
+          Neutral:     "default",
+          Default:     "default",
+          Error:       "destructive",
+          Destructive: "destructive",
+          Warning:     "warning",
+          Success:     "success",
+          Info:        "info",
+        },
       },
     },
     slots: [
       { key: "Line 1",   component: "AlertTitle",       importPath: "@/components/ui/alert" },
-      { key: "↳ Line 2", component: "AlertDescription", importPath: "@/components/ui/alert", scanChildren: true },
+      { key: "↳ Line 2", component: "AlertDescription", importPath: "@/components/ui/alert", scanChildren: true, showWhen: "Show Line 2" },
+      { component: "Button", importPath: "@/components/ui/button", showWhen: "Show Button" },
     ],
-    ignore: ["Show Line 2", "Show Icon", "Show Button", "Flip Icon", "⮑ Icon", "⮑  Line 2"],
+    ignore: ["Show Icon", "Flip Icon", "⮑ Icon", "⮑  Line 2"],
   },
 
   // ── Alert Dialog ──────────────────────────────────────────────────────────

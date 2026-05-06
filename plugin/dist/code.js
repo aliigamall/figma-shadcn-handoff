@@ -708,14 +708,23 @@ ${darkLines}
           props: {
             "Type": {
               shadcnProp: "variant",
-              values: { Neutral: "default", Error: "destructive" }
+              values: {
+                Neutral: "default",
+                Default: "default",
+                Error: "destructive",
+                Destructive: "destructive",
+                Warning: "warning",
+                Success: "success",
+                Info: "info"
+              }
             }
           },
           slots: [
             { key: "Line 1", component: "AlertTitle", importPath: "@/components/ui/alert" },
-            { key: "\u21B3 Line 2", component: "AlertDescription", importPath: "@/components/ui/alert", scanChildren: true }
+            { key: "\u21B3 Line 2", component: "AlertDescription", importPath: "@/components/ui/alert", scanChildren: true, showWhen: "Show Line 2" },
+            { component: "Button", importPath: "@/components/ui/button", showWhen: "Show Button" }
           ],
-          ignore: ["Show Line 2", "Show Icon", "Show Button", "Flip Icon", "\u2B91 Icon", "\u2B91  Line 2"]
+          ignore: ["Show Icon", "Flip Icon", "\u2B91 Icon", "\u2B91  Line 2"]
         },
         // ── Alert Dialog ──────────────────────────────────────────────────────────
         "Alert Dialog": {
@@ -1412,10 +1421,40 @@ ${darkLines}
         const def = lookupComponent(compName);
         if (def) {
           if (def.slots && def.slots.length > 0) {
+            let isBooleanPropTrue2 = function(propKey) {
+              var _a2;
+              let rawProps;
+              try {
+                rawProps = (_a2 = node.componentProperties) != null ? _a2 : {};
+              } catch (e) {
+                return false;
+              }
+              const figmaKey = Object.keys(rawProps).find((k) => k.split("#")[0] === propKey);
+              if (!figmaKey)
+                return false;
+              const val = rawProps[figmaKey].value;
+              return String(val).toLowerCase() === "true";
+            };
+            var isBooleanPropTrue = isBooleanPropTrue2;
             const EMPTY_LAYOUT = { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
             const usedTexts = /* @__PURE__ */ new Set();
             const slotChildren = [];
             for (const slot of def.slots) {
+              if (slot.showWhen && !isBooleanPropTrue2(slot.showWhen))
+                continue;
+              if (!slot.key && !slot.scanChildren) {
+                slotChildren.push({
+                  id: `${node.id}-slot-${slot.component}`,
+                  figmaName: slot.component,
+                  layerName: slot.component,
+                  component: slot.component,
+                  importPath: slot.importPath,
+                  props: [],
+                  children: "",
+                  layout: EMPTY_LAYOUT
+                });
+                continue;
+              }
               let text = slot.key ? resolveChildren(node, slot.key) : null;
               if (text)
                 usedTexts.add(text);
