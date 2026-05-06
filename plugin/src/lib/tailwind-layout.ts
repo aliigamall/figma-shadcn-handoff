@@ -55,12 +55,16 @@ const RADIUS_MAP: Record<number, string> = {
   12: "rounded-xl", 16: "rounded-2xl", 24: "rounded-3xl",
 };
 
+function colorClass(prefix: string, value: string): string {
+  return value.startsWith("#") ? `${prefix}-[${value}]` : `${prefix}-${value}`;
+}
+
 export function visualClasses(v: Visual): string {
   const parts: string[] = [];
-  if (v.bgColor)     parts.push(`bg-[${v.bgColor}]`);
+  if (v.bgColor)     parts.push(colorClass("bg", v.bgColor));
   if (v.radius > 0)  parts.push(v.radius >= 9999 ? "rounded-full" : (RADIUS_MAP[v.radius] ?? `rounded-[${v.radius}px]`));
   if (v.shadow)      parts.push("shadow-md");
-  if (v.borderColor) parts.push(`border border-[${v.borderColor}]`);
+  if (v.borderColor) parts.push(`border ${colorClass("border", v.borderColor)}`);
   if (v.opacity < 1) parts.push(`opacity-[${Math.round(v.opacity * 100)}%]`);
   return parts.join(" ");
 }
@@ -70,7 +74,7 @@ export function textVisualClasses(align: "left" | "center" | "right" | null, col
   if (align === "center") parts.push("text-center");
   if (align === "right")  parts.push("text-right");
   if (uppercase)          parts.push("uppercase");
-  if (color)              parts.push(`text-[${color}]`);
+  if (color)              parts.push(colorClass("text", color));
   return parts.join(" ");
 }
 

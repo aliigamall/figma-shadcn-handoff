@@ -213,30 +213,54 @@ ${darkLines}
     return s === "" ? "rounded" : `rounded-${s}`;
   }
   function resolveColorClass(node, property, prefix, variables, collections) {
-    const boundVars = node.boundVariables;
-    const bound = boundVars == null ? void 0 : boundVars[property];
-    if (bound) {
-      const entry = Array.isArray(bound) ? bound[0] : bound;
-      if ((entry == null ? void 0 : entry.type) === "VARIABLE_ALIAS") {
-        const v = variables[entry.id];
-        const col = v && collections[v.variableCollectionId];
-        if (v && col) {
-          const cssVar = toCssVarName(col.name, v.name);
-          const tokenName = cssVar.replace(/^--/, "");
-          return `${prefix}-${tokenName}`;
+    return __async(this, null, function* () {
+      const boundVars = node.boundVariables;
+      const bound = boundVars == null ? void 0 : boundVars[property];
+      if (bound) {
+        const entry = Array.isArray(bound) ? bound[0] : bound;
+        if ((entry == null ? void 0 : entry.type) === "VARIABLE_ALIAS") {
+          let v = variables[entry.id];
+          let col = v ? collections[v.variableCollectionId] : void 0;
+          if (!v) {
+            const fetched = yield figma.variables.getVariableByIdAsync(entry.id);
+            if (fetched) {
+              v = {
+                id: fetched.id,
+                name: fetched.name,
+                resolvedType: fetched.resolvedType,
+                variableCollectionId: fetched.variableCollectionId,
+                valuesByMode: fetched.valuesByMode
+              };
+              const fetchedCol = yield figma.variables.getVariableCollectionByIdAsync(fetched.variableCollectionId);
+              if (fetchedCol) {
+                col = {
+                  id: fetchedCol.id,
+                  name: fetchedCol.name,
+                  modes: fetchedCol.modes,
+                  defaultModeId: fetchedCol.defaultModeId,
+                  variableIds: fetchedCol.variableIds
+                };
+              }
+            }
+          }
+          if (v && col) {
+            const cssVar = toCssVarName(col.name, v.name);
+            const tokenName = cssVar.replace(/^--/, "");
+            return `${prefix}-${tokenName}`;
+          }
         }
       }
-    }
-    const paints = node[property];
-    if (Array.isArray(paints) && paints.length > 0) {
-      const paint = paints[0];
-      if (paint.type === "SOLID" && paint.visible !== false) {
-        const { r, g, b } = paint.color;
-        const h = (n) => Math.round(n * 255).toString(16).padStart(2, "0");
-        return `${prefix}-[#${h(r)}${h(g)}${h(b)}]`;
+      const paints = node[property];
+      if (Array.isArray(paints) && paints.length > 0) {
+        const paint = paints[0];
+        if (paint.type === "SOLID" && paint.visible !== false) {
+          const { r, g, b } = paint.color;
+          const h = (n) => Math.round(n * 255).toString(16).padStart(2, "0");
+          return `${prefix}-[#${h(r)}${h(g)}${h(b)}]`;
+        }
       }
-    }
-    return null;
+      return null;
+    });
   }
   function shadowFromBlur(blur) {
     if (blur <= 2)
@@ -256,7 +280,7 @@ ${darkLines}
       var _a, _b;
       const cls = [];
       if (node.type === "TEXT") {
-        const color = resolveColorClass(node, "fills", "text", variables, collections);
+        const color = yield resolveColorClass(node, "fills", "text", variables, collections);
         if (color)
           cls.push(color);
         if (typeof node.fontSize === "number") {
@@ -302,13 +326,13 @@ ${darkLines}
           cls.push(align);
         return cls.join(" ");
       }
-      const bg = resolveColorClass(node, "fills", "bg", variables, collections);
+      const bg = yield resolveColorClass(node, "fills", "bg", variables, collections);
       if (bg)
         cls.push(bg);
       const strokes = node.strokes;
       if (Array.isArray(strokes) && strokes.length > 0) {
         cls.push("border");
-        const borderColor = resolveColorClass(node, "strokes", "border", variables, collections);
+        const borderColor = yield resolveColorClass(node, "strokes", "border", variables, collections);
         if (borderColor)
           cls.push(borderColor);
         const sw = node.strokeWeight;
@@ -1194,21 +1218,40 @@ ${darkLines}
     const h = (v) => Math.round(v * 255).toString(16).padStart(2, "0");
     return `#${h(r)}${h(g)}${h(b)}`;
   }
-  function solidColor(fills) {
-    if (!Array.isArray(fills))
-      return null;
-    const s = fills.find((f) => f.type === "SOLID" && f.visible !== false);
-    return s ? rgbToHex(s.color.r, s.color.g, s.color.b) : null;
+  function resolveColorToken(node, property) {
+    return __async(this, null, function* () {
+      const boundVars = node.boundVariables;
+      const bound = boundVars == null ? void 0 : boundVars[property];
+      if (bound) {
+        const entry = Array.isArray(bound) ? bound[0] : bound;
+        if ((entry == null ? void 0 : entry.type) === "VARIABLE_ALIAS") {
+          const fetched = yield figma.variables.getVariableByIdAsync(entry.id);
+          if (fetched) {
+            const col = yield figma.variables.getVariableCollectionByIdAsync(fetched.variableCollectionId);
+            if (col) {
+              return toCssVarName(col.name, fetched.name).replace(/^--/, "");
+            }
+          }
+        }
+      }
+      const paints = node[property];
+      if (!Array.isArray(paints))
+        return null;
+      const s = paints.find((f) => f.type === "SOLID" && f.visible !== false);
+      return s ? rgbToHex(s.color.r, s.color.g, s.color.b) : null;
+    });
   }
   function extractVisual(node) {
-    var _a, _b, _c, _d;
-    return {
-      bgColor: solidColor((_a = node.fills) != null ? _a : []),
-      radius: typeof node.cornerRadius === "number" ? node.cornerRadius : 0,
-      shadow: ((_b = node.effects) != null ? _b : []).some((e) => e.type === "DROP_SHADOW" && e.visible !== false),
-      opacity: (_c = node.opacity) != null ? _c : 1,
-      borderColor: solidColor((_d = node.strokes) != null ? _d : [])
-    };
+    return __async(this, null, function* () {
+      var _a, _b;
+      return {
+        bgColor: yield resolveColorToken(node, "fills"),
+        radius: typeof node.cornerRadius === "number" ? node.cornerRadius : 0,
+        shadow: ((_a = node.effects) != null ? _a : []).some((e) => e.type === "DROP_SHADOW" && e.visible !== false),
+        opacity: (_b = node.opacity) != null ? _b : 1,
+        borderColor: yield resolveColorToken(node, "strokes")
+      };
+    });
   }
   function toLucideName(raw) {
     var _a, _b;
@@ -1428,7 +1471,7 @@ ${darkLines}
           tag = "span";
         const align = text.textAlignHorizontal === "CENTER" ? "center" : text.textAlignHorizontal === "RIGHT" ? "right" : text.textAlignHorizontal === "JUSTIFIED" ? null : null;
         const uppercase = text.textCase === "UPPER";
-        const color = solidColor(Array.isArray(text.fills) ? text.fills : []);
+        const color = yield resolveColorToken(node, "fills");
         return { isText: true, id: node.id, content, tag, bold, align, color, uppercase };
       }
       if ("fills" in node && Array.isArray(node.fills)) {
@@ -1441,6 +1484,13 @@ ${darkLines}
             width: Math.round(node.width),
             height: Math.round(node.height)
           };
+        }
+      }
+      if (node.type === "RECTANGLE" || node.type === "ELLIPSE") {
+        const visual = yield extractVisual(node);
+        if (visual.bgColor || visual.borderColor) {
+          const EMPTY_LAYOUT = { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+          return { isLayout: true, id: node.id, name: node.name, layout: EMPTY_LAYOUT, visual, children: [] };
         }
       }
       if (node.type === "LINE")
@@ -1463,11 +1513,11 @@ ${darkLines}
   function scanFrameNode(node) {
     return __async(this, null, function* () {
       const children = yield scanChildren(node);
-      if (children.length === 0)
-        return null;
       const isGroup = node.type === "GROUP";
       const layout = !isGroup ? extractLayout(node) : { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
-      const visual = !isGroup ? extractVisual(node) : EMPTY_VISUAL;
+      const visual = !isGroup ? yield extractVisual(node) : EMPTY_VISUAL;
+      if (children.length === 0 && !visual.bgColor && !visual.borderColor)
+        return null;
       return { isLayout: true, id: node.id, name: node.name, layout, visual, children };
     });
   }
@@ -1490,7 +1540,7 @@ ${darkLines}
         id: frame.id,
         name: frame.name,
         layout: extractLayout(frame),
-        visual: extractVisual(frame),
+        visual: yield extractVisual(frame),
         children
       };
     });
@@ -1500,6 +1550,7 @@ ${darkLines}
     "src/lib/frame-scanner.ts"() {
       "use strict";
       init_component_map();
+      init_transform();
       EMPTY_VISUAL = { bgColor: null, radius: 0, shadow: false, opacity: 1, borderColor: null };
     }
   });
@@ -1560,17 +1611,20 @@ ${darkLines}
   function gridColsClass(cols) {
     return cols >= 1 && cols <= 12 ? `grid-cols-${cols}` : cols > 0 ? `grid-cols-[repeat(${cols},minmax(0,1fr))]` : "";
   }
+  function colorClass(prefix, value) {
+    return value.startsWith("#") ? `${prefix}-[${value}]` : `${prefix}-${value}`;
+  }
   function visualClasses(v) {
     var _a;
     const parts = [];
     if (v.bgColor)
-      parts.push(`bg-[${v.bgColor}]`);
+      parts.push(colorClass("bg", v.bgColor));
     if (v.radius > 0)
       parts.push(v.radius >= 9999 ? "rounded-full" : (_a = RADIUS_MAP[v.radius]) != null ? _a : `rounded-[${v.radius}px]`);
     if (v.shadow)
       parts.push("shadow-md");
     if (v.borderColor)
-      parts.push(`border border-[${v.borderColor}]`);
+      parts.push(`border ${colorClass("border", v.borderColor)}`);
     if (v.opacity < 1)
       parts.push(`opacity-[${Math.round(v.opacity * 100)}%]`);
     return parts.join(" ");
@@ -1584,7 +1638,7 @@ ${darkLines}
     if (uppercase)
       parts.push("uppercase");
     if (color)
-      parts.push(`text-[${color}]`);
+      parts.push(colorClass("text", color));
     return parts.join(" ");
   }
   function layoutClasses(layout) {

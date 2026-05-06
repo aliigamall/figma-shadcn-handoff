@@ -6,6 +6,7 @@
  */
 
 import { lookupComponent } from "./component-map";
+import { toCssVarName } from "./transform";
 
 export interface ScannedProp {
   shadcnProp: string;
@@ -101,19 +102,43 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${h(r)}${h(g)}${h(b)}`;
 }
 
-function solidColor(fills: readonly Paint[] | typeof figma.mixed): string | null {
-  if (!Array.isArray(fills)) return null;
-  const s = (fills as Paint[]).find(f => f.type === "SOLID" && f.visible !== false) as SolidPaint | undefined;
+/**
+ * Resolve a color property on a node to either a Tailwind token name (e.g. "color-blue-950")
+ * or a raw hex string (e.g. "#172554") as a fallback.
+ * Returns null when no visible solid color is found.
+ */
+async function resolveColorToken(
+  node: BaseNode,
+  property: "fills" | "strokes"
+): Promise<string | null> {
+  const boundVars = (node as any).boundVariables as Record<string, any> | undefined;
+  const bound = boundVars?.[property];
+  if (bound) {
+    const entry = Array.isArray(bound) ? bound[0] : bound;
+    if (entry?.type === "VARIABLE_ALIAS") {
+      const fetched = await figma.variables.getVariableByIdAsync(entry.id);
+      if (fetched) {
+        const col = await figma.variables.getVariableCollectionByIdAsync(fetched.variableCollectionId);
+        if (col) {
+          return toCssVarName(col.name, fetched.name).replace(/^--/, "");
+        }
+      }
+    }
+  }
+
+  const paints = (node as any)[property] as readonly Paint[] | undefined;
+  if (!Array.isArray(paints)) return null;
+  const s = (paints as Paint[]).find(f => f.type === "SOLID" && f.visible !== false) as SolidPaint | undefined;
   return s ? rgbToHex(s.color.r, s.color.g, s.color.b) : null;
 }
 
-function extractVisual(node: BaseNode & { fills?: readonly Paint[] | typeof figma.mixed; strokes?: readonly Paint[] | typeof figma.mixed; effects?: readonly Effect[]; cornerRadius?: number | typeof figma.mixed; opacity?: number }): Visual {
+async function extractVisual(node: BaseNode & { effects?: readonly Effect[]; cornerRadius?: number | typeof figma.mixed; opacity?: number }): Promise<Visual> {
   return {
-    bgColor:     solidColor(node.fills ?? []),
+    bgColor:     await resolveColorToken(node, "fills"),
     radius:      typeof node.cornerRadius === "number" ? node.cornerRadius : 0,
     shadow:      (node.effects ?? []).some(e => e.type === "DROP_SHADOW" && e.visible !== false),
     opacity:     node.opacity ?? 1,
-    borderColor: solidColor(node.strokes ?? []),
+    borderColor: await resolveColorToken(node, "strokes"),
   };
 }
 
@@ -386,7 +411,7 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
     : null;
 
     const uppercase = text.textCase === "UPPER";
-    const color = solidColor(Array.isArray(text.fills) ? text.fills : []);
+    const color = await resolveColorToken(node, "fills");
 
     return { isText: true, id: node.id, content, tag, bold, align, color, uppercase };
   }
@@ -402,6 +427,15 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
         width:  Math.round(node.width),
         height: Math.round(node.height),
       };
+    }
+  }
+
+  // Rectangle / Ellipse with a solid fill or variable binding → emit as a styled div
+  if (node.type === "RECTANGLE" || node.type === "ELLIPSE") {
+    const visual = await extractVisual(node as RectangleNode);
+    if (visual.bgColor || visual.borderColor) {
+      const EMPTY_LAYOUT: Layout = { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
+      return { isLayout: true, id: node.id, name: node.name, layout: EMPTY_LAYOUT, visual, children: [] };
     }
   }
 
@@ -431,13 +465,14 @@ export async function scanNode(node: SceneNode): Promise<ScannedTree | null> {
 
 async function scanFrameNode(node: FrameNode | GroupNode | ComponentNode): Promise<ScannedFrame | null> {
   const children = await scanChildren(node);
-  if (children.length === 0) return null;
-
   const isGroup = node.type === "GROUP";
   const layout: Layout = !isGroup
     ? extractLayout(node as FrameNode)
     : { direction: "none", gap: 0, rowGap: 0, columns: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, wrap: false };
-  const visual: Visual = !isGroup ? extractVisual(node) : EMPTY_VISUAL;
+  const visual: Visual = !isGroup ? await extractVisual(node) : EMPTY_VISUAL;
+
+  // Keep childless frames only when they carry visible styling (color swatch, spacer, etc.)
+  if (children.length === 0 && !visual.bgColor && !visual.borderColor) return null;
 
   return { isLayout: true, id: node.id, name: node.name, layout, visual, children };
 }
@@ -459,7 +494,7 @@ export async function scanFrame(frame: FrameNode): Promise<ScannedFrame> {
     id:       frame.id,
     name:     frame.name,
     layout:   extractLayout(frame),
-    visual:   extractVisual(frame),
+    visual:   await extractVisual(frame),
     children,
   };
 }

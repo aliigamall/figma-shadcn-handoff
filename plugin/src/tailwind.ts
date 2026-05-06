@@ -25,23 +25,47 @@ function radiusClass(val: number): string {
   return s === "" ? "rounded" : `rounded-${s}`;
 }
 
-function resolveColorClass(
+async function resolveColorClass(
   node: SceneNode,
   property: "fills" | "strokes",
   prefix: "bg" | "text" | "border",
   variables: Record<string, FigmaVariable>,
   collections: Record<string, FigmaVariableCollection>
-): string | null {
+): Promise<string | null> {
   // Prefer variable binding (exact token reference)
   const boundVars = (node as any).boundVariables as Record<string, any> | undefined;
   const bound = boundVars?.[property];
   if (bound) {
     const entry = Array.isArray(bound) ? bound[0] : bound;
     if (entry?.type === "VARIABLE_ALIAS") {
-      const v = variables[entry.id];
-      const col = v && collections[v.variableCollectionId];
+      let v: FigmaVariable | undefined = variables[entry.id];
+      let col: FigmaVariableCollection | undefined = v ? collections[v.variableCollectionId] : undefined;
+
+      // Library variables are absent from the local map — fetch them directly
+      if (!v) {
+        const fetched = await figma.variables.getVariableByIdAsync(entry.id);
+        if (fetched) {
+          v = {
+            id: fetched.id,
+            name: fetched.name,
+            resolvedType: fetched.resolvedType as FigmaVariable["resolvedType"],
+            variableCollectionId: fetched.variableCollectionId,
+            valuesByMode: fetched.valuesByMode as FigmaVariable["valuesByMode"],
+          };
+          const fetchedCol = await figma.variables.getVariableCollectionByIdAsync(fetched.variableCollectionId);
+          if (fetchedCol) {
+            col = {
+              id: fetchedCol.id,
+              name: fetchedCol.name,
+              modes: fetchedCol.modes,
+              defaultModeId: fetchedCol.defaultModeId,
+              variableIds: fetchedCol.variableIds,
+            };
+          }
+        }
+      }
+
       if (v && col) {
-        // --primary → bg-primary, --color-red-500 → bg-color-red-500
         const cssVar = toCssVarName(col.name, v.name);
         const tokenName = cssVar.replace(/^--/, "");
         return `${prefix}-${tokenName}`;
@@ -82,7 +106,7 @@ export async function getTailwindClasses(
 
   // ── Text node ────────────────────────────────────────────────────────────
   if (node.type === "TEXT") {
-    const color = resolveColorClass(node, "fills", "text", variables, collections);
+    const color = await resolveColorClass(node, "fills", "text", variables, collections);
     if (color) cls.push(color);
 
     if (typeof node.fontSize === "number") {
@@ -114,14 +138,14 @@ export async function getTailwindClasses(
   }
 
   // ── Frame / component / instance / rectangle ─────────────────────────────
-  const bg = resolveColorClass(node, "fills", "bg", variables, collections);
+  const bg = await resolveColorClass(node, "fills", "bg", variables, collections);
   if (bg) cls.push(bg);
 
   // Border
   const strokes = (node as any).strokes as Paint[] | undefined;
   if (Array.isArray(strokes) && strokes.length > 0) {
     cls.push("border");
-    const borderColor = resolveColorClass(node, "strokes", "border", variables, collections);
+    const borderColor = await resolveColorClass(node, "strokes", "border", variables, collections);
     if (borderColor) cls.push(borderColor);
     const sw = (node as any).strokeWeight;
     if (typeof sw === "number" && sw !== 1) cls.push(`border-[${sw}px]`);
